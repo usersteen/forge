@@ -18,17 +18,19 @@ See FORGE_PLAN.md for full architecture and spec.
 ## Build Status
 
 ### Session 1: Scaffold + Terminal Foundation
-- [ ] Rust installed on machine
-- [ ] Tauri v2 project scaffolded with React + Vite
-- [ ] PTY management (spawn, write, resize, kill) in Rust
-- [ ] xterm.js terminal component connected to PTY
-- [ ] Single working terminal (type commands, see output)
+- [x] Rust installed on machine
+- [x] Tauri v2 project scaffolded with React + Vite
+- [x] PTY management (spawn, write, resize, kill) in Rust
+- [x] xterm.js terminal component connected to PTY
+- [x] Single working terminal (type commands, see output)
 
 ### Session 2: Tabs and Groups
-- [ ] Zustand store for groups/tabs
-- [ ] Sidebar with project groups
-- [ ] Tab bar with terminal tabs
-- [ ] Tab switching (keep xterm.js instances alive)
+- [x] Zustand store for groups/tabs
+- [x] Sidebar with project groups
+- [x] Tab bar with terminal tabs
+- [x] Tab switching (keep xterm.js instances alive)
+- [x] Keyboard shortcuts (Ctrl+Tab/Shift+Tab, Ctrl+PageUp/Down)
+- [x] Status bar, inline rename (double-click)
 
 ### Session 3: Status Detection + Notifications
 - [ ] Parse OSC title-change sequences from PTY output to detect Claude Code status
@@ -49,6 +51,11 @@ See FORGE_PLAN.md for full architecture and spec.
 
 ## Dev Commands
 ```bash
-npm run tauri dev    # Run in dev mode
+dev.bat              # Run in dev mode (sets up MSVC env)
 npm run tauri build  # Build .exe
 ```
+
+## Build Notes
+- Must run via `dev.bat` (or VS Developer Command Prompt) because Git Bash's `link` shadows MSVC's `link.exe`
+- Windows SDK 10.0.18362.0 required for linking
+- Vite 6 (not 7) due to Node 20 compatibility

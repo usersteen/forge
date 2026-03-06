@@ -6,8 +6,9 @@ import "@xterm/xterm/css/xterm.css";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
-export default function Terminal({ tabId }) {
+export default function Terminal({ tabId, isActive }) {
   const containerRef = useRef(null);
+  const fitAddonRef = useRef(null);
 
   useEffect(() => {
     const term = new XTerm({
@@ -23,6 +24,7 @@ export default function Terminal({ tabId }) {
     });
 
     const fitAddon = new FitAddon();
+    fitAddonRef.current = fitAddon;
     term.loadAddon(fitAddon);
 
     term.open(containerRef.current);
@@ -34,7 +36,6 @@ export default function Terminal({ tabId }) {
       console.warn("WebGL addon failed, falling back to default renderer", e);
     }
 
-    // Register listener BEFORE spawning PTY to avoid missing early output
     const unlistenPromise = listen(`pty-output-${tabId}`, (event) => {
       term.write(event.payload);
     });
@@ -51,7 +52,6 @@ export default function Terminal({ tabId }) {
       invoke("resize_pty", { tabId, rows, cols });
     });
 
-    // Use ResizeObserver for container-level resize detection (works with layout changes, not just window)
     let resizeTimeout;
     const resizeObserver = new ResizeObserver(() => {
       clearTimeout(resizeTimeout);
@@ -65,8 +65,19 @@ export default function Terminal({ tabId }) {
       unlistenPromise.then((unlisten) => unlisten());
       invoke("kill_pty", { tabId });
       term.dispose();
+      fitAddonRef.current = null;
     };
   }, [tabId]);
+
+  // Refit when becoming active (handles stale dimensions from hidden state)
+  useEffect(() => {
+    if (isActive && fitAddonRef.current) {
+      const id = requestAnimationFrame(() => {
+        fitAddonRef.current?.fit();
+      });
+      return () => cancelAnimationFrame(id);
+    }
+  }, [isActive]);
 
   return (
     <div

@@ -71,7 +71,6 @@ pub fn spawn_pty(
                 Err(_) => break,
             }
         }
-        // Clean up dead session when reader exits (shell process ended)
         if let Ok(mut sessions) = sessions.lock() {
             sessions.remove(&cleanup_tab_id);
         }

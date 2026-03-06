@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 function makeTab(name = "Terminal 1") {
-  return { id: crypto.randomUUID(), name, status: "idle" };
+  return { id: crypto.randomUUID(), name, status: "idle", statusTitle: "", type: "claude", manuallyRenamed: false };
 }
 
 function makeGroup(name = "Project 1") {
@@ -76,7 +76,7 @@ const useForgeStore = create((set, get) => ({
         g.id === groupId
           ? {
               ...g,
-              tabs: g.tabs.map((t) => (t.id === tabId ? { ...t, name } : t)),
+              tabs: g.tabs.map((t) => (t.id === tabId ? { ...t, name, manuallyRenamed: true } : t)),
             }
           : g
       ),
@@ -87,6 +87,52 @@ const useForgeStore = create((set, get) => ({
         g.id === groupId ? { ...g, activeTabId: tabId } : g
       ),
     })),
+
+  // Status actions
+  setTabStatus: (tabId, status, title) =>
+    set((s) => ({
+      groups: s.groups.map((g) =>
+        g.tabs.some((t) => t.id === tabId)
+          ? { ...g, tabs: g.tabs.map((t) => (t.id === tabId ? { ...t, status, statusTitle: title } : t)) }
+          : g
+      ),
+    })),
+
+  setTabAutoName: (tabId, name) =>
+    set((s) => ({
+      groups: s.groups.map((g) =>
+        g.tabs.some((t) => t.id === tabId)
+          ? { ...g, tabs: g.tabs.map((t) => (t.id === tabId && !t.manuallyRenamed ? { ...t, name } : t)) }
+          : g
+      ),
+    })),
+
+  setTabType: (tabId, type) =>
+    set((s) => ({
+      groups: s.groups.map((g) =>
+        g.tabs.some((t) => t.id === tabId)
+          ? { ...g, tabs: g.tabs.map((t) => (t.id === tabId ? { ...t, type } : t)) }
+          : g
+      ),
+    })),
+
+  // Reorder actions
+  reorderTabs: (groupId, orderedTabIds) =>
+    set((s) => ({
+      groups: s.groups.map((g) => {
+        if (g.id !== groupId) return g;
+        const tabMap = new Map(g.tabs.map((t) => [t.id, t]));
+        const reordered = orderedTabIds.map((id) => tabMap.get(id)).filter(Boolean);
+        return { ...g, tabs: reordered };
+      }),
+    })),
+
+  reorderGroups: (orderedGroupIds) =>
+    set((s) => {
+      const groupMap = new Map(s.groups.map((g) => [g.id, g]));
+      const reordered = orderedGroupIds.map((id) => groupMap.get(id)).filter(Boolean);
+      return { groups: reordered };
+    }),
 
   // Navigation
   nextTab: () =>

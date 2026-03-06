@@ -32,11 +32,16 @@ See FORGE_PLAN.md for full architecture and spec.
 - [x] Keyboard shortcuts (Ctrl+Tab/Shift+Tab, Ctrl+PageUp/Down)
 - [x] Status bar, inline rename (double-click)
 
-### Session 3: Status Detection + Notifications
-- [ ] Parse OSC title-change sequences from PTY output to detect Claude Code status
-- [ ] Two states only: "working" (Claude active) and "waiting" (needs user input)
-- [ ] Visual status indicators in UI
-- [ ] Native notifications + sound on "waiting" transition
+### Session 3: Status Detection + Notifications + Tab Types + DnD
+- [x] Parse OSC title-change sequences from PTY output to detect Claude Code status
+- [x] Two states: "working" (Claude active) and "waiting" (needs user input)
+- [x] Visual status indicators (colored dots, glowing pulse for "waiting")
+- [x] Native notifications + synthesized sound on "waiting" transition
+- [x] Server tab type (right-click context menu to toggle, blue/red dots)
+- [x] PTY exit event from Rust for server tab "exited" detection
+- [x] Drag-to-reorder tabs and sidebar groups via @dnd-kit
+- [x] Status summary in sidebar (waiting/working counts, priority border color)
+- [x] Removed status bar (redundant with sidebar/tab indicators)
 
 ### Session 4: Persistence + Polish + Build
 - [ ] Config save/load

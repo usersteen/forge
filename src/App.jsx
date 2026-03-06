@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import Sidebar from "./components/Sidebar";
 import TabBar from "./components/TabBar";
 import TerminalArea from "./components/TerminalArea";
-import StatusBar from "./components/StatusBar";
+
 import useForgeStore from "./store/useForgeStore";
 
 function App() {
@@ -10,6 +10,12 @@ function App() {
   const prevTab = useForgeStore((s) => s.prevTab);
   const nextGroup = useForgeStore((s) => s.nextGroup);
   const prevGroup = useForgeStore((s) => s.prevGroup);
+
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -40,7 +46,7 @@ function App() {
       <div className="main-panel">
         <TabBar />
         <TerminalArea />
-        <StatusBar />
+
       </div>
     </div>
   );

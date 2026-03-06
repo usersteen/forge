@@ -32,7 +32,7 @@ function SortableTab({ tab, isActive, onSelect, onDoubleClick, onContextMenu, ed
       style={style}
       {...attributes}
       {...listeners}
-      className={`tab ${isActive ? "tab-active" : ""}`}
+      className={`tab ${isActive ? "tab-active" : ""} ${tab.status === "waiting" ? "tab-waiting" : tab.status === "working" ? "tab-working" : ""}`}
       onClick={onSelect}
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}

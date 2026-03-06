@@ -9,7 +9,7 @@
   --accent-idle: #64748b;
   --accent-active: #60a5fa;
   --accent-working: #f59e0b;
-  --accent-waiting: #22c55e;
+  --accent-waiting: #ef4444;
   --accent-server: #3b82f6;
 
 }
@@ -95,6 +95,19 @@ html, body, #root {
 .sidebar-logo {
   height: 16px;
   width: auto;
+}
+
+.sidebar-logo-waiting {
+  animation: logo-glow 1.5s ease-in-out infinite;
+}
+
+@keyframes logo-glow {
+  0%, 100% {
+    filter: drop-shadow(0 0 2px var(--accent-waiting));
+  }
+  50% {
+    filter: drop-shadow(0 0 4px var(--accent-waiting)) drop-shadow(0 0 8px var(--accent-waiting));
+  }
 }
 
 .sidebar-groups {
@@ -279,6 +292,14 @@ html, body, #root {
   color: var(--text-primary);
   border-bottom-color: var(--accent-active);
   background: var(--bg-active);
+}
+
+.tab-waiting {
+  border-bottom-color: var(--accent-waiting) !important;
+}
+
+.tab-working {
+  border-bottom-color: var(--accent-working) !important;
 }
 
 .tab-name {

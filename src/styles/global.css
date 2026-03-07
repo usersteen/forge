@@ -8,8 +8,8 @@
   --text-muted: #475569;
   --accent-idle: #64748b;
   --accent-active: #60a5fa;
-  --accent-working: #f59e0b;
-  --accent-waiting: #ef4444;
+  --accent-working: #ef4444;
+  --accent-waiting: #f59e0b;
   --accent-server: #3b82f6;
 
   --heat-0: #475569;
@@ -59,25 +59,45 @@ html, body, #root {
   background: var(--accent-idle);
 }
 
-.status-dot.working, .sidebar-dot.working {
+.status-dot.working {
   background: var(--accent-working);
+  animation: glow-working 1.5s ease-in-out infinite;
+}
+
+.sidebar-dot.working {
+  background: var(--accent-working);
+  animation: glow-working-small 1.5s ease-in-out infinite;
 }
 
 .status-dot.waiting {
   background: var(--accent-waiting);
-  animation: glow 1.5s ease-in-out infinite;
+  box-shadow: 0 0 4px var(--accent-waiting);
+}
+
+.sidebar-dot.waiting {
+  background: var(--accent-waiting);
+  box-shadow: 0 0 3px var(--accent-waiting);
 }
 
 .status-dot.server-running, .sidebar-dot.server-running {
   background: var(--accent-server);
 }
 
-@keyframes glow {
+@keyframes glow-working {
   0%, 100% {
-    box-shadow: 0 0 4px var(--accent-waiting), 0 0 8px var(--accent-waiting);
+    box-shadow: 0 0 4px var(--accent-working), 0 0 8px var(--accent-working);
   }
   50% {
-    box-shadow: 0 0 8px var(--accent-waiting), 0 0 16px var(--accent-waiting), 0 0 24px var(--accent-waiting);
+    box-shadow: 0 0 8px var(--accent-working), 0 0 16px var(--accent-working), 0 0 24px var(--accent-working);
+  }
+}
+
+@keyframes glow-working-small {
+  0%, 100% {
+    box-shadow: 0 0 3px var(--accent-working);
+  }
+  50% {
+    box-shadow: 0 0 6px var(--accent-working), 0 0 12px var(--accent-working);
   }
 }
 
@@ -201,20 +221,6 @@ html, body, #root {
   border-radius: 50%;
   background: var(--accent-idle);
   flex-shrink: 0;
-}
-
-.sidebar-dot.waiting {
-  background: var(--accent-waiting);
-  animation: glow-small 1.5s ease-in-out infinite;
-}
-
-@keyframes glow-small {
-  0%, 100% {
-    box-shadow: 0 0 3px var(--accent-waiting);
-  }
-  50% {
-    box-shadow: 0 0 6px var(--accent-waiting), 0 0 12px var(--accent-waiting);
-  }
 }
 
 .sidebar-group-close {

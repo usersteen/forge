@@ -6,9 +6,8 @@ export default function useHeatTick() {
     const id = setInterval(() => {
       const s = useForgeStore.getState();
       if (s.streak <= 0 || !s.lastStreakTime) return;
-      const anyWaiting = s.groups.some((g) => g.tabs.some((t) => t.waitingSince));
-      if (anyWaiting) return;
-      if (Date.now() - s.lastStreakTime > s.cooldownTimer) {
+      const timeout = s.streak === 1 ? s.cooldownTimer * 5 : s.cooldownTimer;
+      if (Date.now() - s.lastStreakTime > timeout) {
         s.decrementStreak();
       }
     }, 1000);

@@ -1,13 +1,13 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Forge",
-  "version": "0.5.0",
+  "version": "0.5.2",
   "identifier": "com.forge.terminal",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5199",
     "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "npm run build"
+    "beforeBuildCommand": "node scripts/bump-version.cjs && npm run build"
   },
   "app": {
     "windows": [

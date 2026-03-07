@@ -9,7 +9,7 @@ export default function useHeatTick() {
       // Don't cool down while any tab is actively working
       const anyWorking = s.groups.some((g) => g.tabs.some((t) => t.status === "working"));
       if (anyWorking) return;
-      const timeout = s.streak === 1 ? s.cooldownTimer * 5 : s.cooldownTimer;
+      const timeout = s.cooldownTimer;
       if (Date.now() - s.lastStreakTime > timeout) {
         s.decrementStreak();
       }

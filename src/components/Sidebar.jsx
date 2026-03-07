@@ -116,11 +116,9 @@ export default function Sidebar() {
   const streak = useForgeStore((s) => s.streak);
   const [showSettings, setShowSettings] = useState(false);
 
-  const allTabs = groups.flatMap((g) => g.tabs);
-  const hasWaiting = allTabs.some((t) => t.status === "waiting");
   const heatStage = getHeatStage(streak);
-  const logoFill = heatStage > 0 ? HEAT_COLORS[heatStage] : hasWaiting ? HEAT_COLORS[1] : "#475569";
-  const logoClass = `sidebar-logo${heatStage > 0 ? ` sidebar-logo-heat-${heatStage}` : hasWaiting ? " sidebar-logo-heat-1" : ""}`;
+  const logoFill = heatStage > 0 ? HEAT_COLORS[heatStage] : "#475569";
+  const logoClass = `sidebar-logo${heatStage > 0 ? ` sidebar-logo-heat-${heatStage}` : ""}`;
 
   const headerClasses = [
     "sidebar-header",

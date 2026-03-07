@@ -4,6 +4,7 @@ mod pty;
 use pty::PtyState;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -26,6 +27,12 @@ pub fn run() {
                         .level(log::LevelFilter::Info)
                         .build(),
                 )?;
+            }
+            // Set window icon for taskbar display
+            if let Some(window) = app.get_webview_window("main") {
+                let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png"))
+                    .expect("failed to load icon");
+                let _ = window.set_icon(icon);
             }
             Ok(())
         })

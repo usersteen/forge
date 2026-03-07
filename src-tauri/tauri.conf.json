@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Forge",
-  "version": "0.5.2",
+  "version": "0.5.6",
   "identifier": "com.forge.terminal",
   "build": {
     "frontendDist": "../dist",
@@ -17,8 +17,7 @@
         "height": 900,
         "resizable": true,
         "fullscreen": false,
-        "decorations": false,
-        "icon": "icons/icon.png"
+        "decorations": false
       }
     ],
     "security": {

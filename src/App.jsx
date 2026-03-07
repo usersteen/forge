@@ -4,12 +4,15 @@ import TabBar from "./components/TabBar";
 import TerminalArea from "./components/TerminalArea";
 
 import useForgeStore from "./store/useForgeStore";
+import useHeatTick from "./hooks/useHeatTick";
 
 function App() {
   const nextTab = useForgeStore((s) => s.nextTab);
   const prevTab = useForgeStore((s) => s.prevTab);
   const nextGroup = useForgeStore((s) => s.nextGroup);
   const prevGroup = useForgeStore((s) => s.prevGroup);
+
+  useHeatTick();
 
   useEffect(() => {
     if ("Notification" in window && Notification.permission === "default") {

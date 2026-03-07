@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 function makeTab(name = "Terminal 1") {
-  return { id: crypto.randomUUID(), name, status: "idle", statusTitle: "", type: "claude", manuallyRenamed: false };
+  return { id: crypto.randomUUID(), name, status: "idle", statusTitle: "", type: "claude", manuallyRenamed: false, waitingSince: null };
 }
 
 function makeGroup(name = "Project 1") {
@@ -14,6 +14,12 @@ const defaultGroup = makeGroup();
 const useForgeStore = create((set, get) => ({
   groups: [defaultGroup],
   activeGroupId: defaultGroup.id,
+
+  // Heat / streak state
+  streak: 0,
+  lastStreakTime: null,
+  streakTimer: 10000,
+  cooldownTimer: 30000,
 
   // Group actions
   addGroup: (name) => {
@@ -93,7 +99,11 @@ const useForgeStore = create((set, get) => ({
     set((s) => ({
       groups: s.groups.map((g) =>
         g.tabs.some((t) => t.id === tabId)
-          ? { ...g, tabs: g.tabs.map((t) => (t.id === tabId ? { ...t, status, statusTitle: title } : t)) }
+          ? { ...g, tabs: g.tabs.map((t) => {
+              if (t.id !== tabId) return t;
+              const waitingSince = status === "waiting" ? (t.waitingSince ?? Date.now()) : null;
+              return { ...t, status, statusTitle: title, waitingSince };
+            }) }
           : g
       ),
     })),
@@ -177,6 +187,24 @@ const useForgeStore = create((set, get) => ({
       const prev = (idx - 1 + s.groups.length) % s.groups.length;
       return { activeGroupId: s.groups[prev].id };
     }),
+  // Heat / streak actions
+  recordResponse: (tabId) => {
+    const s = get();
+    let waitingSince = null;
+    for (const g of s.groups) {
+      const tab = g.tabs.find((t) => t.id === tabId);
+      if (tab) { waitingSince = tab.waitingSince; break; }
+    }
+    if (!waitingSince) return;
+    const fast = Date.now() - waitingSince <= s.streakTimer;
+    set({ streak: fast ? s.streak + 1 : 0, lastStreakTime: Date.now() });
+  },
+
+  decrementStreak: () =>
+    set((s) => ({ streak: Math.max(0, s.streak - 1), lastStreakTime: Date.now() })),
+
+  setStreakTimer: (ms) => set({ streakTimer: ms }),
+  setCooldownTimer: (ms) => set({ cooldownTimer: ms }),
 }));
 
 export default useForgeStore;

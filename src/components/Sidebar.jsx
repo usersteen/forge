@@ -1,10 +1,28 @@
-import { useCallback } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import useForgeStore from "../store/useForgeStore";
 import useInlineRename from "../hooks/useInlineRename";
+import Settings from "./Settings";
+
+const HEAT_COLORS = ["#475569", "#f59e0b", "#ea580c", "#dc2626", "#ef4444", "#b91c1c"];
+
+const EMBER_CONFIGS = {
+  3: [30, 65],
+  4: [20, 40, 60, 80],
+  5: [10, 25, 40, 55, 70, 85],
+};
+
+function getHeatStage(streak) {
+  if (streak >= 10) return 5;
+  if (streak >= 8) return 4;
+  if (streak >= 5) return 3;
+  if (streak >= 3) return 2;
+  if (streak >= 1) return 1;
+  return 0;
+}
 
 const appWindow = getCurrentWindow();
 
@@ -95,15 +113,37 @@ export default function Sidebar() {
     reorderGroups(newIds);
   };
 
+  const streak = useForgeStore((s) => s.streak);
+  const [showSettings, setShowSettings] = useState(false);
+
   const allTabs = groups.flatMap((g) => g.tabs);
   const hasWaiting = allTabs.some((t) => t.status === "waiting");
-  const hasWorking = allTabs.some((t) => t.status === "working");
-  const logoFill = hasWaiting ? "var(--accent-waiting)" : hasWorking ? "var(--accent-working)" : "#475569";
-  const logoClass = `sidebar-logo${hasWaiting ? " sidebar-logo-waiting" : ""}`;
+  const heatStage = getHeatStage(streak);
+  const logoFill = heatStage > 0 ? HEAT_COLORS[heatStage] : hasWaiting ? HEAT_COLORS[1] : "#475569";
+  const logoClass = `sidebar-logo${heatStage > 0 ? ` sidebar-logo-heat-${heatStage}` : hasWaiting ? " sidebar-logo-heat-1" : ""}`;
+
+  const headerClasses = [
+    "sidebar-header",
+    heatStage > 0 && `forge-heat-${heatStage}`,
+    heatStage >= 5 && "forge-shake",
+  ].filter(Boolean).join(" ");
+
+  const embers = useMemo(() => {
+    const positions = EMBER_CONFIGS[heatStage] || (heatStage > 5 ? EMBER_CONFIGS[5] : null);
+    if (!positions) return null;
+    return positions.map((left, i) => (
+      <span
+        key={i}
+        className="forge-ember"
+        style={{ left: `${left}%`, animationDelay: `${(i * 0.4) % 2}s` }}
+      />
+    ));
+  }, [heatStage]);
 
   return (
     <div className="sidebar">
-      <div className="sidebar-header" onMouseDown={() => appWindow.startDragging()}>
+      <div className={headerClasses} onMouseDown={() => appWindow.startDragging()}>
+        {embers}
         <svg className={logoClass} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 60.7">
           <path fill={logoFill} d="M51.59.91v2.73c0,.5-.41.91-.91.91h-27.01c-.5,0-.91.41-.91.91v21.7c0,.5.41.91.91.91h10.32c.5,0,.91-.41.91-.91v-.46c0-.5.41-.91.91-.91h1.21c.5,0,.91.41.91.91v7.28c0,.5-.41.91-.91.91h-1.21c-.5,0-.91-.41-.91-.91v-.45c0-.5-.41-.91-.91-.91h-10.32c-.5,0-.91.41-.91.91v21.7c0,.5.41.91.91.91h7.28c.5,0,.91.41.91.91v2.73c0,.5-.41.91-.91.91H.91c-.5,0-.91-.41-.91-.91v-2.73c0-.5.41-.91.91-.91h4.55c2.01,0,3.64-1.63,3.64-3.64V8.19c0-2.01-1.63-3.64-3.64-3.64H.91c-.5,0-.91-.41-.91-.91V.91C0,.41.41,0,.91,0h49.77c.5,0,.91.41.91.91Z"/>
           <path fill={logoFill} d="M109.68,4.55c.5,0,.91.41.91.91v49.77c0,.5-.41.91-.91.91-2.01,0-3.64,1.63-3.64,3.64,0,.5-.41.91-.91.91h-31.56c-.5,0-.91-.41-.91-.91,0-2.01-1.63-3.64-3.64-3.64-.5,0-.91-.41-.91-.91V5.46c0-.5.41-.91.91-.91,2.01,0,3.64-1.63,3.64-3.64,0-.5.41-.91.91-.91h31.56c.5,0,.91.41.91.91,0,2.01,1.63,3.64,3.64,3.64ZM96.93,55.23V5.46c0-.5-.41-.91-.91-.91h-13.35c-.5,0-.91.41-.91.91v49.77c0,.5.41.91.91.91h13.35c.5,0,.91-.41.91-.91Z"/>
@@ -133,6 +173,13 @@ export default function Sidebar() {
       <button className="sidebar-add" onClick={() => addGroup()}>
         + New Project
       </button>
+      <button className="sidebar-settings" onClick={() => setShowSettings(true)}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+      {showSettings && <Settings onClose={() => setShowSettings(false)} />}
     </div>
   );
 }

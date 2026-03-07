@@ -99,6 +99,9 @@ export default function Terminal({ tabId, isActive, tabType }) {
       if (status === prevStatus) return;
       prevStatusRef.current = status;
       console.log(`[Forge] status: ${prevStatus} → ${status}`);
+      if (prevStatus === "waiting" && status !== "waiting") {
+        store.recordResponse(tabId);
+      }
       store.setTabStatus(tabId, status, title);
 
       // Notify on transition to "waiting" for non-active tabs

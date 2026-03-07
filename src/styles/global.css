@@ -12,6 +12,12 @@
   --accent-waiting: #ef4444;
   --accent-server: #3b82f6;
 
+  --heat-0: #475569;
+  --heat-1: #f59e0b;
+  --heat-2: #ea580c;
+  --heat-3: #dc2626;
+  --heat-4: #ef4444;
+  --heat-5: #b91c1c;
 }
 
 * {
@@ -89,26 +95,46 @@ html, body, #root {
   padding: 14px 16px;
   display: flex;
   align-items: center;
-  border-bottom: 1px solid var(--border);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-left: none;
+  position: relative;
+  overflow: visible;
+  transition: background 0.5s ease-out, border-color 0.5s ease-out;
+}
+
+/* Heat-stage background glow on sidebar header */
+.sidebar-header.forge-heat-1 { background: rgba(245, 158, 11, 0.06); }
+.sidebar-header.forge-heat-2 { background: rgba(234, 88, 12, 0.10); }
+.sidebar-header.forge-heat-3 { background: rgba(220, 38, 38, 0.13); }
+.sidebar-header.forge-heat-4 { background: rgba(239, 68, 68, 0.16); }
+.sidebar-header.forge-heat-5 { background: rgba(185, 28, 28, 0.20); }
+
+/* Bottom border glow at heat 3+ */
+.sidebar-header.forge-heat-3,
+.sidebar-header.forge-heat-4 {
+  border-bottom-color: transparent;
+  box-shadow: 0 1px 4px rgba(220, 38, 38, 0.3), 0 1px 0 rgba(220, 38, 38, 0.5);
+}
+
+/* Full border glow at heat 5 */
+.sidebar-header.forge-heat-5 {
+  border: 1px solid #b91c1c !important;
+  box-shadow: 0 0 6px rgba(185, 28, 28, 0.4);
 }
 
 .sidebar-logo {
   height: 16px;
   width: auto;
+  transition: filter 0.5s ease-out;
 }
 
-.sidebar-logo-waiting {
-  animation: logo-glow 1.5s ease-in-out infinite;
-}
-
-@keyframes logo-glow {
-  0%, 100% {
-    filter: drop-shadow(0 0 2px var(--accent-waiting));
-  }
-  50% {
-    filter: drop-shadow(0 0 4px var(--accent-waiting)) drop-shadow(0 0 8px var(--accent-waiting));
-  }
-}
+/* Heat stage static glow */
+.sidebar-logo-heat-1 { filter: drop-shadow(0 0 3px var(--heat-1)); }
+.sidebar-logo-heat-2 { filter: drop-shadow(0 0 5px var(--heat-2)); }
+.sidebar-logo-heat-3 { filter: drop-shadow(0 0 6px var(--heat-3)) drop-shadow(0 0 3px var(--heat-3)); }
+.sidebar-logo-heat-4 { filter: drop-shadow(0 0 8px var(--heat-4)) drop-shadow(0 0 4px var(--heat-4)); }
+.sidebar-logo-heat-5 { filter: drop-shadow(0 0 6px var(--heat-5)) drop-shadow(0 0 12px var(--heat-5)); }
 
 .sidebar-groups {
   flex: 1;
@@ -425,4 +451,192 @@ html, body, #root {
   inset: 0;
 }
 
+/* Screen shake on sidebar header (heat stage 5) */
+.sidebar-header.forge-shake {
+  animation: screen-shake 0.3s ease-in-out infinite;
+}
 
+@keyframes screen-shake {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(0.5px, -0.5px); }
+  75% { transform: translate(-0.5px, 0.5px); }
+}
+
+/* Ember particles (span-based) */
+.forge-ember {
+  position: absolute;
+  bottom: 0;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--heat-4);
+  pointer-events: none;
+  animation: ember-rise 2s ease-out infinite;
+}
+
+@keyframes ember-rise {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.3);
+  }
+}
+
+/* Settings gear button */
+.sidebar-settings {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  padding: 8px 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.1s;
+}
+
+.sidebar-settings:hover {
+  color: var(--text-primary);
+}
+
+/* Settings panel */
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-panel {
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  min-width: 320px;
+  max-width: 400px;
+}
+
+.settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.settings-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.settings-close:hover {
+  color: var(--text-primary);
+}
+
+.settings-row {
+  margin-bottom: 16px;
+}
+
+.settings-row label {
+  display: block;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.settings-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-slider-row input[type="range"] {
+  flex: 1;
+  accent-color: var(--accent-active);
+}
+
+.settings-value {
+  color: var(--text-primary);
+  font-size: 13px;
+  min-width: 36px;
+  text-align: right;
+}
+
+.settings-hint {
+  display: block;
+  color: var(--text-muted);
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+/* Settings extras */
+.settings-divider {
+  border-top: 1px solid var(--border);
+  margin: 12px 0;
+}
+
+.settings-debug-toggle {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+  width: 100%;
+}
+
+.settings-debug-toggle:hover {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+/* Heat debug inline */
+.heat-debug-inline {
+  margin-top: 10px;
+}
+
+.heat-debug-streak {
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.heat-debug-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.heat-debug-buttons button {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 4px 2px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  font-family: inherit;
+}
+
+.heat-debug-buttons button:hover {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}

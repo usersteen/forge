@@ -23,7 +23,7 @@ function playNotificationSound() {
   osc.stop(ctx.currentTime + 0.3);
 }
 
-export default function Terminal({ tabId, isActive, tabType }) {
+export default function Terminal({ tabId, isActive, tabType, cwd }) {
   const containerRef = useRef(null);
   const fitAddonRef = useRef(null);
   const termRef = useRef(null);
@@ -61,7 +61,7 @@ export default function Terminal({ tabId, isActive, tabType }) {
       term.write(event.payload);
     });
 
-    invoke("spawn_pty", { tabId, rows: term.rows, cols: term.cols })
+    invoke("spawn_pty", { tabId, rows: term.rows, cols: term.cols, cwd: cwd || null })
       .then(() => { ptyReady.current = true; })
       .catch((err) => console.error("Failed to spawn PTY:", err));
 

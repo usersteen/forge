@@ -44,10 +44,12 @@ See FORGE_PLAN.md for full architecture and spec.
 - [x] Removed status bar (redundant with sidebar/tab indicators)
 
 ### Session 4: Persistence + Polish + Build
-- [ ] Config save/load
-- [ ] Keyboard shortcuts
-- [ ] Window position/size persistence
-- [ ] Build to .exe
+- [x] Config save/load (`~/.forge/config.json` via Rust commands)
+- [x] Keyboard shortcuts (Ctrl+1-9 jump to tab N)
+- [x] Window position/size persistence (restore on startup)
+- [x] CWD persistence per tab (passed to PTY spawn)
+- [x] Debounced auto-save + save on close
+- [x] Build to .exe
 
 ## Key Decisions
 - Windows-only, built for personal use

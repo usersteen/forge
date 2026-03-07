@@ -23,6 +23,7 @@ pub fn spawn_pty(
     tab_id: String,
     rows: u16,
     cols: u16,
+    cwd: Option<String>,
 ) -> Result<(), String> {
     let pty_system = native_pty_system();
 
@@ -37,6 +38,9 @@ pub fn spawn_pty(
 
     let mut cmd = CommandBuilder::new("powershell.exe");
     cmd.arg("-NoLogo");
+    if let Some(dir) = cwd {
+        cmd.cwd(dir);
+    }
 
     let child = pair.slave.spawn_command(cmd).map_err(|e| e.to_string())?;
     drop(pair.slave);

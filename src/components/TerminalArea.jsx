@@ -26,7 +26,7 @@ export default function TerminalArea() {
               zIndex: isActive ? 1 : 0,
             }}
           >
-            <Terminal tabId={tab.id} isActive={isActive} tabType={tab.type} />
+            <Terminal tabId={tab.id} isActive={isActive} tabType={tab.type} cwd={tab.cwd} />
           </div>
         );
       })}

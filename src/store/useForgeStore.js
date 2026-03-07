@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
-function makeTab(name = "Terminal 1") {
-  return { id: crypto.randomUUID(), name, status: "idle", statusTitle: "", type: "claude", manuallyRenamed: false, waitingSince: null };
+function makeTab(name = "Terminal 1", cwd = null) {
+  return { id: crypto.randomUUID(), name, cwd, status: "idle", statusTitle: "", type: "claude", manuallyRenamed: false, waitingSince: null };
 }
 
 function makeGroup(name = "Project 1") {
@@ -9,17 +9,47 @@ function makeGroup(name = "Project 1") {
   return { id: crypto.randomUUID(), name, tabs: [tab], activeTabId: tab.id };
 }
 
-const defaultGroup = makeGroup();
-
 const useForgeStore = create((set, get) => ({
-  groups: [defaultGroup],
-  activeGroupId: defaultGroup.id,
+  groups: [],
+  activeGroupId: null,
+  configLoaded: false,
 
   // Heat / streak state
   streak: 0,
   lastStreakTime: null,
   streakTimer: 10000,
   cooldownTimer: 30000,
+
+  // Init actions
+  initFresh: () => {
+    const group = makeGroup();
+    set({ groups: [group], activeGroupId: group.id, configLoaded: true });
+  },
+
+  loadFromConfig: (config) => {
+    const groups = config.groups.map((g) => ({
+      id: g.id,
+      name: g.name,
+      activeTabId: g.active_tab_id,
+      tabs: g.tabs.map((t) => ({
+        id: t.id,
+        name: t.name,
+        cwd: t.cwd || null,
+        status: "idle",
+        statusTitle: "",
+        type: t.tab_type || "claude",
+        manuallyRenamed: t.manually_renamed || false,
+        waitingSince: null,
+      })),
+    }));
+    set({
+      groups,
+      activeGroupId: config.active_group_id || (groups[0]?.id ?? null),
+      streakTimer: config.settings?.streak_timer ?? 10000,
+      cooldownTimer: config.settings?.cooldown_timer ?? 30000,
+      configLoaded: true,
+    });
+  },
 
   // Group actions
   addGroup: (name) => {
@@ -91,6 +121,15 @@ const useForgeStore = create((set, get) => ({
     set((s) => ({
       groups: s.groups.map((g) =>
         g.id === groupId ? { ...g, activeTabId: tabId } : g
+      ),
+    })),
+
+  setTabCwd: (tabId, cwd) =>
+    set((s) => ({
+      groups: s.groups.map((g) =>
+        g.tabs.some((t) => t.id === tabId)
+          ? { ...g, tabs: g.tabs.map((t) => (t.id === tabId ? { ...t, cwd } : t)) }
+          : g
       ),
     })),
 
@@ -173,6 +212,18 @@ const useForgeStore = create((set, get) => ({
         ),
       };
     }),
+  gotoTab: (index) =>
+    set((s) => {
+      const group = s.groups.find((g) => g.id === s.activeGroupId);
+      if (!group || index >= group.tabs.length) return s;
+      return {
+        groups: s.groups.map((g) =>
+          g.id === s.activeGroupId
+            ? { ...g, activeTabId: g.tabs[index].id }
+            : g
+        ),
+      };
+    }),
   nextGroup: () =>
     set((s) => {
       if (s.groups.length < 2) return s;
@@ -206,5 +257,28 @@ const useForgeStore = create((set, get) => ({
   setStreakTimer: (ms) => set({ streakTimer: ms }),
   setCooldownTimer: (ms) => set({ cooldownTimer: ms }),
 }));
+
+export function storeToConfig(state, windowGeometry) {
+  return {
+    groups: state.groups.map((g) => ({
+      id: g.id,
+      name: g.name,
+      active_tab_id: g.activeTabId,
+      tabs: g.tabs.map((t) => ({
+        id: t.id,
+        name: t.name,
+        cwd: t.cwd || null,
+        tab_type: t.type,
+        manually_renamed: t.manuallyRenamed,
+      })),
+    })),
+    active_group_id: state.activeGroupId,
+    window: windowGeometry,
+    settings: {
+      streak_timer: state.streakTimer,
+      cooldown_timer: state.cooldownTimer,
+    },
+  };
+}
 
 export default useForgeStore;

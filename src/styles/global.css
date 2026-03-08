@@ -171,7 +171,7 @@ html, body, #root {
   justify-content: space-between;
   padding: 10px 16px;
   cursor: pointer;
-  border-left: 3px solid transparent;
+  border-right: 3px solid transparent;
   transition: background 0.1s;
   touch-action: none;
 }
@@ -182,7 +182,7 @@ html, body, #root {
 
 .sidebar-group-active {
   background: var(--bg-active);
-  border-left-color: var(--accent-active);
+  border-right-color: var(--accent-active);
 }
 
 .sidebar-group-active .sidebar-group-name {
@@ -190,11 +190,11 @@ html, body, #root {
 }
 
 .sidebar-group-waiting {
-  border-left-color: var(--accent-waiting) !important;
+  border-right-color: var(--accent-waiting) !important;
 }
 
 .sidebar-group-working {
-  border-left-color: var(--accent-working) !important;
+  border-right-color: var(--accent-working) !important;
 }
 
 .sidebar-group-info {

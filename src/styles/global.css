@@ -148,9 +148,16 @@ html, body, #root {
 }
 
 .sidebar-logo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  transition: filter 0.5s ease-out;
+}
+
+.sidebar-logo svg {
   height: 16px;
   width: auto;
-  transition: filter 0.5s ease-out;
 }
 
 /* Heat stage static glow */

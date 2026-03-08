@@ -1,19 +1,19 @@
-import { useState } from "react";
 import useForgeStore from "../store/useForgeStore";
-
-const HEAT_LABELS = ["Cold", "Stage 1", "Stage 2", "Stage 3", "Stage 4", "Stage 5"];
 
 export default function Settings({ onClose }) {
   const streakTimer = useForgeStore((s) => s.streakTimer);
   const cooldownTimer = useForgeStore((s) => s.cooldownTimer);
   const setStreakTimer = useForgeStore((s) => s.setStreakTimer);
   const setCooldownTimer = useForgeStore((s) => s.setCooldownTimer);
-  const streak = useForgeStore((s) => s.streak);
-  const [showDebug, setShowDebug] = useState(false);
+  const setDemoHeatStage = useForgeStore((s) => s.setDemoHeatStage);
 
-  const setStreak = (val) => {
-    useForgeStore.setState({ streak: val, lastStreakTime: Date.now() });
-  };
+  const streakMin = Math.floor(streakTimer / 60000);
+  const streakSec = Math.floor((streakTimer % 60000) / 1000);
+  const cooldownMin = Math.floor(cooldownTimer / 60000);
+  const cooldownSec = Math.floor((cooldownTimer % 60000) / 1000);
+
+  const updateStreak = (min, sec) => setStreakTimer((min * 60 + sec) * 1000);
+  const updateCooldown = (min, sec) => setCooldownTimer((min * 60 + sec) * 1000);
 
   return (
     <div className="settings-overlay" onClick={onClose}>
@@ -22,62 +22,64 @@ export default function Settings({ onClose }) {
           <span>Settings</span>
           <button className="settings-close" onClick={onClose}>x</button>
         </div>
+        <p className="settings-description">
+          Respond to Claude fast to heat up the forge. Keep responding to hold your heat. Stop responding and the forge cools down.
+        </p>
         <div className="settings-row">
           <label>Streak Timer</label>
-          <div className="settings-slider-row">
+          <div className="settings-time-row">
             <input
-              type="range"
-              min={5000}
-              max={30000}
-              step={1000}
-              value={streakTimer}
-              onChange={(e) => setStreakTimer(Number(e.target.value))}
+              type="number"
+              className="settings-time-input"
+              min={0}
+              max={9}
+              value={streakMin}
+              onChange={(e) => updateStreak(Math.max(0, Number(e.target.value)), streakSec)}
             />
-            <span className="settings-value">{streakTimer / 1000}s</span>
+            <span className="settings-time-label">min</span>
+            <input
+              type="number"
+              className="settings-time-input"
+              min={0}
+              max={59}
+              value={streakSec}
+              onChange={(e) => updateStreak(streakMin, Math.min(59, Math.max(0, Number(e.target.value))))}
+            />
+            <span className="settings-time-label">sec</span>
           </div>
-          <span className="settings-hint">How fast you must respond to keep the streak</span>
+          <span className="settings-hint">Respond within this time to gain heat</span>
         </div>
         <div className="settings-row">
           <label>Cooldown Timer</label>
-          <div className="settings-slider-row">
+          <div className="settings-time-row">
             <input
-              type="range"
-              min={10000}
-              max={120000}
-              step={5000}
-              value={cooldownTimer}
-              onChange={(e) => setCooldownTimer(Number(e.target.value))}
+              type="number"
+              className="settings-time-input"
+              min={0}
+              max={9}
+              value={cooldownMin}
+              onChange={(e) => updateCooldown(Math.max(0, Number(e.target.value)), cooldownSec)}
             />
-            <span className="settings-value">{cooldownTimer / 1000}s</span>
+            <span className="settings-time-label">min</span>
+            <input
+              type="number"
+              className="settings-time-input"
+              min={0}
+              max={59}
+              value={cooldownSec}
+              onChange={(e) => updateCooldown(cooldownMin, Math.min(59, Math.max(0, Number(e.target.value))))}
+            />
+            <span className="settings-time-label">sec</span>
           </div>
-          <span className="settings-hint">Interval between each heat stage drop during cooldown</span>
+          <span className="settings-hint">After this long idle, lose one heat level</span>
         </div>
         <div className="settings-divider" />
-        <button className="settings-debug-toggle" onClick={() => setShowDebug((v) => !v)}>
-          {showDebug ? "Hide" : "Show"} Heat Debug
+        <button
+          className="settings-demo-btn"
+          onClick={() => { setDemoHeatStage(0); onClose(); }}
+        >
+          Demo Mode
         </button>
-        {showDebug && (
-          <div className="heat-debug-inline">
-            <div className="heat-debug-streak">
-              Streak: <strong>{streak}</strong>
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={12}
-              value={streak}
-              onChange={(e) => setStreak(Number(e.target.value))}
-              style={{ width: "100%" }}
-            />
-            <div className="heat-debug-buttons">
-              {[0, 1, 3, 5, 8, 10].map((val, i) => (
-                <button key={val} onClick={() => setStreak(val)}>
-                  {HEAT_LABELS[i]}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

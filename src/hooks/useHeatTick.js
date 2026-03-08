@@ -5,6 +5,7 @@ export default function useHeatTick() {
   useEffect(() => {
     const id = setInterval(() => {
       const s = useForgeStore.getState();
+      if (s.demoHeatStage !== null) return;
       if (s.streak <= 0 || !s.lastStreakTime) return;
       // Don't cool down while any tab is actively working
       const anyWorking = s.groups.some((g) => g.tabs.some((t) => t.status === "working"));

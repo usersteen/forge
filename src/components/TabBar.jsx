@@ -1,13 +1,19 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, horizontalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import useForgeStore from "../store/useForgeStore";
 import useInlineRename from "../hooks/useInlineRename";
+import useEffectiveHeatStage from "../hooks/useEffectiveHeatStage";
 import TabContextMenu from "./TabContextMenu";
 
 const appWindow = getCurrentWindow();
+
+const TABBAR_EMBER_CONFIGS = {
+  4: [8, 22, 36, 50, 64, 78, 92],
+  5: [4, 14, 24, 34, 44, 54, 64, 74, 84, 94],
+};
 
 function getStatusDotClass(tab) {
   if (tab.type === "server") {
@@ -91,6 +97,23 @@ export default function TabBar() {
     reorderTabs(activeGroupId, newIds);
   };
 
+  const heatStage = useEffectiveHeatStage();
+
+  const tabBarEmbers = useMemo(() => {
+    const positions = TABBAR_EMBER_CONFIGS[heatStage];
+    if (!positions) return null;
+    return positions.map((left, i) => (
+      <span
+        key={`tb-${i}`}
+        className="forge-ember-wide"
+        style={{
+          left: `${left}%`,
+          animationDelay: `${(i * 0.3) % 2}s`,
+        }}
+      />
+    ));
+  }, [heatStage]);
+
   if (!activeGroup) return null;
 
   return (
@@ -129,6 +152,7 @@ export default function TabBar() {
         <button className="window-control window-maximize" onClick={() => appWindow.toggleMaximize()} aria-label="Maximize">&#x25A1;</button>
         <button className="window-control window-close" onClick={() => appWindow.close()} aria-label="Close">&#x2715;</button>
       </div>
+      {tabBarEmbers}
       {contextMenu && (
         <TabContextMenu
           x={contextMenu.x}

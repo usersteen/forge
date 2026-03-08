@@ -5,24 +5,26 @@ import { CSS } from "@dnd-kit/utilities";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import useForgeStore from "../store/useForgeStore";
 import useInlineRename from "../hooks/useInlineRename";
+import useEffectiveHeatStage from "../hooks/useEffectiveHeatStage";
+import { HEAT_COLORS } from "../utils/heat";
 import Settings from "./Settings";
 
-const HEAT_COLORS = ["#475569", "#f59e0b", "#ea580c", "#dc2626", "#ef4444", "#b91c1c"];
-
 const EMBER_CONFIGS = {
-  3: [30, 65],
-  4: [20, 40, 60, 80],
-  5: [10, 25, 40, 55, 70, 85],
+  3: [20, 45, 70],
+  4: [10, 25, 40, 55, 70, 85],
+  5: [5, 15, 28, 40, 52, 64, 76, 88],
 };
 
-function getHeatStage(streak) {
-  if (streak >= 10) return 5;
-  if (streak >= 8) return 4;
-  if (streak >= 5) return 3;
-  if (streak >= 3) return 2;
-  if (streak >= 1) return 1;
-  return 0;
-}
+// [left%, animationDelay] — hand-picked to avoid diagonal patterns
+const SIDEBAR_EMBER_CONFIGS = {
+  4: [
+    [12, 1.2], [42, 7.5], [70, 3.8], [28, 10.1], [85, 5.6], [55, 0.4],
+  ],
+  5: [
+    [8, 2.1], [35, 9.3], [62, 0.7], [18, 6.4], [78, 13.2], [48, 4.0],
+    [90, 8.8], [25, 11.5], [58, 1.9],
+  ],
+};
 
 const appWindow = getCurrentWindow();
 
@@ -113,17 +115,15 @@ export default function Sidebar() {
     reorderGroups(newIds);
   };
 
-  const streak = useForgeStore((s) => s.streak);
   const [showSettings, setShowSettings] = useState(false);
 
-  const heatStage = getHeatStage(streak);
-  const logoFill = heatStage > 0 ? HEAT_COLORS[heatStage] : "#475569";
+  const heatStage = useEffectiveHeatStage();
+  const logoFill = HEAT_COLORS[heatStage];
   const logoClass = `sidebar-logo${heatStage > 0 ? ` sidebar-logo-heat-${heatStage}` : ""}`;
 
   const headerClasses = [
     "sidebar-header",
     heatStage > 0 && `forge-heat-${heatStage}`,
-    heatStage >= 5 && "forge-shake",
   ].filter(Boolean).join(" ");
 
   const embers = useMemo(() => {
@@ -134,6 +134,21 @@ export default function Sidebar() {
         key={i}
         className="forge-ember"
         style={{ left: `${left}%`, animationDelay: `${(i * 0.4) % 2}s` }}
+      />
+    ));
+  }, [heatStage]);
+
+  const sidebarEmbers = useMemo(() => {
+    const positions = SIDEBAR_EMBER_CONFIGS[heatStage];
+    if (!positions) return null;
+    return positions.map(([left, delay], i) => (
+      <span
+        key={`sb-${i}`}
+        className="forge-ember-tall"
+        style={{
+          left: `${left}%`,
+          animationDelay: `${delay}s`,
+        }}
       />
     ));
   }, [heatStage]);
@@ -177,6 +192,7 @@ export default function Sidebar() {
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
         </svg>
       </button>
+      {sidebarEmbers}
       {showSettings && <Settings onClose={() => setShowSettings(false)} />}
     </div>
   );

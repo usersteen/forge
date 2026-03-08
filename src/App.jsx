@@ -2,9 +2,11 @@ import { useEffect, useRef } from "react";
 import Sidebar from "./components/Sidebar";
 import TabBar from "./components/TabBar";
 import TerminalArea from "./components/TerminalArea";
+import DemoStrip from "./components/DemoStrip";
 
 import useForgeStore, { storeToConfig } from "./store/useForgeStore";
 import useHeatTick from "./hooks/useHeatTick";
+import useEffectiveHeatStage from "./hooks/useEffectiveHeatStage";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { LogicalSize, LogicalPosition } from "@tauri-apps/api/dpi";
@@ -16,6 +18,8 @@ function App() {
   const prevGroup = useForgeStore((s) => s.prevGroup);
   const gotoTab = useForgeStore((s) => s.gotoTab);
   const configLoaded = useForgeStore((s) => s.configLoaded);
+  const exitDemoMode = useForgeStore((s) => s.exitDemoMode);
+  const effectiveHeat = useEffectiveHeatStage();
 
   useHeatTick();
 
@@ -132,6 +136,11 @@ function App() {
         e.preventDefault();
         prevGroup();
       }
+      if (e.key === "Escape" && useForgeStore.getState().demoHeatStage !== null) {
+        e.preventDefault();
+        exitDemoMode();
+        return;
+      }
       // Ctrl+1 through Ctrl+9 to jump to tab N
       if (e.ctrlKey && e.key >= "1" && e.key <= "9") {
         e.preventDefault();
@@ -140,20 +149,20 @@ function App() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [nextTab, prevTab, nextGroup, prevGroup, gotoTab]);
+  }, [nextTab, prevTab, nextGroup, prevGroup, gotoTab, exitDemoMode]);
 
   if (!configLoaded) {
     return null;
   }
 
   return (
-    <div className="app-layout">
+    <div className="app-layout" data-heat={effectiveHeat}>
       <Sidebar />
       <div className="main-panel">
         <TabBar />
         <TerminalArea />
-
       </div>
+      <DemoStrip />
     </div>
   );
 }

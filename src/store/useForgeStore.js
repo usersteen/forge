@@ -20,6 +20,9 @@ const useForgeStore = create((set, get) => ({
   streakTimer: 10000,
   cooldownTimer: 30000,
 
+  // Demo mode (ephemeral, not persisted)
+  demoHeatStage: null,
+
   // Init actions
   initFresh: () => {
     const group = makeGroup();
@@ -248,7 +251,7 @@ const useForgeStore = create((set, get) => ({
     }
     if (!waitingSince) return;
     const fast = Date.now() - waitingSince <= s.streakTimer;
-    set({ streak: fast ? s.streak + 1 : 0, lastStreakTime: Date.now() });
+    set({ streak: fast ? s.streak + 1 : s.streak, lastStreakTime: Date.now() });
   },
 
   decrementStreak: () =>
@@ -256,6 +259,10 @@ const useForgeStore = create((set, get) => ({
 
   setStreakTimer: (ms) => set({ streakTimer: ms }),
   setCooldownTimer: (ms) => set({ cooldownTimer: ms }),
+
+  // Demo mode actions
+  setDemoHeatStage: (stage) => set({ demoHeatStage: stage }),
+  exitDemoMode: () => set({ demoHeatStage: null }),
 }));
 
 export function storeToConfig(state, windowGeometry) {

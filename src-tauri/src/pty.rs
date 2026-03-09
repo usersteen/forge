@@ -121,16 +121,6 @@ pub fn resize_pty(
 }
 
 #[tauri::command]
-pub fn write_paste_buffer(content: String) -> Result<String, String> {
-    let home = std::env::var("USERPROFILE").map_err(|e| e.to_string())?;
-    let dir = std::path::Path::new(&home).join(".forge");
-    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    let path = dir.join("paste-buffer.md");
-    std::fs::write(&path, &content).map_err(|e| e.to_string())?;
-    Ok(path.to_string_lossy().to_string())
-}
-
-#[tauri::command]
 pub fn kill_pty(state: State<'_, PtyState>, tab_id: String) -> Result<(), String> {
     let mut sessions = state.sessions.lock().map_err(|e| e.to_string())?;
     if let Some(mut session) = sessions.remove(&tab_id) {

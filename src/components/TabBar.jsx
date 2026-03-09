@@ -7,6 +7,7 @@ import useForgeStore from "../store/useForgeStore";
 import useInlineRename from "../hooks/useInlineRename";
 import useEffectiveHeatStage from "../hooks/useEffectiveHeatStage";
 import TabContextMenu from "./TabContextMenu";
+import LayeredWisps from "./effects/LayeredWisps";
 
 const appWindow = getCurrentWindow();
 
@@ -153,6 +154,7 @@ export default function TabBar() {
         <button className="window-control window-close" onClick={() => appWindow.close()} aria-label="Close">&#x2715;</button>
       </div>
       {tabBarEmbers}
+      {heatStage >= 5 && <LayeredWisps variant="tabbar" />}
       {contextMenu && (
         <TabContextMenu
           x={contextMenu.x}

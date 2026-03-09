@@ -196,11 +196,11 @@ html, body, #root {
   color: var(--text-primary);
 }
 
-.sidebar-group-waiting {
+.sidebar-group-active.sidebar-group-waiting {
   border-right-color: var(--accent-waiting) !important;
 }
 
-.sidebar-group-working {
+.sidebar-group-active.sidebar-group-working {
   border-right-color: var(--accent-working) !important;
 }
 

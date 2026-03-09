@@ -65,6 +65,46 @@ export default function Terminal({ tabId, isActive, tabType, cwd }) {
       .then(() => { ptyReady.current = true; })
       .catch((err) => console.error("Failed to spawn PTY:", err));
 
+    // Handle Ctrl+Enter (linebreak) and Ctrl+V (paste) manually
+    term.attachCustomKeyEventHandler((e) => {
+      if (e.type !== "keydown") return true;
+
+      // Ctrl+Enter: send newline for multi-line input in Claude Code
+      if (e.key === "Enter" && e.ctrlKey) {
+        if (ptyReady.current) {
+          invoke("write_pty", { tabId, data: "\n" });
+        }
+        return false;
+      }
+
+      // Ctrl+Shift+V: save clipboard to paste-buffer file
+      if ((e.key === "V" || e.key === "v") && e.ctrlKey && e.shiftKey && !e.altKey) {
+        navigator.clipboard.readText().then(async (text) => {
+          if (!text || !ptyReady.current) return;
+          const path = await invoke("write_paste_buffer", { content: text });
+          invoke("write_pty", { tabId, data: `I've pasted content to ${path} — please read it\n` });
+        }).catch((err) => {
+          console.warn("Paste buffer failed:", err);
+        });
+        return false;
+      }
+
+      // Ctrl+V: read clipboard and paste with bracketed paste mode
+      if (e.key === "v" && e.ctrlKey && !e.shiftKey && !e.altKey) {
+        navigator.clipboard.readText().then((text) => {
+          if (!text || !ptyReady.current) return;
+          const wrapped = `\x1b[200~${text}\x1b[201~`;
+          invoke("write_pty", { tabId, data: wrapped })
+            .catch((err) => console.error("Paste write failed:", err));
+        }).catch((err) => {
+          console.warn("Clipboard read failed:", err);
+        });
+        return false;
+      }
+
+      return true;
+    });
+
     term.onData((data) => {
       if (ptyReady.current) {
         invoke("write_pty", { tabId, data });

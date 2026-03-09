@@ -1,4 +1,5 @@
 node_modules/
 dist/
 target/
+.cargo/
 OPEN_SOURCE_PLAN.md

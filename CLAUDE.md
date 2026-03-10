@@ -59,10 +59,12 @@ See FORGE_PLAN.md for full architecture and spec.
 ## Dev Commands
 ```bash
 dev.bat              # Run in dev mode (sets up MSVC env)
-npm run tauri build  # Build .exe
+npx tauri build      # Build .exe (run from Git Bash, no vcvarsall needed)
 ```
 
 ## Build Notes
-- Must run via `dev.bat` (or VS Developer Command Prompt) because Git Bash's `link` shadows MSVC's `link.exe`
-- Windows SDK 10.0.18362.0 required for linking
+- Build with `npx tauri build` directly from Git Bash — no need for `dev.bat` or Developer Command Prompt
+- Build target is at `~/.forge-build/target` (moved outside OneDrive to prevent Explorer freezing)
+- Installers output to `~/.forge-build/target/release/bundle/nsis/` and `.../msi/`
+- `beforeBuildCommand` in tauri.conf.json auto-bumps version via `scripts/bump-version.cjs`
 - Vite 6 (not 7) due to Node 20 compatibility

@@ -71,6 +71,33 @@ export default function Terminal({ tabId, isActive, tabType, cwd }) {
       }
     });
 
+    // Custom key handlers for Ctrl+V paste and Ctrl+Enter line break
+    term.attachCustomKeyEventHandler((e) => {
+      if (e.type !== "keydown") return true;
+
+      // Ctrl+V: bracketed paste with double-paste prevention
+      if (e.ctrlKey && !e.shiftKey && e.key === "v") {
+        e.preventDefault(); // Stop browser paste event (prevents double-paste)
+        navigator.clipboard.readText().then((text) => {
+          if (text && ptyReady.current) {
+            const bracketed = `\x1b[200~${text}\x1b[201~`;
+            invoke("write_pty", { tabId, data: bracketed });
+          }
+        });
+        return false;
+      }
+
+      // Ctrl+Enter: send newline
+      if (e.ctrlKey && e.key === "Enter") {
+        if (ptyReady.current) {
+          invoke("write_pty", { tabId, data: "\n" });
+        }
+        return false;
+      }
+
+      return true;
+    });
+
     term.onResize(({ cols, rows }) => {
       invoke("resize_pty", { tabId, rows, cols });
     });

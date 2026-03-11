@@ -1,4 +1,5 @@
 export const HEAT_COLORS = ["#475569", "#f59e0b", "#ea580c", "#dc2626", "#ef4444", "#b91c1c"];
+export const HEAT_LABELS = ["Cold", "Warm", "Hot", "Blazing", "Inferno", "Meltdown"];
 
 export function getHeatStage(streak) {
   if (streak >= 10) return 5;

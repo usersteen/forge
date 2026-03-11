@@ -23,7 +23,7 @@ function playNotificationSound() {
   osc.stop(ctx.currentTime + 0.3);
 }
 
-export default function Terminal({ tabId, isActive, tabType, cwd }) {
+export default function Terminal({ tabId, isActive, cwd }) {
   const containerRef = useRef(null);
   const fitAddonRef = useRef(null);
   const termRef = useRef(null);
@@ -74,6 +74,16 @@ export default function Terminal({ tabId, isActive, tabType, cwd }) {
     // Custom key handlers for Ctrl+V paste and Ctrl+Enter line break
     term.attachCustomKeyEventHandler((e) => {
       if (e.type !== "keydown") return true;
+
+      // Ctrl+C: copy selection to clipboard (if text is selected), otherwise pass through as interrupt
+      if (e.ctrlKey && !e.shiftKey && e.key === "c") {
+        const selection = term.getSelection();
+        if (selection) {
+          navigator.clipboard.writeText(selection);
+          return false;
+        }
+        return true; // No selection — let ^C go to PTY as interrupt
+      }
 
       // Ctrl+V: bracketed paste with double-paste prevention
       if (e.ctrlKey && !e.shiftKey && e.key === "v") {

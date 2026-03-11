@@ -1,6 +1,8 @@
 import useForgeStore from "../store/useForgeStore";
+import useEscapeKey from "../hooks/useEscapeKey";
 
 export default function Settings({ onClose }) {
+  useEscapeKey(onClose);
   const streakTimer = useForgeStore((s) => s.streakTimer);
   const cooldownTimer = useForgeStore((s) => s.cooldownTimer);
   const setStreakTimer = useForgeStore((s) => s.setStreakTimer);
@@ -20,7 +22,7 @@ export default function Settings({ onClose }) {
       <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
         <div className="settings-header">
           <span>Settings</span>
-          <button className="settings-close" onClick={onClose}>x</button>
+          <button className="settings-close" onClick={onClose}>✕</button>
         </div>
         <p className="settings-description">
           Respond to Claude fast to heat up the forge. Keep responding to hold your heat. Stop responding and the forge cools down.

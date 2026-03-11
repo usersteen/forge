@@ -8,7 +8,7 @@ import useInlineRename from "../hooks/useInlineRename";
 import useEffectiveHeatStage from "../hooks/useEffectiveHeatStage";
 import { HEAT_COLORS } from "../utils/heat";
 import Settings from "./Settings";
-import LayeredWisps from "./effects/LayeredWisps";
+import InfoPanel from "./InfoPanel";
 
 const EMBER_CONFIGS = {
   3: [20, 45, 70],
@@ -117,6 +117,9 @@ export default function Sidebar() {
   };
 
   const [showSettings, setShowSettings] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
+  const closeInfo = useCallback(() => setShowInfo(false), []);
+  const closeSettings = useCallback(() => setShowSettings(false), []);
 
   const heatStage = useEffectiveHeatStage();
   const logoFill = HEAT_COLORS[heatStage];
@@ -158,7 +161,7 @@ export default function Sidebar() {
     <div className="sidebar">
       <div className={headerClasses} onMouseDown={() => appWindow.startDragging()}>
         {embers}
-        {heatStage >= 4 && <LayeredWisps variant="header" />}
+
         <div className={`sidebar-logo${logoHeatClass}`}>
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 51.59 60.7">
             <path fill={logoFill} d="M51.59.91v2.73c0,.5-.41.91-.91.91h-27.01c-.5,0-.91.41-.91.91v21.7c0,.5.41.91.91.91h10.32c.5,0,.91-.41.91-.91v-.46c0-.5.41-.91.91-.91h1.21c.5,0,.91.41.91.91v7.28c0,.5-.41.91-.91.91h-1.21c-.5,0-.91-.41-.91-.91v-.45c0-.5-.41-.91-.91-.91h-10.32c-.5,0-.91.41-.91.91v21.7c0,.5.41.91.91.91h7.28c.5,0,.91.41.91.91v2.73c0,.5-.41.91-.91.91H.91c-.5,0-.91-.41-.91-.91v-2.73c0-.5.41-.91.91-.91h4.55c2.01,0,3.64-1.63,3.64-3.64V8.19c0-2.01-1.63-3.64-3.64-3.64H.91c-.5,0-.91-.41-.91-.91V.91C0,.41.41,0,.91,0h49.77c.5,0,.91.41.91.91Z"/>
@@ -198,15 +201,25 @@ export default function Sidebar() {
       <button className="sidebar-add" onClick={() => addGroup()}>
         + New Project
       </button>
-      <button className="sidebar-settings" onClick={() => setShowSettings(true)}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="3"/>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-        </svg>
-      </button>
+      <div className="sidebar-actions">
+        <button className="sidebar-action-btn" onClick={() => setShowInfo(true)}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="16" x2="12" y2="12"/>
+            <line x1="12" y1="8" x2="12.01" y2="8"/>
+          </svg>
+        </button>
+        <button className="sidebar-action-btn" onClick={() => setShowSettings(true)}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </button>
+      </div>
       {sidebarEmbers}
-      {heatStage >= 5 && <LayeredWisps variant="sidebar" />}
-      {showSettings && <Settings onClose={() => setShowSettings(false)} />}
+
+      {showInfo && <InfoPanel onClose={closeInfo} />}
+      {showSettings && <Settings onClose={closeSettings} />}
     </div>
   );
 }

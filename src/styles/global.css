@@ -636,20 +636,28 @@ html, body, #root {
   border-bottom-color: #b91c1c;
 }
 
-/* Settings gear button */
-.sidebar-settings {
+/* Sidebar bottom action buttons */
+.sidebar-actions {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 16px;
+}
+
+.sidebar-action-btn {
   background: none;
   border: none;
   color: var(--text-muted);
-  padding: 8px 16px;
+  padding: 6px 10px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: color 0.1s;
+  border-radius: 4px;
 }
 
-.sidebar-settings:hover {
+.sidebar-action-btn:hover {
   color: var(--text-primary);
 }
 
@@ -780,6 +788,185 @@ html, body, #root {
   color: var(--text-primary);
 }
 
+/* Info panel */
+.info-panel {
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  width: 90vw;
+  min-width: 360px;
+  max-width: 620px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.info-panel .settings-header {
+  flex-shrink: 0;
+}
+
+.info-content {
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.info-content::-webkit-scrollbar { width: 6px; }
+.info-content::-webkit-scrollbar-track { background: transparent; }
+.info-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+.info-content::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18); }
+
+.info-intro {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+.info-content h2 {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 16px 0 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.info-content h2:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.info-content p {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0 0 4px;
+}
+
+.info-content ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 4px;
+}
+
+.info-content li {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+  padding-left: 14px;
+  position: relative;
+}
+
+.info-content li::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: var(--text-muted);
+}
+
+.info-content strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.info-content code {
+  background: rgba(255, 255, 255, 0.06);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.info-content kbd {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-family: inherit;
+  color: var(--text-primary);
+}
+
+.info-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+.info-dot.working {
+  background: var(--accent-working);
+  animation: glow-working-small 1.5s ease-in-out infinite;
+}
+
+.info-dot.waiting {
+  background: var(--accent-waiting);
+  box-shadow: 0 0 4px var(--accent-waiting);
+}
+
+.info-dot.server-running {
+  background: var(--accent-server);
+}
+
+/* Keyboard shortcuts grid */
+.info-shortcuts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 4px;
+}
+
+.info-shortcut-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+/* Heat system visual preview */
+.info-heat-preview {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin: 10px 0 4px;
+}
+
+.info-heat-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.info-heat-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+}
+
+.info-heat-label {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* Version footer */
+.info-version {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
 /* Demo strip */
 .demo-strip {
   position: fixed;
@@ -861,77 +1048,7 @@ html, body, #root {
   margin: 0 4px;
 }
 
-/* ── Steam/Smoke effect overlays ── */
 
-.steam-overlay {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 1;
-  overflow: hidden;
-}
-
-/* ── Wisps: SVG noise distortion layer ── */
-
-.wisp-noise-layer-header  { position: absolute; inset: 0; filter: url(#wisp-noise-header); }
-.wisp-noise-layer-sidebar { position: absolute; inset: 0; filter: url(#wisp-noise-sidebar); }
-.wisp-noise-layer-tabbar  { position: absolute; inset: 0; filter: url(#wisp-noise-tabbar); }
-
-/* Base wisp strand */
-.wisp-strand {
-  position: absolute;
-  bottom: 0;
-  border-radius: 50% / 30%;
-  background: linear-gradient(
-    to top,
-    rgba(200, 170, 140, 0.45),
-    rgba(160, 140, 120, 0.2),
-    transparent
-  );
-  filter: blur(5px);
-}
-
-/* Header wisps — short rise, matches header ember scale */
-.wisp-strand-header {
-  animation: wisp-rise-header 3s ease-out infinite;
-}
-
-@keyframes wisp-rise-header {
-  0%   { opacity: 0; transform: translateY(0) translateX(0) scaleX(1); }
-  10%  { opacity: 0.6; }
-  40%  { transform: translateY(-15px) translateX(3px) scaleX(1.3); }
-  70%  { transform: translateY(-30px) translateX(-2px) scaleX(0.85); }
-  85%  { opacity: 0.25; }
-  100% { opacity: 0; transform: translateY(-45px) translateX(1px) scaleX(1); }
-}
-
-/* Sidebar wisps — tall slow rise, matches sidebar ember scale */
-.wisp-strand-sidebar {
-  animation: wisp-rise-sidebar 8s ease-out infinite;
-}
-
-@keyframes wisp-rise-sidebar {
-  0%   { opacity: 0; transform: translateY(0) translateX(0) scaleX(1); }
-  8%   { opacity: 0.55; }
-  30%  { transform: translateY(-15vh) translateX(5px) scaleX(1.2); }
-  60%  { transform: translateY(-35vh) translateX(-4px) scaleX(0.9); }
-  85%  { opacity: 0.2; }
-  100% { opacity: 0; transform: translateY(-50vh) translateX(2px) scaleX(1); }
-}
-
-/* Tab bar wisps — short rise, wide spread */
-.wisp-strand-tabbar {
-  animation: wisp-rise-tabbar 3s ease-out infinite;
-}
-
-@keyframes wisp-rise-tabbar {
-  0%   { opacity: 0; transform: translateY(0) translateX(0) scaleX(1); }
-  10%  { opacity: 0.5; }
-  40%  { transform: translateY(-12px) translateX(3px) scaleX(1.4); }
-  70%  { transform: translateY(-25px) translateX(-2px) scaleX(0.8); }
-  85%  { opacity: 0.2; }
-  100% { opacity: 0; transform: translateY(-40px) translateX(1px) scaleX(1); }
-}
 
 /* Global heat theme transitions */
 .app-layout,
@@ -940,7 +1057,7 @@ html, body, #root {
 .main-panel,
 .sidebar-group,
 .sidebar-add,
-.sidebar-settings {
+.sidebar-action-btn {
   transition: background-color 0.8s ease, border-color 0.8s ease, color 0.8s ease;
 }
 

@@ -6,24 +6,26 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import useForgeStore from "../store/useForgeStore";
 import useInlineRename from "../hooks/useInlineRename";
 import useEffectiveHeatStage from "../hooks/useEffectiveHeatStage";
-import { HEAT_COLORS } from "../utils/heat";
+import { HEAT_COLORS, getEmberStyle } from "../utils/heat";
 import Settings from "./Settings";
 import InfoPanel from "./InfoPanel";
 
 const EMBER_CONFIGS = {
-  3: [20, 45, 70],
-  4: [10, 25, 40, 55, 70, 85],
-  5: [5, 15, 28, 40, 52, 64, 76, 88],
+  3: [15, 35, 60, 82],
+  4: [5, 15, 25, 36, 47, 58, 68, 78, 88, 95],
+  5: [3, 10, 17, 24, 31, 38, 45, 52, 59, 66, 73, 80, 87, 93, 97, 100],
 };
 
 // [left%, animationDelay] — hand-picked to avoid diagonal patterns
 const SIDEBAR_EMBER_CONFIGS = {
   4: [
     [12, 1.2], [42, 7.5], [70, 3.8], [28, 10.1], [85, 5.6], [55, 0.4],
+    [20, 4.3], [65, 9.0],
   ],
   5: [
     [8, 2.1], [35, 9.3], [62, 0.7], [18, 6.4], [78, 13.2], [48, 4.0],
-    [90, 8.8], [25, 11.5], [58, 1.9],
+    [90, 8.8], [25, 11.5], [58, 1.9], [5, 3.5], [40, 7.2],
+    [72, 0.3], [15, 10.8], [82, 5.1],
   ],
 };
 
@@ -137,7 +139,7 @@ export default function Sidebar() {
       <span
         key={i}
         className="forge-ember"
-        style={{ left: `${left}%`, animationDelay: `${(i * 0.4) % 2}s` }}
+        style={{ left: `${left}%`, animationDelay: `${(i * 0.4) % 2}s`, ...getEmberStyle(i) }}
       />
     ));
   }, [heatStage]);
@@ -149,10 +151,7 @@ export default function Sidebar() {
       <span
         key={`sb-${i}`}
         className="forge-ember-tall"
-        style={{
-          left: `${left}%`,
-          animationDelay: `${delay}s`,
-        }}
+        style={{ left: `${left}%`, animationDelay: `${delay}s`, ...getEmberStyle(i) }}
       />
     ));
   }, [heatStage]);

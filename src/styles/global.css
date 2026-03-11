@@ -483,69 +483,105 @@ html, body, #root {
 .forge-ember {
   position: absolute;
   bottom: 0;
-  width: 3px;
-  height: 3px;
+  width: calc(3px * var(--size, 1));
+  height: calc(3px * var(--size, 1));
   border-radius: 50%;
   background: var(--heat-4);
   pointer-events: none;
-  animation: ember-rise 2s ease-out infinite;
+  animation: ember-rise 1.8s ease-out infinite;
 }
 
 @keyframes ember-rise {
   0% {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0) translateX(0) scale(1);
+    box-shadow: 0 0 calc(6px * var(--size, 1)) calc(2px * var(--size, 1)) rgba(239, 68, 68, 0.4);
   }
-  50% {
-    opacity: 0.8;
+  30% {
+    opacity: 0.9;
+    transform: translateY(calc(var(--ember-rise-h, -20px) * 0.3)) translateX(var(--sway, 0px)) scale(0.85);
+    box-shadow: 0 0 calc(5px * var(--size, 1)) calc(1px * var(--size, 1)) rgba(239, 68, 68, 0.3);
+  }
+  55% {
+    opacity: 0.6;
+    transform: translateY(calc(var(--ember-rise-h, -20px) * 0.55)) translateX(0px) scale(0.65);
+    box-shadow: 0 0 calc(3px * var(--size, 1)) calc(1px * var(--size, 1)) rgba(239, 68, 68, 0.15);
+  }
+  80% {
+    opacity: 0.3;
+    transform: translateY(calc(var(--ember-rise-h, -20px) * 0.8)) translateX(calc(var(--sway, 0px) * -0.6)) scale(0.45);
+    box-shadow: 0 0 calc(2px * var(--size, 1)) 0px rgba(239, 68, 68, 0.05);
   }
   100% {
     opacity: 0;
-    transform: translateY(var(--ember-rise-h, -20px)) scale(0.3);
+    transform: translateY(var(--ember-rise-h, -20px)) translateX(calc(var(--sway, 0px) * 0.3)) scale(0.3);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
   }
 }
 
 @keyframes ember-rise-tall {
-  0% { opacity: 1; transform: translateY(0) scale(1); }
-  50% { opacity: 0.8; }
-  100% { opacity: 0; transform: translateY(var(--ember-rise-h, -80px)) scale(0.3); }
+  0% {
+    opacity: 1;
+    transform: translateY(0) translateX(0) scale(1);
+    box-shadow: 0 0 calc(6px * var(--size, 1)) calc(2px * var(--size, 1)) rgba(239, 68, 68, 0.4);
+  }
+  30% {
+    opacity: 0.9;
+    transform: translateY(calc(var(--ember-rise-h, -80px) * 0.3)) translateX(var(--sway, 0px)) scale(0.85);
+    box-shadow: 0 0 calc(5px * var(--size, 1)) calc(1px * var(--size, 1)) rgba(239, 68, 68, 0.3);
+  }
+  55% {
+    opacity: 0.6;
+    transform: translateY(calc(var(--ember-rise-h, -80px) * 0.55)) translateX(0px) scale(0.65);
+    box-shadow: 0 0 calc(3px * var(--size, 1)) calc(1px * var(--size, 1)) rgba(239, 68, 68, 0.15);
+  }
+  80% {
+    opacity: 0.3;
+    transform: translateY(calc(var(--ember-rise-h, -80px) * 0.8)) translateX(calc(var(--sway, 0px) * -0.6)) scale(0.45);
+    box-shadow: 0 0 calc(2px * var(--size, 1)) 0px rgba(239, 68, 68, 0.05);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(var(--ember-rise-h, -80px)) translateX(calc(var(--sway, 0px) * 0.3)) scale(0.3);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
 }
 
 .forge-ember-tall {
   position: absolute;
   bottom: 0;
-  width: 3px;
-  height: 3px;
+  width: calc(3px * var(--size, 1));
+  height: calc(3px * var(--size, 1));
   border-radius: 50%;
   background: var(--heat-4);
   pointer-events: none;
   animation: ember-rise-tall 2.5s ease-out infinite;
 }
 
-/* Header embers rise higher at heat 4/5 */
-[data-heat="4"] .forge-ember { --ember-rise-h: -35px; animation-duration: 2.8s; }
-[data-heat="5"] .forge-ember { --ember-rise-h: -50px; animation-duration: 3.5s; }
+/* Header embers — always the hottest element */
+[data-heat="4"] .forge-ember { --ember-rise-h: -65px; animation-duration: 2.5s; }
+[data-heat="5"] .forge-ember { --ember-rise-h: -120px; animation-duration: 3.2s; }
 
-/* Tab bar embers rise higher at heat 4/5 */
-[data-heat="4"] .forge-ember-wide { --ember-rise-h: -35px; animation-duration: 2.8s; }
-[data-heat="5"] .forge-ember-wide { --ember-rise-h: -50px; animation-duration: 3.5s; }
+/* Tab bar embers — unified intensity with sidebar, adapted for short/wide shape */
+[data-heat="4"] .forge-ember-wide { --ember-rise-h: -45px; animation-duration: 2.0s; }
+[data-heat="5"] .forge-ember-wide { --ember-rise-h: -80px; animation-duration: 2.5s; }
 
-/* Sidebar tall embers rise high and slow */
+/* Sidebar tall embers — faster at each stage */
 [data-heat="4"] .forge-ember-tall {
-  --ember-rise-h: -40vh;
-  animation-duration: 12s;
+  --ember-rise-h: -55vh;
+  animation-duration: 7s;
 }
 
 [data-heat="5"] .forge-ember-tall {
-  --ember-rise-h: -55vh;
-  animation-duration: 16s;
+  --ember-rise-h: -80vh;
+  animation-duration: 6s;
 }
 
 .forge-ember-wide {
   position: absolute;
   bottom: 0;
-  width: 3px;
-  height: 3px;
+  width: calc(3px * var(--size, 1));
+  height: calc(3px * var(--size, 1));
   border-radius: 50%;
   background: var(--heat-4);
   pointer-events: none;

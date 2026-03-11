@@ -7,13 +7,14 @@ import useForgeStore from "../store/useForgeStore";
 import useInlineRename from "../hooks/useInlineRename";
 import useEffectiveHeatStage from "../hooks/useEffectiveHeatStage";
 import TabContextMenu from "./TabContextMenu";
+import { getEmberStyle } from "../utils/heat";
 
 
 const appWindow = getCurrentWindow();
 
 const TABBAR_EMBER_CONFIGS = {
-  4: [8, 22, 36, 50, 64, 78, 92],
-  5: [4, 14, 24, 34, 44, 54, 64, 74, 84, 94],
+  4: [6, 18, 30, 42, 54, 66, 78, 90],
+  5: [3, 10, 17, 24, 31, 38, 45, 52, 59, 66, 73, 80, 87, 94],
 };
 
 function getStatusDotClass(tab) {
@@ -107,10 +108,7 @@ export default function TabBar() {
       <span
         key={`tb-${i}`}
         className="forge-ember-wide"
-        style={{
-          left: `${left}%`,
-          animationDelay: `${(i * 0.3) % 2}s`,
-        }}
+        style={{ left: `${left}%`, animationDelay: `${(i * 0.3) % 2}s`, ...getEmberStyle(i) }}
       />
     ));
   }, [heatStage]);

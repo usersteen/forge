@@ -41,9 +41,10 @@ function getSidebarDotClass(tab) {
 }
 
 function getGroupPriorityClass(group) {
-  const hasWaiting = group.tabs.some((t) => t.status === "waiting");
+  const interactiveTabs = group.tabs.filter((t) => t.type !== "server");
+  const hasWaiting = interactiveTabs.some((t) => t.status === "waiting");
   if (hasWaiting) return "sidebar-group-waiting";
-  const hasWorking = group.tabs.some((t) => t.status === "working");
+  const hasWorking = interactiveTabs.some((t) => t.status === "working");
   if (hasWorking) return "sidebar-group-working";
   return "";
 }

@@ -25,7 +25,7 @@ export default function Settings({ onClose }) {
           <button className="settings-close" onClick={onClose}>✕</button>
         </div>
         <p className="settings-description">
-          Respond to Claude fast to heat up the forge. Keep responding to hold your heat. Stop responding and the forge cools down.
+          Respond to a waiting AI tab fast to heat up the forge. Keep responding to hold your heat. Stop responding and the forge cools down.
         </p>
         <div className="settings-row">
           <label>Streak Timer</label>

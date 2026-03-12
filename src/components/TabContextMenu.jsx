@@ -26,7 +26,7 @@ export default function TabContextMenu({ x, y, tabType, onSetType, onClose }) {
         </button>
       ) : (
         <button className="tab-context-item" onClick={() => { onSetType("claude"); onClose(); }}>
-          Set as Claude Terminal
+          Set as AI Terminal
         </button>
       )}
     </div>

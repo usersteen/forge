@@ -7,13 +7,10 @@ export default function useHeatTick() {
       const s = useForgeStore.getState();
       if (s.demoHeatStage !== null) return;
       if (s.streak <= 0 || !s.lastStreakTime) return;
-      // Don't cool down while any tab is actively working
-      const anyWorking = s.groups.some((g) => g.tabs.some((t) => t.status === "working"));
+      // Server tabs are long-running by design and should not pin the forge heat.
+      const anyWorking = s.groups.some((g) => g.tabs.some((t) => t.type !== "server" && t.status === "working"));
       if (anyWorking) return;
-      const timeout = s.cooldownTimer;
-      if (Date.now() - s.lastStreakTime > timeout) {
-        s.decrementStreak();
-      }
+      s.coolStreak();
     }, 1000);
     return () => clearInterval(id);
   }, []);

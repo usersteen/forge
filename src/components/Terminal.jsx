@@ -6,8 +6,19 @@ import "@xterm/xterm/css/xterm.css";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import useForgeStore from "../store/useForgeStore";
+import {
+  extractPlainText,
+  isCodexExitCommand,
+  isCodexLaunchCommand,
+  looksLikeCodexSession,
+  looksLikeCodexWaiting,
+  summarizeStatusText,
+} from "../utils/statusDetection";
+
+const CODEX_QUIET_MS = 1800;
 
 let _audioCtx;
+
 function playNotificationSound() {
   if (!_audioCtx) _audioCtx = new AudioContext();
   const ctx = _audioCtx;
@@ -23,14 +34,161 @@ function playNotificationSound() {
   osc.stop(ctx.currentTime + 0.3);
 }
 
+function getTabSnapshot(store, tabId) {
+  for (const group of store.groups) {
+    const tab = group.tabs.find((entry) => entry.id === tabId);
+    if (tab) {
+      return { group, tab };
+    }
+  }
+  return null;
+}
+
 export default function Terminal({ tabId, isActive, cwd }) {
   const containerRef = useRef(null);
   const fitAddonRef = useRef(null);
   const termRef = useRef(null);
   const ptyReady = useRef(false);
   const prevStatusRef = useRef("idle");
+  const codexQuietTimerRef = useRef(null);
+  const inputBufferRef = useRef("");
+  const detectorRef = useRef({
+    provider: "unknown",
+    lastOutputAt: 0,
+  });
 
   useEffect(() => {
+    const clearCodexQuietTimer = () => {
+      if (codexQuietTimerRef.current) {
+        clearTimeout(codexQuietTimerRef.current);
+        codexQuietTimerRef.current = null;
+      }
+    };
+
+    const maybeNotifyWaiting = (store, tab) => {
+      if (tab.type === "server") return;
+      const activeGroup = store.groups.find((group) => group.id === store.activeGroupId);
+      const isCurrentlyActive = activeGroup?.activeTabId === tabId;
+      if (isCurrentlyActive) return;
+
+      playNotificationSound();
+      if (Notification.permission === "granted") {
+        new Notification("Forge", { body: "A terminal needs your attention" });
+      }
+    };
+
+    const applyDetectedStatus = (status, title = "", options = {}) => {
+      const { countResponse = true, notifyWaiting = true } = options;
+      const store = useForgeStore.getState();
+      const snapshot = getTabSnapshot(store, tabId);
+      if (!snapshot) return;
+
+      const { tab } = snapshot;
+      const prevStatus = prevStatusRef.current;
+      const nextTitle = title || tab.statusTitle || "";
+      if (status === prevStatus && nextTitle === tab.statusTitle) return;
+
+      prevStatusRef.current = status;
+      console.log(`[Forge] status: ${prevStatus} -> ${status}`);
+
+      if (countResponse && prevStatus === "waiting" && status !== "waiting" && tab.type !== "server") {
+        store.recordResponse(tabId);
+      }
+
+      store.setTabStatus(tabId, status, nextTitle);
+
+      if (notifyWaiting && status === "waiting") {
+        maybeNotifyWaiting(store, tab);
+      }
+    };
+
+    const scheduleCodexWaiting = (reason = "") => {
+      clearCodexQuietTimer();
+      codexQuietTimerRef.current = setTimeout(() => {
+        const detector = detectorRef.current;
+        if (detector.provider !== "codex") return;
+        if (Date.now() - detector.lastOutputAt < CODEX_QUIET_MS - 50) return;
+        applyDetectedStatus("waiting", reason || "Codex ready");
+      }, CODEX_QUIET_MS);
+    };
+
+    const handleCodexOutput = (payload) => {
+      const plainText = extractPlainText(payload);
+      const summary = summarizeStatusText(plainText);
+      if (!summary) return;
+
+      const detector = detectorRef.current;
+      if (detector.provider === "unknown" && looksLikeCodexSession(plainText)) {
+        detector.provider = "codex";
+        useForgeStore.getState().setTabAutoName(tabId, "Codex");
+      }
+
+      if (detector.provider !== "codex") return;
+
+      detector.lastOutputAt = Date.now();
+      if (looksLikeCodexWaiting(plainText)) {
+        clearCodexQuietTimer();
+        applyDetectedStatus("waiting", summary);
+        return;
+      }
+
+      applyDetectedStatus("working", summary);
+      scheduleCodexWaiting(summary);
+    };
+
+    const updateInputBuffer = (data) => {
+      if (data === "\u007f" || data === "\b") {
+        inputBufferRef.current = inputBufferRef.current.slice(0, -1);
+        return null;
+      }
+
+      if (data.includes("\u0003")) {
+        inputBufferRef.current = "";
+        if (detectorRef.current.provider === "codex") {
+          detectorRef.current.provider = "unknown";
+          clearCodexQuietTimer();
+          applyDetectedStatus("idle", "");
+        }
+        return null;
+      }
+
+      if (!data.includes("\r") && !data.includes("\n")) {
+        inputBufferRef.current += data
+          .replace(/\u001b\[[0-9;]*[A-Za-z]/g, "")
+          .replace(/\u001b/g, "");
+        return null;
+      }
+
+      const command = inputBufferRef.current.trim();
+      inputBufferRef.current = "";
+      return command;
+    };
+
+    const handleSubmittedCommand = (command) => {
+      if (!command) return;
+
+      const detector = detectorRef.current;
+      if (isCodexLaunchCommand(command)) {
+        detector.provider = "codex";
+        clearCodexQuietTimer();
+        useForgeStore.getState().setTabAutoName(tabId, "Codex");
+        applyDetectedStatus("working", summarizeStatusText(command, "Codex"));
+        return;
+      }
+
+      if (detector.provider !== "codex") return;
+
+      if (isCodexExitCommand(command)) {
+        detector.provider = "unknown";
+        clearCodexQuietTimer();
+        applyDetectedStatus("idle", "", { countResponse: false, notifyWaiting: false });
+        return;
+      }
+
+      clearCodexQuietTimer();
+      applyDetectedStatus("working", summarizeStatusText(command, "Codex"));
+    };
+
     const term = new XTerm({
       cursorBlink: true,
       fontFamily: "'IBM Plex Mono', 'Cascadia Code', 'Consolas', monospace",
@@ -53,41 +211,46 @@ export default function Terminal({ tabId, isActive, cwd }) {
 
     try {
       term.loadAddon(new WebglAddon());
-    } catch (e) {
-      console.warn("WebGL addon failed, falling back to default renderer", e);
+    } catch (error) {
+      console.warn("WebGL addon failed, falling back to default renderer", error);
     }
 
     const unlistenOutput = listen(`pty-output-${tabId}`, (event) => {
       term.write(event.payload);
+      handleCodexOutput(event.payload);
     });
 
     invoke("spawn_pty", { tabId, rows: term.rows, cols: term.cols, cwd: cwd || null })
-      .then(() => { ptyReady.current = true; })
+      .then(() => {
+        ptyReady.current = true;
+      })
       .catch((err) => console.error("Failed to spawn PTY:", err));
 
     term.onData((data) => {
+      const command = updateInputBuffer(data);
+      if (command !== null) {
+        handleSubmittedCommand(command);
+      }
+
       if (ptyReady.current) {
         invoke("write_pty", { tabId, data });
       }
     });
 
-    // Custom key handlers for Ctrl+V paste and Ctrl+Enter line break
     term.attachCustomKeyEventHandler((e) => {
       if (e.type !== "keydown") return true;
 
-      // Ctrl+C: copy selection to clipboard (if text is selected), otherwise pass through as interrupt
       if (e.ctrlKey && !e.shiftKey && e.key === "c") {
         const selection = term.getSelection();
         if (selection) {
           navigator.clipboard.writeText(selection);
           return false;
         }
-        return true; // No selection — let ^C go to PTY as interrupt
+        return true;
       }
 
-      // Ctrl+V: bracketed paste with double-paste prevention
       if (e.ctrlKey && !e.shiftKey && e.key === "v") {
-        e.preventDefault(); // Stop browser paste event (prevents double-paste)
+        e.preventDefault();
         navigator.clipboard.readText().then((text) => {
           if (text && ptyReady.current) {
             const bracketed = `\x1b[200~${text}\x1b[201~`;
@@ -97,7 +260,6 @@ export default function Terminal({ tabId, isActive, cwd }) {
         return false;
       }
 
-      // Ctrl+Enter: send newline
       if (e.ctrlKey && e.key === "Enter") {
         if (ptyReady.current) {
           invoke("write_pty", { tabId, data: "\n" });
@@ -112,7 +274,6 @@ export default function Terminal({ tabId, isActive, cwd }) {
       invoke("resize_pty", { tabId, rows, cols });
     });
 
-    // Detect Claude Code status from OSC title changes
     term.onTitleChange((title) => {
       const firstChar = title.codePointAt(0);
       let status = "idle";
@@ -124,34 +285,16 @@ export default function Terminal({ tabId, isActive, cwd }) {
         return;
       }
 
-      const store = useForgeStore.getState();
+      detectorRef.current.provider = "claude";
+      clearCodexQuietTimer();
 
-      // Auto-name tab from title text (strip leading status icon + space)
+      const store = useForgeStore.getState();
       const textPart = title.replace(/^[\u2800-\u28ff\u2733\uFE0F]+\s*/, "").trim();
       if (textPart) {
         store.setTabAutoName(tabId, textPart);
       }
 
-      const prevStatus = prevStatusRef.current;
-      if (status === prevStatus) return;
-      prevStatusRef.current = status;
-      console.log(`[Forge] status: ${prevStatus} → ${status}`);
-      if (prevStatus === "waiting" && status !== "waiting") {
-        store.recordResponse(tabId);
-      }
-      store.setTabStatus(tabId, status, title);
-
-      // Notify on transition to "waiting" for non-active tabs
-      if (status === "waiting") {
-        const activeGroup = store.groups.find((g) => g.id === store.activeGroupId);
-        const isCurrentlyActive = activeGroup?.activeTabId === tabId;
-        if (!isCurrentlyActive) {
-          playNotificationSound();
-          if (Notification.permission === "granted") {
-            new Notification("Forge", { body: "A terminal needs your attention" });
-          }
-        }
-      }
+      applyDetectedStatus(status, title);
     });
 
     let resizeTimeout;
@@ -162,6 +305,7 @@ export default function Terminal({ tabId, isActive, cwd }) {
     resizeObserver.observe(containerRef.current);
 
     return () => {
+      clearCodexQuietTimer();
       clearTimeout(resizeTimeout);
       resizeObserver.disconnect();
       unlistenOutput.then((unlisten) => unlisten());
@@ -170,10 +314,11 @@ export default function Terminal({ tabId, isActive, cwd }) {
       fitAddonRef.current = null;
       termRef.current = null;
       ptyReady.current = false;
+      inputBufferRef.current = "";
+      detectorRef.current = { provider: "unknown", lastOutputAt: 0 };
     };
-  }, [tabId]);
+  }, [tabId, cwd]);
 
-  // Refit when becoming active (handles stale dimensions from hidden state)
   useEffect(() => {
     if (isActive && fitAddonRef.current) {
       const id = requestAnimationFrame(() => {

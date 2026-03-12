@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { clampHeatStreak } from "../utils/heat";
 
 function makeTab(name = "Terminal 1", cwd = null) {
   return { id: crypto.randomUUID(), name, cwd, status: "idle", statusTitle: "", type: "claude", manuallyRenamed: false, waitingSince: null };
@@ -251,8 +252,26 @@ const useForgeStore = create((set, get) => ({
     }
     if (!waitingSince) return;
     const fast = Date.now() - waitingSince <= s.streakTimer;
-    set({ streak: fast ? s.streak + 1 : s.streak, lastStreakTime: Date.now() });
+    set({ streak: fast ? clampHeatStreak(s.streak + 1) : clampHeatStreak(s.streak), lastStreakTime: Date.now() });
   },
+
+  coolStreak: (now = Date.now()) =>
+    set((s) => {
+      if (s.streak <= 0 || !s.lastStreakTime || s.cooldownTimer <= 0) {
+        return s;
+      }
+
+      const currentStreak = clampHeatStreak(s.streak);
+      const elapsed = now - s.lastStreakTime;
+      const levelsLost = Math.floor(elapsed / s.cooldownTimer);
+      if (levelsLost <= 0) {
+        return currentStreak === s.streak ? s : { streak: currentStreak };
+      }
+
+      const streak = Math.max(0, currentStreak - levelsLost);
+      const lastStreakTime = streak > 0 ? s.lastStreakTime + levelsLost * s.cooldownTimer : null;
+      return { streak, lastStreakTime };
+    }),
 
   decrementStreak: () =>
     set((s) => ({ streak: Math.max(0, s.streak - 1), lastStreakTime: Date.now() })),

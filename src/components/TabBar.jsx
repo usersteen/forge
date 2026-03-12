@@ -33,6 +33,8 @@ function SortableTab({ tab, isActive, onSelect, onDoubleClick, onContextMenu, ed
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
+  const statusClass =
+    tab.type === "server" ? "" : tab.status === "waiting" ? "tab-waiting" : tab.status === "working" ? "tab-working" : "";
 
   return (
     <div
@@ -40,7 +42,7 @@ function SortableTab({ tab, isActive, onSelect, onDoubleClick, onContextMenu, ed
       style={style}
       {...attributes}
       {...listeners}
-      className={`tab ${isActive ? "tab-active" : ""} ${tab.status === "waiting" ? "tab-waiting" : tab.status === "working" ? "tab-working" : ""}`}
+      className={`tab ${isActive ? "tab-active" : ""} ${statusClass}`}
       onClick={onSelect}
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}

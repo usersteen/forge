@@ -50,6 +50,7 @@ export default function Terminal({ tabId, isActive, cwd }) {
   const inputBufferRef = useRef("");
   const detectorRef = useRef({
     provider: "unknown",
+    awaitingUser: false,
   });
 
   useEffect(() => {
@@ -102,6 +103,7 @@ export default function Terminal({ tabId, isActive, cwd }) {
       }
 
       if (detector.provider !== "codex") return;
+      if (detector.awaitingUser) return;
 
       applyDetectedStatus("working", summary);
     };
@@ -118,6 +120,7 @@ export default function Terminal({ tabId, isActive, cwd }) {
         detector.provider = "codex";
       }
 
+      detector.awaitingUser = true;
       const title = snapshot.tab.statusTitle || "Codex needs attention";
       applyDetectedStatus("waiting", title);
     };
@@ -132,6 +135,7 @@ export default function Terminal({ tabId, isActive, cwd }) {
         inputBufferRef.current = "";
         if (detectorRef.current.provider === "codex") {
           detectorRef.current.provider = "unknown";
+          detectorRef.current.awaitingUser = false;
           applyDetectedStatus("idle", "");
         }
         return null;
@@ -155,6 +159,7 @@ export default function Terminal({ tabId, isActive, cwd }) {
       const detector = detectorRef.current;
       if (isCodexLaunchCommand(command)) {
         detector.provider = "codex";
+        detector.awaitingUser = false;
         useForgeStore.getState().setTabAutoName(tabId, "Codex");
         applyDetectedStatus("working", summarizeStatusText(command, "Codex"));
         return;
@@ -164,10 +169,12 @@ export default function Terminal({ tabId, isActive, cwd }) {
 
       if (isCodexExitCommand(command)) {
         detector.provider = "unknown";
+        detector.awaitingUser = false;
         applyDetectedStatus("idle", "", { countResponse: false, notifyWaiting: false });
         return;
       }
 
+      detector.awaitingUser = false;
       applyDetectedStatus("working", summarizeStatusText(command, "Codex"));
     };
 
@@ -269,6 +276,7 @@ export default function Terminal({ tabId, isActive, cwd }) {
       }
 
       detectorRef.current.provider = "claude";
+      detectorRef.current.awaitingUser = false;
 
       const store = useForgeStore.getState();
       const textPart = title.replace(/^[\u2800-\u28ff\u2733\uFE0F]+\s*/, "").trim();
@@ -297,7 +305,7 @@ export default function Terminal({ tabId, isActive, cwd }) {
       termRef.current = null;
       ptyReady.current = false;
       inputBufferRef.current = "";
-      detectorRef.current = { provider: "unknown" };
+      detectorRef.current = { provider: "unknown", awaitingUser: false };
     };
   }, [tabId, cwd]);
 

@@ -71,7 +71,9 @@ function SortableGroup({ group, isActive, onSelect, onDoubleClick, editingId, in
         {editingId === group.id ? (
           <input className="sidebar-rename-input" {...inputProps} />
         ) : (
-          <span className="sidebar-group-name">{group.name}</span>
+          <div className="sidebar-group-title-row">
+            <span className="sidebar-group-name">{group.name}</span>
+          </div>
         )}
         <div className="sidebar-group-dots">
           {group.tabs.map((tab) => (

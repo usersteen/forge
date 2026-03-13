@@ -1,5 +1,6 @@
 mod config;
 mod pty;
+mod workspace;
 
 use pty::PtyState;
 use std::collections::HashMap;
@@ -19,6 +20,11 @@ pub fn run() {
             pty::kill_pty,
             config::load_config,
             config::save_config,
+            workspace::pick_workspace_folder,
+            workspace::scan_workspace,
+            workspace::read_workspace_file,
+            workspace::write_workspace_file,
+            workspace::collect_images,
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

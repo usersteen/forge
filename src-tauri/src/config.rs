@@ -24,6 +24,40 @@ pub struct GroupConfig {
     pub name: String,
     pub tabs: Vec<TabConfig>,
     pub active_tab_id: String,
+    #[serde(default)]
+    pub root_path: Option<String>,
+    #[serde(default = "default_true")]
+    pub explorer_visible: bool,
+    #[serde(default = "default_true")]
+    pub inspector_visible: bool,
+    #[serde(default)]
+    pub selected_path: Option<String>,
+    #[serde(default)]
+    pub open_documents: Vec<DocumentTabRefConfig>,
+    #[serde(default)]
+    pub active_document_path: Option<String>,
+    #[serde(default = "default_active_surface")]
+    pub active_surface: String,
+    #[serde(default)]
+    pub reader_width: Option<f64>,
+    #[serde(default)]
+    pub last_indexed_at: Option<u64>,
+}
+
+#[derive(Serialize, Deserialize, Default, Clone)]
+pub struct DocumentTabRefConfig {
+    pub path: String,
+    pub title: String,
+    #[serde(rename = "type")]
+    pub tab_type: String,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_active_surface() -> String {
+    "terminal".to_string()
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -53,6 +87,8 @@ pub struct SettingsConfig {
     pub streak_timer: u64,
     #[serde(default = "default_cooldown_timer")]
     pub cooldown_timer: u64,
+    #[serde(default)]
+    pub favorite_repo_paths: Vec<String>,
 }
 
 fn default_streak_timer() -> u64 {
@@ -67,12 +103,15 @@ impl Default for SettingsConfig {
         Self {
             streak_timer: 10000,
             cooldown_timer: 30000,
+            favorite_repo_paths: Vec::new(),
         }
     }
 }
 
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct ForgeConfig {
+    #[serde(default = "default_schema_version")]
+    pub schema_version: u32,
     #[serde(default)]
     pub groups: Vec<GroupConfig>,
     #[serde(default)]
@@ -81,6 +120,10 @@ pub struct ForgeConfig {
     pub window: WindowConfig,
     #[serde(default)]
     pub settings: SettingsConfig,
+}
+
+fn default_schema_version() -> u32 {
+    2
 }
 
 fn config_path() -> PathBuf {

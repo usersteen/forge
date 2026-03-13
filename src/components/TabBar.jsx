@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, horizontalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -6,6 +6,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import useForgeStore from "../store/useForgeStore";
 import useInlineRename from "../hooks/useInlineRename";
 import useEffectiveHeatStage from "../hooks/useEffectiveHeatStage";
+import ProjectExplorer from "./ProjectExplorer";
 import TabContextMenu from "./TabContextMenu";
 import { getEmberStyle } from "../utils/heat";
 
@@ -67,7 +68,7 @@ function SortableTab({ tab, isActive, onSelect, onDoubleClick, onContextMenu, ed
   );
 }
 
-export default function TabBar() {
+export default function TabBar({ onRefreshWorkspace }) {
   const groups = useForgeStore((s) => s.groups);
   const activeGroupId = useForgeStore((s) => s.activeGroupId);
   const setActiveTab = useForgeStore((s) => s.setActiveTab);
@@ -78,6 +79,8 @@ export default function TabBar() {
   const setTabType = useForgeStore((s) => s.setTabType);
 
   const [contextMenu, setContextMenu] = useState(null);
+  const [repoOpen, setRepoOpen] = useState(false);
+  const repoPanelRef = useRef(null);
 
   const activeGroup = groups.find((g) => g.id === activeGroupId);
 
@@ -115,14 +118,60 @@ export default function TabBar() {
     ));
   }, [heatStage]);
 
+  const repoLabel = useMemo(() => {
+    if (!activeGroup?.rootPath) return "Set Repo Path";
+    const segments = activeGroup.rootPath.split("/");
+    return segments[segments.length - 1] || activeGroup.rootPath;
+  }, [activeGroup?.rootPath]);
+
+  useEffect(() => {
+    if (!repoOpen) return;
+
+    const handlePointerDown = (event) => {
+      if (repoPanelRef.current?.contains(event.target)) return;
+      setRepoOpen(false);
+    };
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setRepoOpen(false);
+      }
+    };
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [repoOpen]);
+
   if (!activeGroup) return null;
 
   return (
-    <div className="tab-bar" onMouseDown={(e) => {
-        if (!e.target.closest('.tab, .tab-add, .window-control, button, input')) {
-          appWindow.startDragging();
+    <div
+      className="tab-bar"
+      onMouseDown={(event) => {
+        if (event.target.closest(".tab-bar-leading, .tab, .tab-add, .window-control, button, input")) {
+          return;
         }
-      }}>
+        appWindow.startDragging();
+      }}
+    >
+      <div className="tab-bar-leading" ref={repoPanelRef}>
+        <button
+          className={`repo-trigger ${repoOpen ? "repo-trigger-active" : ""}`}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={() => setRepoOpen((value) => !value)}
+        >
+          <span className="repo-trigger-label">{repoLabel}</span>
+        </button>
+        <ProjectExplorer
+          open={repoOpen}
+          onClose={() => setRepoOpen(false)}
+          onRefresh={onRefreshWorkspace}
+        />
+      </div>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={activeGroup.tabs.map((t) => t.id)} strategy={horizontalListSortingStrategy}>
           <div className="tab-list">
@@ -142,7 +191,12 @@ export default function TabBar() {
                 onClose={() => removeTab(activeGroupId, tab.id)}
               />
             ))}
-            <button className="tab-add" onClick={() => addTab(activeGroupId)}>
+            <button
+              className="tab-add"
+              onClick={() => {
+                addTab(activeGroupId);
+              }}
+            >
               +
             </button>
           </div>

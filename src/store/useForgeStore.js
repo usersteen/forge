@@ -1,19 +1,88 @@
 import { create } from "zustand";
 import { clampHeatStreak } from "../utils/heat";
+import {
+  classifyWorkspacePath,
+  makeRuntimeWorkspaceState,
+  normalizeRelativePath,
+  normalizeReaderWidth,
+  normalizeRootPath,
+  normalizeSurface,
+  titleFromPath,
+  withWorkspaceDefaults,
+} from "../utils/workspace";
 
 function makeTab(name = "Terminal 1", cwd = null) {
-  return { id: crypto.randomUUID(), name, cwd, status: "idle", statusTitle: "", type: "claude", manuallyRenamed: false, waitingSince: null };
+  return {
+    id: crypto.randomUUID(),
+    name,
+    cwd,
+    status: "idle",
+    statusTitle: "",
+    type: "claude",
+    manuallyRenamed: false,
+    waitingSince: null,
+  };
 }
 
 function makeGroup(name = "Project 1") {
   const tab = makeTab();
-  return { id: crypto.randomUUID(), name, tabs: [tab], activeTabId: tab.id };
+  return {
+    id: crypto.randomUUID(),
+    name,
+    tabs: [tab],
+    activeTabId: tab.id,
+    rootPath: null,
+    explorerVisible: true,
+    inspectorVisible: true,
+    selectedPath: null,
+    openDocuments: [],
+    activeDocumentPath: null,
+    activeSurface: "terminal",
+    readerWidth: 0.4,
+    lastIndexedAt: null,
+  };
+}
+
+function ensureActiveTabId(tabs, activeTabId) {
+  if (tabs.some((tab) => tab.id === activeTabId)) {
+    return activeTabId;
+  }
+  return tabs[0]?.id ?? null;
+}
+
+function mapGroups(groups, groupId, updater) {
+  return groups.map((group) => (group.id === groupId ? updater(group) : group));
+}
+
+function mapObjectEntry(source, key, updater) {
+  return {
+    ...source,
+    [key]: updater(source[key]),
+  };
+}
+
+function normalizeFavoriteRepoPaths(paths) {
+  const seen = new Set();
+  const normalized = [];
+
+  for (const path of Array.isArray(paths) ? paths : []) {
+    const value = normalizeRootPath(path);
+    if (!value || seen.has(value)) continue;
+    seen.add(value);
+    normalized.push(value);
+  }
+
+  return normalized;
 }
 
 const useForgeStore = create((set, get) => ({
   groups: [],
   activeGroupId: null,
   configLoaded: false,
+  favoriteRepoPaths: [],
+
+  workspaceByGroup: {},
+  documentStateByGroup: {},
 
   // Heat / streak state
   streak: 0,
@@ -24,285 +93,620 @@ const useForgeStore = create((set, get) => ({
   // Demo mode (ephemeral, not persisted)
   demoHeatStage: null,
 
-  // Init actions
   initFresh: () => {
     const group = makeGroup();
-    set({ groups: [group], activeGroupId: group.id, configLoaded: true });
+    set({
+      groups: [group],
+      activeGroupId: group.id,
+      workspaceByGroup: { [group.id]: makeRuntimeWorkspaceState() },
+      documentStateByGroup: { [group.id]: {} },
+      favoriteRepoPaths: [],
+      configLoaded: true,
+    });
   },
 
   loadFromConfig: (config) => {
-    const groups = config.groups.map((g) => ({
-      id: g.id,
-      name: g.name,
-      activeTabId: g.active_tab_id,
-      tabs: g.tabs.map((t) => ({
-        id: t.id,
-        name: t.name,
-        cwd: t.cwd || null,
+    const groups = (config.groups || []).map((groupConfig) => {
+      const workspace = withWorkspaceDefaults(groupConfig);
+      const tabs = (groupConfig.tabs || []).map((tabConfig) => ({
+        id: tabConfig.id,
+        name: tabConfig.name,
+        cwd: tabConfig.cwd || null,
         status: "idle",
         statusTitle: "",
-        type: t.tab_type || "claude",
-        manuallyRenamed: t.manually_renamed || false,
+        type: tabConfig.tab_type || "claude",
+        manuallyRenamed: tabConfig.manually_renamed || false,
         waitingSince: null,
-      })),
-    }));
+      }));
+      const safeTabs = tabs.length > 0 ? tabs : [makeTab()];
+
+      return {
+        id: groupConfig.id,
+        name: groupConfig.name,
+        activeTabId: ensureActiveTabId(safeTabs, groupConfig.active_tab_id),
+        tabs: safeTabs,
+        ...workspace,
+      };
+    });
+
+    const safeGroups = groups.length > 0 ? groups : [makeGroup()];
+    const workspaceByGroup = Object.fromEntries(
+      safeGroups.map((group) => [group.id, makeRuntimeWorkspaceState(group.rootPath)])
+    );
+    const documentStateByGroup = Object.fromEntries(safeGroups.map((group) => [group.id, {}]));
+
     set({
-      groups,
-      activeGroupId: config.active_group_id || (groups[0]?.id ?? null),
+      groups: safeGroups,
+      activeGroupId:
+        safeGroups.some((group) => group.id === config.active_group_id)
+          ? config.active_group_id
+          : (safeGroups[0]?.id ?? null),
+      workspaceByGroup,
+      documentStateByGroup,
+      favoriteRepoPaths: normalizeFavoriteRepoPaths(config.settings?.favorite_repo_paths),
       streakTimer: config.settings?.streak_timer ?? 10000,
       cooldownTimer: config.settings?.cooldown_timer ?? 30000,
       configLoaded: true,
     });
   },
 
-  // Group actions
   addGroup: (name) => {
     const count = get().groups.length;
     const group = makeGroup(name || `Project ${count + 1}`);
-    set((s) => ({
-      groups: [...s.groups, group],
+    set((state) => ({
+      groups: [...state.groups, group],
       activeGroupId: group.id,
+      workspaceByGroup: { ...state.workspaceByGroup, [group.id]: makeRuntimeWorkspaceState() },
+      documentStateByGroup: { ...state.documentStateByGroup, [group.id]: {} },
     }));
   },
-  removeGroup: (groupId) =>
-    set((s) => {
-      const remaining = s.groups.filter((g) => g.id !== groupId);
-      if (remaining.length === 0) {
-        const newGroup = makeGroup();
-        return { groups: [newGroup], activeGroupId: newGroup.id };
-      }
-      const activeGroupId =
-        s.activeGroupId === groupId ? remaining[0].id : s.activeGroupId;
-      return { groups: remaining, activeGroupId };
-    }),
-  renameGroup: (groupId, name) =>
-    set((s) => ({
-      groups: s.groups.map((g) => (g.id === groupId ? { ...g, name } : g)),
-    })),
-  setActiveGroup: (groupId) =>
-    set({ activeGroupId: groupId }),
 
-  // Tab actions
-  addTab: (groupId, name) =>
-    set((s) => {
-      const group = s.groups.find((g) => g.id === groupId);
-      const tabName = name || `Terminal ${group ? group.tabs.length + 1 : 1}`;
-      const tab = makeTab(tabName);
+  removeGroup: (groupId) =>
+    set((state) => {
+      const remaining = state.groups.filter((group) => group.id !== groupId);
+      if (remaining.length === 0) {
+        const group = makeGroup();
+        return {
+          groups: [group],
+          activeGroupId: group.id,
+          workspaceByGroup: { [group.id]: makeRuntimeWorkspaceState() },
+          documentStateByGroup: { [group.id]: {} },
+        };
+      }
+
+      const nextActiveGroupId =
+        state.activeGroupId === groupId ? remaining[0].id : state.activeGroupId;
+      const { [groupId]: _removedWorkspace, ...workspaceByGroup } = state.workspaceByGroup;
+      const { [groupId]: _removedDocuments, ...documentStateByGroup } = state.documentStateByGroup;
+
       return {
-        groups: s.groups.map((g) =>
-          g.id === groupId
-            ? { ...g, tabs: [...g.tabs, tab], activeTabId: tab.id }
-            : g
-        ),
+        groups: remaining,
+        activeGroupId: nextActiveGroupId,
+        workspaceByGroup,
+        documentStateByGroup,
       };
     }),
+
+  renameGroup: (groupId, name) =>
+    set((state) => ({
+      groups: mapGroups(state.groups, groupId, (group) => ({ ...group, name })),
+    })),
+
+  setActiveGroup: (groupId) => set({ activeGroupId: groupId }),
+
+  addTab: (groupId, name) =>
+    set((state) => {
+      const group = state.groups.find((entry) => entry.id === groupId);
+      const tabName = name || `Terminal ${group ? group.tabs.length + 1 : 1}`;
+      const tab = makeTab(tabName, group?.rootPath ?? null);
+      return {
+        groups: mapGroups(state.groups, groupId, (entry) => ({
+          ...entry,
+          tabs: [...entry.tabs, tab],
+          activeTabId: tab.id,
+        })),
+      };
+    }),
+
   removeTab: (groupId, tabId) =>
-    set((s) => ({
-      groups: s.groups.map((g) => {
-        if (g.id !== groupId) return g;
-        const remaining = g.tabs.filter((t) => t.id !== tabId);
+    set((state) => ({
+      groups: mapGroups(state.groups, groupId, (group) => {
+        const remaining = group.tabs.filter((tab) => tab.id !== tabId);
         if (remaining.length === 0) {
-          const newTab = makeTab();
-          return { ...g, tabs: [newTab], activeTabId: newTab.id };
+          const newTab = makeTab("Terminal 1", group.rootPath ?? null);
+          return { ...group, tabs: [newTab], activeTabId: newTab.id };
         }
-        const activeTabId =
-          g.activeTabId === tabId ? remaining[0].id : g.activeTabId;
-        return { ...g, tabs: remaining, activeTabId };
+        const activeTabId = group.activeTabId === tabId ? remaining[0].id : group.activeTabId;
+        return { ...group, tabs: remaining, activeTabId };
       }),
     })),
+
   renameTab: (groupId, tabId, name) =>
-    set((s) => ({
-      groups: s.groups.map((g) =>
-        g.id === groupId
-          ? {
-              ...g,
-              tabs: g.tabs.map((t) => (t.id === tabId ? { ...t, name, manuallyRenamed: true } : t)),
-            }
-          : g
-      ),
+    set((state) => ({
+      groups: mapGroups(state.groups, groupId, (group) => ({
+        ...group,
+        tabs: group.tabs.map((tab) =>
+          tab.id === tabId ? { ...tab, name, manuallyRenamed: true } : tab
+        ),
+      })),
     })),
+
   setActiveTab: (groupId, tabId) =>
-    set((s) => ({
-      groups: s.groups.map((g) =>
-        g.id === groupId ? { ...g, activeTabId: tabId } : g
-      ),
+    set((state) => ({
+      groups: mapGroups(state.groups, groupId, (group) => ({ ...group, activeTabId: tabId })),
     })),
 
   setTabCwd: (tabId, cwd) =>
-    set((s) => ({
-      groups: s.groups.map((g) =>
-        g.tabs.some((t) => t.id === tabId)
-          ? { ...g, tabs: g.tabs.map((t) => (t.id === tabId ? { ...t, cwd } : t)) }
-          : g
+    set((state) => ({
+      groups: state.groups.map((group) =>
+        group.tabs.some((tab) => tab.id === tabId)
+          ? {
+              ...group,
+              tabs: group.tabs.map((tab) => (tab.id === tabId ? { ...tab, cwd } : tab)),
+            }
+          : group
       ),
     })),
 
-  // Status actions
   setTabStatus: (tabId, status, title) =>
-    set((s) => ({
-      groups: s.groups.map((g) =>
-        g.tabs.some((t) => t.id === tabId)
-          ? { ...g, tabs: g.tabs.map((t) => {
-              if (t.id !== tabId) return t;
-              const waitingSince = status === "waiting" ? (t.waitingSince ?? Date.now()) : null;
-              return { ...t, status, statusTitle: title, waitingSince };
-            }) }
-          : g
+    set((state) => ({
+      groups: state.groups.map((group) =>
+        group.tabs.some((tab) => tab.id === tabId)
+          ? {
+              ...group,
+              tabs: group.tabs.map((tab) => {
+                if (tab.id !== tabId) return tab;
+                const waitingSince = status === "waiting" ? (tab.waitingSince ?? Date.now()) : null;
+                return { ...tab, status, statusTitle: title, waitingSince };
+              }),
+            }
+          : group
       ),
     })),
 
   setTabAutoName: (tabId, name) =>
-    set((s) => ({
-      groups: s.groups.map((g) =>
-        g.tabs.some((t) => t.id === tabId)
-          ? { ...g, tabs: g.tabs.map((t) => (t.id === tabId && !t.manuallyRenamed ? { ...t, name } : t)) }
-          : g
+    set((state) => ({
+      groups: state.groups.map((group) =>
+        group.tabs.some((tab) => tab.id === tabId)
+          ? {
+              ...group,
+              tabs: group.tabs.map((tab) =>
+                tab.id === tabId && !tab.manuallyRenamed ? { ...tab, name } : tab
+              ),
+            }
+          : group
       ),
     })),
 
   setTabType: (tabId, type) =>
-    set((s) => ({
-      groups: s.groups.map((g) =>
-        g.tabs.some((t) => t.id === tabId)
-          ? { ...g, tabs: g.tabs.map((t) => (t.id === tabId ? { ...t, type } : t)) }
-          : g
+    set((state) => ({
+      groups: state.groups.map((group) =>
+        group.tabs.some((tab) => tab.id === tabId)
+          ? {
+              ...group,
+              tabs: group.tabs.map((tab) => (tab.id === tabId ? { ...tab, type } : tab)),
+            }
+          : group
       ),
     })),
 
-  // Reorder actions
   reorderTabs: (groupId, orderedTabIds) =>
-    set((s) => ({
-      groups: s.groups.map((g) => {
-        if (g.id !== groupId) return g;
-        const tabMap = new Map(g.tabs.map((t) => [t.id, t]));
+    set((state) => ({
+      groups: mapGroups(state.groups, groupId, (group) => {
+        const tabMap = new Map(group.tabs.map((tab) => [tab.id, tab]));
         const reordered = orderedTabIds.map((id) => tabMap.get(id)).filter(Boolean);
-        return { ...g, tabs: reordered };
+        return { ...group, tabs: reordered };
       }),
     })),
 
   reorderGroups: (orderedGroupIds) =>
-    set((s) => {
-      const groupMap = new Map(s.groups.map((g) => [g.id, g]));
-      const reordered = orderedGroupIds.map((id) => groupMap.get(id)).filter(Boolean);
-      return { groups: reordered };
+    set((state) => {
+      const groupMap = new Map(state.groups.map((group) => [group.id, group]));
+      return {
+        groups: orderedGroupIds.map((id) => groupMap.get(id)).filter(Boolean),
+      };
     }),
 
-  // Navigation
+  setGroupRootPath: (groupId, rootPath) =>
+    set((state) => {
+      const normalizedRootPath = normalizeRootPath(rootPath);
+      return {
+        groups: mapGroups(state.groups, groupId, (group) => ({
+          ...group,
+          rootPath: normalizedRootPath,
+          selectedPath: null,
+          openDocuments: [],
+          activeDocumentPath: null,
+          activeSurface: "terminal",
+          lastIndexedAt: null,
+        })),
+        workspaceByGroup: {
+          ...state.workspaceByGroup,
+          [groupId]: makeRuntimeWorkspaceState(normalizedRootPath),
+        },
+        documentStateByGroup: {
+          ...state.documentStateByGroup,
+          [groupId]: {},
+        },
+      };
+    }),
+
+  setExplorerVisible: (groupId, explorerVisible) =>
+    set((state) => ({
+      groups: mapGroups(state.groups, groupId, (group) => ({ ...group, explorerVisible })),
+    })),
+
+  setInspectorVisible: (groupId, inspectorVisible) =>
+    set((state) => ({
+      groups: mapGroups(state.groups, groupId, (group) => ({ ...group, inspectorVisible })),
+    })),
+
+  setSelectedPath: (groupId, path) =>
+    set((state) => ({
+      groups: mapGroups(state.groups, groupId, (group) => ({
+        ...group,
+        selectedPath: normalizeRelativePath(path),
+      })),
+    })),
+
+  setReaderWidth: (groupId, readerWidth) =>
+    set((state) => ({
+      groups: mapGroups(state.groups, groupId, (group) => ({
+        ...group,
+        readerWidth: normalizeReaderWidth(readerWidth),
+      })),
+    })),
+
+  toggleFavoriteRepoPath: (rootPath) =>
+    set((state) => {
+      const normalizedRootPath = normalizeRootPath(rootPath);
+      if (!normalizedRootPath) return state;
+
+      return {
+        favoriteRepoPaths: state.favoriteRepoPaths.includes(normalizedRootPath)
+          ? state.favoriteRepoPaths.filter((path) => path !== normalizedRootPath)
+          : [...state.favoriteRepoPaths, normalizedRootPath],
+      };
+    }),
+
+  removeFavoriteRepoPath: (rootPath) =>
+    set((state) => {
+      const normalizedRootPath = normalizeRootPath(rootPath);
+      if (!normalizedRootPath) return state;
+
+      return {
+        favoriteRepoPaths: state.favoriteRepoPaths.filter((path) => path !== normalizedRootPath),
+      };
+    }),
+
+  openDocument: (groupId, path, explicitType = null) =>
+    set((state) => {
+      const normalizedPath = normalizeRelativePath(path);
+      if (!normalizedPath) return state;
+
+      return {
+        groups: mapGroups(state.groups, groupId, (group) => {
+          const existingDocument = group.openDocuments.find((document) => document.path === normalizedPath);
+          const type = explicitType || classifyWorkspacePath(normalizedPath);
+          if (!["markdown", "text", "image"].includes(type)) {
+            return group;
+          }
+
+          const openDocuments = existingDocument
+            ? group.openDocuments
+            : [
+                ...group.openDocuments,
+                {
+                  path: normalizedPath,
+                  title: titleFromPath(normalizedPath),
+                  type,
+                },
+              ];
+
+          return {
+            ...group,
+            selectedPath: normalizedPath,
+            openDocuments,
+            activeDocumentPath: normalizedPath,
+            activeSurface: "document",
+          };
+        }),
+      };
+    }),
+
+  closeDocument: (groupId, path) =>
+    set((state) => ({
+      groups: mapGroups(state.groups, groupId, (group) => {
+        const normalizedPath = normalizeRelativePath(path);
+        if (!normalizedPath) return group;
+
+        const currentIndex = group.openDocuments.findIndex((document) => document.path === normalizedPath);
+        if (currentIndex === -1) return group;
+
+        const remainingDocuments = group.openDocuments.filter((document) => document.path !== normalizedPath);
+        const nextActiveDocument =
+          remainingDocuments[currentIndex] ?? remainingDocuments[currentIndex - 1] ?? null;
+
+        return {
+          ...group,
+          openDocuments: remainingDocuments,
+          activeDocumentPath: nextActiveDocument?.path ?? null,
+          activeSurface: normalizeSurface(group.activeSurface, remainingDocuments),
+        };
+      }),
+      documentStateByGroup: mapObjectEntry(state.documentStateByGroup, groupId, (documents = {}) => {
+        const normalizedPath = normalizeRelativePath(path);
+        if (!normalizedPath) return documents;
+        const { [normalizedPath]: _removed, ...remaining } = documents;
+        return remaining;
+      }),
+    })),
+
+  setActiveDocument: (groupId, path) =>
+    set((state) => ({
+      groups: mapGroups(state.groups, groupId, (group) => {
+        const normalizedPath = normalizeRelativePath(path);
+        if (!normalizedPath || !group.openDocuments.some((document) => document.path === normalizedPath)) {
+          return group;
+        }
+
+        return {
+          ...group,
+          activeDocumentPath: normalizedPath,
+          activeSurface: "document",
+          selectedPath: normalizedPath,
+        };
+      }),
+    })),
+
+  setActiveSurface: (groupId, surface) =>
+    set((state) => ({
+      groups: mapGroups(state.groups, groupId, (group) => ({
+        ...group,
+        activeSurface: normalizeSurface(surface, group.openDocuments),
+      })),
+    })),
+
+  setWorkspaceLoading: (groupId, rootPath) =>
+    set((state) => ({
+      workspaceByGroup: {
+        ...state.workspaceByGroup,
+        [groupId]: {
+          ...makeRuntimeWorkspaceState(normalizeRootPath(rootPath)),
+          status: rootPath ? "loading" : "empty",
+        },
+      },
+    })),
+
+  setWorkspaceTree: (groupId, rootPath, tree, lastIndexedAt, truncated = false) =>
+    set((state) => ({
+      groups: mapGroups(state.groups, groupId, (group) => ({
+        ...group,
+        lastIndexedAt,
+      })),
+      workspaceByGroup: {
+        ...state.workspaceByGroup,
+        [groupId]: {
+          ...(state.workspaceByGroup[groupId] || makeRuntimeWorkspaceState(rootPath)),
+          rootPath: normalizeRootPath(rootPath),
+          status: tree.length > 0 ? "ready" : "empty-folder",
+          error: truncated ? "Scan truncated to workspace limits." : "",
+          tree,
+        },
+      },
+    })),
+
+  setWorkspaceError: (groupId, rootPath, error) =>
+    set((state) => ({
+      workspaceByGroup: {
+        ...state.workspaceByGroup,
+        [groupId]: {
+          ...(state.workspaceByGroup[groupId] || makeRuntimeWorkspaceState(rootPath)),
+          rootPath: normalizeRootPath(rootPath),
+          status: rootPath ? "error" : "empty",
+          error,
+          tree: [],
+        },
+      },
+    })),
+
+  setRecentImagesLoading: (groupId) =>
+    set((state) => ({
+      workspaceByGroup: {
+        ...state.workspaceByGroup,
+        [groupId]: {
+          ...(state.workspaceByGroup[groupId] || makeRuntimeWorkspaceState()),
+          recentImagesStatus: "loading",
+          recentImagesError: "",
+        },
+      },
+    })),
+
+  setRecentImages: (groupId, images) =>
+    set((state) => ({
+      workspaceByGroup: {
+        ...state.workspaceByGroup,
+        [groupId]: {
+          ...(state.workspaceByGroup[groupId] || makeRuntimeWorkspaceState()),
+          recentImages: images,
+          recentImagesStatus: "ready",
+          recentImagesError: "",
+        },
+      },
+    })),
+
+  setRecentImagesError: (groupId, error) =>
+    set((state) => ({
+      workspaceByGroup: {
+        ...state.workspaceByGroup,
+        [groupId]: {
+          ...(state.workspaceByGroup[groupId] || makeRuntimeWorkspaceState()),
+          recentImagesStatus: "error",
+          recentImagesError: error,
+        },
+      },
+    })),
+
+  setDocumentState: (groupId, path, nextDocumentState) =>
+    set((state) => {
+      const normalizedPath = normalizeRelativePath(path);
+      if (!normalizedPath) return state;
+
+      return {
+        documentStateByGroup: {
+          ...state.documentStateByGroup,
+          [groupId]: {
+            ...(state.documentStateByGroup[groupId] || {}),
+            [normalizedPath]: {
+              ...(state.documentStateByGroup[groupId]?.[normalizedPath] || {
+                status: "idle",
+                payload: null,
+                error: "",
+              }),
+              ...nextDocumentState,
+            },
+          },
+        },
+      };
+    }),
+
   nextTab: () =>
-    set((s) => {
-      const group = s.groups.find((g) => g.id === s.activeGroupId);
-      if (!group || group.tabs.length < 2) return s;
-      const idx = group.tabs.findIndex((t) => t.id === group.activeTabId);
-      const next = (idx + 1) % group.tabs.length;
+    set((state) => {
+      const group = state.groups.find((entry) => entry.id === state.activeGroupId);
+      if (!group || group.tabs.length < 2) return state;
+      const index = group.tabs.findIndex((tab) => tab.id === group.activeTabId);
+      const nextIndex = (index + 1) % group.tabs.length;
       return {
-        groups: s.groups.map((g) =>
-          g.id === s.activeGroupId
-            ? { ...g, activeTabId: g.tabs[next].id }
-            : g
-        ),
+        groups: mapGroups(state.groups, state.activeGroupId, (entry) => ({
+          ...entry,
+          activeTabId: group.tabs[nextIndex].id,
+        })),
       };
     }),
+
   prevTab: () =>
-    set((s) => {
-      const group = s.groups.find((g) => g.id === s.activeGroupId);
-      if (!group || group.tabs.length < 2) return s;
-      const idx = group.tabs.findIndex((t) => t.id === group.activeTabId);
-      const prev = (idx - 1 + group.tabs.length) % group.tabs.length;
+    set((state) => {
+      const group = state.groups.find((entry) => entry.id === state.activeGroupId);
+      if (!group || group.tabs.length < 2) return state;
+      const index = group.tabs.findIndex((tab) => tab.id === group.activeTabId);
+      const previousIndex = (index - 1 + group.tabs.length) % group.tabs.length;
       return {
-        groups: s.groups.map((g) =>
-          g.id === s.activeGroupId
-            ? { ...g, activeTabId: g.tabs[prev].id }
-            : g
-        ),
+        groups: mapGroups(state.groups, state.activeGroupId, (entry) => ({
+          ...entry,
+          activeTabId: group.tabs[previousIndex].id,
+        })),
       };
     }),
+
   gotoTab: (index) =>
-    set((s) => {
-      const group = s.groups.find((g) => g.id === s.activeGroupId);
-      if (!group || index >= group.tabs.length) return s;
+    set((state) => {
+      const group = state.groups.find((entry) => entry.id === state.activeGroupId);
+      if (!group || index >= group.tabs.length) return state;
       return {
-        groups: s.groups.map((g) =>
-          g.id === s.activeGroupId
-            ? { ...g, activeTabId: g.tabs[index].id }
-            : g
-        ),
+        groups: mapGroups(state.groups, state.activeGroupId, (entry) => ({
+          ...entry,
+          activeTabId: group.tabs[index].id,
+        })),
       };
     }),
+
   nextGroup: () =>
-    set((s) => {
-      if (s.groups.length < 2) return s;
-      const idx = s.groups.findIndex((g) => g.id === s.activeGroupId);
-      const next = (idx + 1) % s.groups.length;
-      return { activeGroupId: s.groups[next].id };
+    set((state) => {
+      if (state.groups.length < 2) return state;
+      const index = state.groups.findIndex((group) => group.id === state.activeGroupId);
+      const nextIndex = (index + 1) % state.groups.length;
+      return { activeGroupId: state.groups[nextIndex].id };
     }),
+
   prevGroup: () =>
-    set((s) => {
-      if (s.groups.length < 2) return s;
-      const idx = s.groups.findIndex((g) => g.id === s.activeGroupId);
-      const prev = (idx - 1 + s.groups.length) % s.groups.length;
-      return { activeGroupId: s.groups[prev].id };
+    set((state) => {
+      if (state.groups.length < 2) return state;
+      const index = state.groups.findIndex((group) => group.id === state.activeGroupId);
+      const previousIndex = (index - 1 + state.groups.length) % state.groups.length;
+      return { activeGroupId: state.groups[previousIndex].id };
     }),
-  // Heat / streak actions
+
   recordResponse: (tabId) => {
-    const s = get();
+    const state = get();
     let waitingSince = null;
-    for (const g of s.groups) {
-      const tab = g.tabs.find((t) => t.id === tabId);
-      if (tab) { waitingSince = tab.waitingSince; break; }
+    for (const group of state.groups) {
+      const tab = group.tabs.find((entry) => entry.id === tabId);
+      if (tab) {
+        waitingSince = tab.waitingSince;
+        break;
+      }
     }
     if (!waitingSince) return;
-    const fast = Date.now() - waitingSince <= s.streakTimer;
-    set({ streak: fast ? clampHeatStreak(s.streak + 1) : clampHeatStreak(s.streak), lastStreakTime: Date.now() });
+    const fast = Date.now() - waitingSince <= state.streakTimer;
+    set({
+      streak: fast ? clampHeatStreak(state.streak + 1) : clampHeatStreak(state.streak),
+      lastStreakTime: Date.now(),
+    });
   },
 
   coolStreak: (now = Date.now()) =>
-    set((s) => {
-      if (s.streak <= 0 || !s.lastStreakTime || s.cooldownTimer <= 0) {
-        return s;
+    set((state) => {
+      if (state.streak <= 0 || !state.lastStreakTime || state.cooldownTimer <= 0) {
+        return state;
       }
 
-      const currentStreak = clampHeatStreak(s.streak);
-      const elapsed = now - s.lastStreakTime;
-      const levelsLost = Math.floor(elapsed / s.cooldownTimer);
+      const currentStreak = clampHeatStreak(state.streak);
+      const elapsed = now - state.lastStreakTime;
+      const levelsLost = Math.floor(elapsed / state.cooldownTimer);
       if (levelsLost <= 0) {
-        return currentStreak === s.streak ? s : { streak: currentStreak };
+        return currentStreak === state.streak ? state : { streak: currentStreak };
       }
 
       const streak = Math.max(0, currentStreak - levelsLost);
-      const lastStreakTime = streak > 0 ? s.lastStreakTime + levelsLost * s.cooldownTimer : null;
+      const lastStreakTime =
+        streak > 0 ? state.lastStreakTime + levelsLost * state.cooldownTimer : null;
       return { streak, lastStreakTime };
     }),
 
   decrementStreak: () =>
-    set((s) => ({ streak: Math.max(0, s.streak - 1), lastStreakTime: Date.now() })),
+    set((state) => ({ streak: Math.max(0, state.streak - 1), lastStreakTime: Date.now() })),
 
   setStreakTimer: (ms) => set({ streakTimer: ms }),
   setCooldownTimer: (ms) => set({ cooldownTimer: ms }),
 
-  // Demo mode actions
   setDemoHeatStage: (stage) => set({ demoHeatStage: stage }),
   exitDemoMode: () => set({ demoHeatStage: null }),
 }));
 
 export function storeToConfig(state, windowGeometry) {
   return {
-    groups: state.groups.map((g) => ({
-      id: g.id,
-      name: g.name,
-      active_tab_id: g.activeTabId,
-      tabs: g.tabs.map((t) => ({
-        id: t.id,
-        name: t.name,
-        cwd: t.cwd || null,
-        tab_type: t.type,
-        manually_renamed: t.manuallyRenamed,
+    schema_version: 2,
+    groups: state.groups.map((group) => ({
+      id: group.id,
+      name: group.name,
+      active_tab_id: group.activeTabId,
+      tabs: group.tabs.map((tab) => ({
+        id: tab.id,
+        name: tab.name,
+        cwd: tab.cwd || null,
+        tab_type: tab.type,
+        manually_renamed: tab.manuallyRenamed,
       })),
+      root_path: group.rootPath,
+      explorer_visible: group.explorerVisible,
+      inspector_visible: group.inspectorVisible,
+      selected_path: group.selectedPath,
+      open_documents: group.openDocuments.map((document) => ({
+        path: document.path,
+        title: document.title,
+        type: document.type,
+      })),
+      active_document_path: group.activeDocumentPath,
+      active_surface: group.activeSurface,
+      reader_width: group.readerWidth,
+      last_indexed_at: group.lastIndexedAt,
     })),
     active_group_id: state.activeGroupId,
     window: windowGeometry,
     settings: {
       streak_timer: state.streakTimer,
       cooldown_timer: state.cooldownTimer,
+      favorite_repo_paths: state.favoriteRepoPaths,
     },
   };
 }

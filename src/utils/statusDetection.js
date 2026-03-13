@@ -13,6 +13,24 @@ const CODEX_SESSION_PATTERNS = [
 
 const CODEX_LAUNCH_COMMAND = /^codex(?:\s|$)/i;
 const CODEX_EXIT_COMMAND = /^(?:exit|quit|\/exit|\/quit)$/i;
+const CODEX_NONINTERACTIVE_SUBCOMMANDS = new Set([
+  "exec",
+  "review",
+  "login",
+  "logout",
+  "mcp",
+  "mcp-server",
+  "app-server",
+  "completion",
+  "sandbox",
+  "debug",
+  "apply",
+  "resume",
+  "fork",
+  "cloud",
+  "features",
+  "help",
+]);
 
 export function extractPlainText(payload) {
   return payload
@@ -41,4 +59,17 @@ export function isCodexLaunchCommand(command) {
 
 export function isCodexExitCommand(command) {
   return CODEX_EXIT_COMMAND.test(command);
+}
+
+export function getCodexLaunchMode(command) {
+  if (!isCodexLaunchCommand(command)) return null;
+
+  const tokens = command.trim().split(/\s+/).slice(1);
+  for (const token of tokens) {
+    if (!token) continue;
+    if (token.startsWith("-")) continue;
+    return CODEX_NONINTERACTIVE_SUBCOMMANDS.has(token) ? "task" : "prompt";
+  }
+
+  return "interactive";
 }

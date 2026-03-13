@@ -8,8 +8,8 @@ import { listen } from "@tauri-apps/api/event";
 import useForgeStore from "../store/useForgeStore";
 import {
   extractPlainText,
+  getCodexLaunchMode,
   isCodexExitCommand,
-  isCodexLaunchCommand,
   looksLikeCodexSession,
   summarizeStatusText,
 } from "../utils/statusDetection";
@@ -99,7 +99,10 @@ export default function Terminal({ tabId, isActive, cwd }) {
       const detector = detectorRef.current;
       if (detector.provider === "unknown" && looksLikeCodexSession(plainText)) {
         detector.provider = "codex";
+        detector.awaitingUser = true;
         useForgeStore.getState().setTabAutoName(tabId, "Codex");
+        applyDetectedStatus("waiting", summary, { notifyWaiting: false });
+        return;
       }
 
       if (detector.provider !== "codex") return;
@@ -157,11 +160,16 @@ export default function Terminal({ tabId, isActive, cwd }) {
       if (!command) return;
 
       const detector = detectorRef.current;
-      if (isCodexLaunchCommand(command)) {
+      const codexLaunchMode = getCodexLaunchMode(command);
+      if (codexLaunchMode) {
         detector.provider = "codex";
-        detector.awaitingUser = false;
+        detector.awaitingUser = codexLaunchMode === "interactive";
         useForgeStore.getState().setTabAutoName(tabId, "Codex");
-        applyDetectedStatus("working", summarizeStatusText(command, "Codex"));
+        if (codexLaunchMode === "interactive") {
+          applyDetectedStatus("waiting", "Codex ready", { notifyWaiting: false });
+        } else {
+          applyDetectedStatus("working", summarizeStatusText(command, "Codex"));
+        }
         return;
       }
 

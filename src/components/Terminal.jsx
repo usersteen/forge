@@ -11,11 +11,8 @@ import {
   isCodexExitCommand,
   isCodexLaunchCommand,
   looksLikeCodexSession,
-  looksLikeCodexWaiting,
   summarizeStatusText,
 } from "../utils/statusDetection";
-
-const CODEX_QUIET_MS = 1800;
 
 let _audioCtx;
 
@@ -50,21 +47,12 @@ export default function Terminal({ tabId, isActive, cwd }) {
   const termRef = useRef(null);
   const ptyReady = useRef(false);
   const prevStatusRef = useRef("idle");
-  const codexQuietTimerRef = useRef(null);
   const inputBufferRef = useRef("");
   const detectorRef = useRef({
     provider: "unknown",
-    lastOutputAt: 0,
   });
 
   useEffect(() => {
-    const clearCodexQuietTimer = () => {
-      if (codexQuietTimerRef.current) {
-        clearTimeout(codexQuietTimerRef.current);
-        codexQuietTimerRef.current = null;
-      }
-    };
-
     const maybeNotifyWaiting = (store, tab) => {
       if (tab.type === "server") return;
       const activeGroup = store.groups.find((group) => group.id === store.activeGroupId);
@@ -102,16 +90,6 @@ export default function Terminal({ tabId, isActive, cwd }) {
       }
     };
 
-    const scheduleCodexWaiting = (reason = "") => {
-      clearCodexQuietTimer();
-      codexQuietTimerRef.current = setTimeout(() => {
-        const detector = detectorRef.current;
-        if (detector.provider !== "codex") return;
-        if (Date.now() - detector.lastOutputAt < CODEX_QUIET_MS - 50) return;
-        applyDetectedStatus("waiting", reason || "Codex ready");
-      }, CODEX_QUIET_MS);
-    };
-
     const handleCodexOutput = (payload) => {
       const plainText = extractPlainText(payload);
       const summary = summarizeStatusText(plainText);
@@ -125,15 +103,23 @@ export default function Terminal({ tabId, isActive, cwd }) {
 
       if (detector.provider !== "codex") return;
 
-      detector.lastOutputAt = Date.now();
-      if (looksLikeCodexWaiting(plainText)) {
-        clearCodexQuietTimer();
-        applyDetectedStatus("waiting", summary);
-        return;
+      applyDetectedStatus("working", summary);
+    };
+
+    const handleBell = () => {
+      const detector = detectorRef.current;
+      if (detector.provider === "claude") return;
+
+      const store = useForgeStore.getState();
+      const snapshot = getTabSnapshot(store, tabId);
+      if (!snapshot) return;
+
+      if (detector.provider === "unknown") {
+        detector.provider = "codex";
       }
 
-      applyDetectedStatus("working", summary);
-      scheduleCodexWaiting(summary);
+      const title = snapshot.tab.statusTitle || "Codex needs attention";
+      applyDetectedStatus("waiting", title);
     };
 
     const updateInputBuffer = (data) => {
@@ -146,7 +132,6 @@ export default function Terminal({ tabId, isActive, cwd }) {
         inputBufferRef.current = "";
         if (detectorRef.current.provider === "codex") {
           detectorRef.current.provider = "unknown";
-          clearCodexQuietTimer();
           applyDetectedStatus("idle", "");
         }
         return null;
@@ -170,7 +155,6 @@ export default function Terminal({ tabId, isActive, cwd }) {
       const detector = detectorRef.current;
       if (isCodexLaunchCommand(command)) {
         detector.provider = "codex";
-        clearCodexQuietTimer();
         useForgeStore.getState().setTabAutoName(tabId, "Codex");
         applyDetectedStatus("working", summarizeStatusText(command, "Codex"));
         return;
@@ -180,12 +164,10 @@ export default function Terminal({ tabId, isActive, cwd }) {
 
       if (isCodexExitCommand(command)) {
         detector.provider = "unknown";
-        clearCodexQuietTimer();
         applyDetectedStatus("idle", "", { countResponse: false, notifyWaiting: false });
         return;
       }
 
-      clearCodexQuietTimer();
       applyDetectedStatus("working", summarizeStatusText(command, "Codex"));
     };
 
@@ -219,6 +201,7 @@ export default function Terminal({ tabId, isActive, cwd }) {
       term.write(event.payload);
       handleCodexOutput(event.payload);
     });
+    const bellListener = term.onBell(handleBell);
 
     invoke("spawn_pty", { tabId, rows: term.rows, cols: term.cols, cwd: cwd || null })
       .then(() => {
@@ -286,7 +269,6 @@ export default function Terminal({ tabId, isActive, cwd }) {
       }
 
       detectorRef.current.provider = "claude";
-      clearCodexQuietTimer();
 
       const store = useForgeStore.getState();
       const textPart = title.replace(/^[\u2800-\u28ff\u2733\uFE0F]+\s*/, "").trim();
@@ -305,7 +287,7 @@ export default function Terminal({ tabId, isActive, cwd }) {
     resizeObserver.observe(containerRef.current);
 
     return () => {
-      clearCodexQuietTimer();
+      bellListener.dispose();
       clearTimeout(resizeTimeout);
       resizeObserver.disconnect();
       unlistenOutput.then((unlisten) => unlisten());
@@ -315,7 +297,7 @@ export default function Terminal({ tabId, isActive, cwd }) {
       termRef.current = null;
       ptyReady.current = false;
       inputBufferRef.current = "";
-      detectorRef.current = { provider: "unknown", lastOutputAt: 0 };
+      detectorRef.current = { provider: "unknown" };
     };
   }, [tabId, cwd]);
 

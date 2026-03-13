@@ -11,18 +11,6 @@ const CODEX_SESSION_PATTERNS = [
   /\bUse \/help for commands\b/i,
 ];
 
-const CODEX_WAITING_PATTERNS = [
-  /\bapprove\b/i,
-  /\bapproval\b/i,
-  /\bneed(?:s)? (?:your )?approval\b/i,
-  /\bneed(?:s)? (?:your )?input\b/i,
-  /\bpress enter to continue\b/i,
-  /\bselect an option\b/i,
-  /\bcontinue\?/i,
-  /\ballow\b.+\?/i,
-  /\b(y\/n|yes\/no)\b/i,
-];
-
 const CODEX_LAUNCH_COMMAND = /^codex(?:\s|$)/i;
 const CODEX_EXIT_COMMAND = /^(?:exit|quit|\/exit|\/quit)$/i;
 
@@ -45,10 +33,6 @@ export function summarizeStatusText(text, fallback = "") {
 
 export function looksLikeCodexSession(text) {
   return CODEX_SESSION_PATTERNS.some((pattern) => pattern.test(text));
-}
-
-export function looksLikeCodexWaiting(text) {
-  return CODEX_WAITING_PATTERNS.some((pattern) => pattern.test(text));
 }
 
 export function isCodexLaunchCommand(command) {

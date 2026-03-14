@@ -66,5 +66,5 @@ npx tauri build      # Build .exe (run from Git Bash, no vcvarsall needed)
 - Build with `npx tauri build` directly from Git Bash — no need for `dev.bat` or Developer Command Prompt
 - Build target is at `~/.forge-build/target` (moved outside OneDrive to prevent Explorer freezing)
 - Installers output to `~/.forge-build/target/release/bundle/nsis/` and `.../msi/`
-- `beforeBuildCommand` in tauri.conf.json auto-bumps version via `scripts/bump-version.cjs`
+- Version bumps are manual via `npm run version:bump`; full builds no longer mutate tracked files
 - Vite 6 (not 7) due to Node 20 compatibility

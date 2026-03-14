@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
@@ -15,6 +15,14 @@ import {
 } from "../utils/statusDetection";
 
 let _audioCtx;
+const CODEX_DEBUG_TEXT_LIMIT = 400;
+const CODEX_IDLE_TIMEOUT_MS = 5000;
+const CODEX_SCREEN_TAIL_LINES = 12;
+const CODEX_WORKING_FOOTER_PATTERN = /\besc to interrupt\b/i;
+const CODEX_WAITING_FOOTER_PATTERNS = [/\bpress enter to confirm\b/i, /\besc to go back\b/i];
+const CODEX_WAITING_OPTION_PATTERN = /^\s*\d+\.\s+/m;
+const TERMINAL_NOTICE_MS = 6000;
+const TERMINAL_RECOVERY_MESSAGE = "Open a new terminal tab and rerun the command you were using.";
 
 function playNotificationSound() {
   if (!_audioCtx) _audioCtx = new AudioContext();
@@ -41,19 +49,146 @@ function getTabSnapshot(store, tabId) {
   return null;
 }
 
+function clipDebugText(text) {
+  if (!text) return "";
+  return text.length > CODEX_DEBUG_TEXT_LIMIT ? text.slice(-CODEX_DEBUG_TEXT_LIMIT) : text;
+}
+
+function readTerminalTail(term, lineCount = CODEX_SCREEN_TAIL_LINES) {
+  const buffer = term?.buffer?.active;
+  if (!buffer || !term?.rows) return "";
+
+  const lastLine = Math.max(0, buffer.baseY + term.rows - 1);
+  const firstLine = Math.max(0, lastLine - lineCount + 1);
+  const lines = [];
+
+  for (let i = firstLine; i <= lastLine; i += 1) {
+    const line = buffer.getLine(i);
+    if (!line) continue;
+    lines.push(line.translateToString(true));
+  }
+
+  return lines.join("\n").trim();
+}
+
+function inspectCodexScreen(term) {
+  const screenText = readTerminalTail(term);
+  if (!screenText) {
+    return { screenText: "", status: null };
+  }
+
+  const hasWaitingFooter = CODEX_WAITING_FOOTER_PATTERNS.some((pattern) => pattern.test(screenText));
+  const hasChoiceList = CODEX_WAITING_OPTION_PATTERN.test(screenText);
+  if (hasWaitingFooter || (hasChoiceList && /press enter|esc to go back/i.test(screenText))) {
+    return { screenText, status: "waiting" };
+  }
+
+  if (CODEX_WORKING_FOOTER_PATTERN.test(screenText)) {
+    return { screenText, status: "working" };
+  }
+
+  return { screenText, status: null };
+}
+
 export default function Terminal({ tabId, isActive, cwd }) {
   const containerRef = useRef(null);
   const fitAddonRef = useRef(null);
   const termRef = useRef(null);
+  const noticeTimerRef = useRef(null);
   const ptyReady = useRef(false);
   const prevStatusRef = useRef("idle");
   const inputBufferRef = useRef("");
+  const [notice, setNotice] = useState(null);
+  const codexDebugRef = useRef({
+    recentText: "",
+    lastBellByteAt: null,
+    lastBellEventAt: null,
+  });
   const detectorRef = useRef({
     provider: "unknown",
     awaitingUser: false,
   });
 
   useEffect(() => {
+    let isTearingDown = false;
+
+    const logCodexDebug = (event, details = {}) => {
+      const snapshot = getTabSnapshot(useForgeStore.getState(), tabId);
+      console.log(`[Forge][Codex][${tabId}] ${event}`, {
+        tabName: snapshot?.tab.name || "",
+        tabStatus: snapshot?.tab.status || "",
+        awaitingUser: detectorRef.current.awaitingUser,
+        provider: detectorRef.current.provider,
+        ...details,
+      });
+    };
+
+    let codexIdleTimeout;
+
+    const clearNoticeTimer = () => {
+      clearTimeout(noticeTimerRef.current);
+      noticeTimerRef.current = null;
+    };
+
+    const clearNotice = () => {
+      clearNoticeTimer();
+      setNotice(null);
+    };
+
+    const clearPersistentNotice = () => {
+      setNotice((current) => {
+        if (!current?.persistent) {
+          return current;
+        }
+        clearNoticeTimer();
+        return null;
+      });
+    };
+
+    const showTransientNotice = (title, message) => {
+      clearNoticeTimer();
+      setNotice({
+        level: "warning",
+        title,
+        message,
+        detail: "",
+        persistent: false,
+      });
+      noticeTimerRef.current = setTimeout(() => {
+        if (!isTearingDown) {
+          setNotice(null);
+        }
+        noticeTimerRef.current = null;
+      }, TERMINAL_NOTICE_MS);
+    };
+
+    const showPersistentNotice = (title, message, detail = "") => {
+      clearNoticeTimer();
+      setNotice({
+        level: "error",
+        title,
+        message,
+        detail,
+        persistent: true,
+      });
+    };
+
+    const rememberCodexText = (plainText) => {
+      if (!plainText) return "";
+      const nextText = clipDebugText(
+        `${codexDebugRef.current.recentText}\n${plainText}`
+          .replace(/\s+/g, " ")
+          .trim()
+      );
+      codexDebugRef.current.recentText = nextText;
+      return nextText;
+    };
+
+    const clearCodexIdleTimeout = () => {
+      clearTimeout(codexIdleTimeout);
+      codexIdleTimeout = undefined;
+    };
+
     const maybeNotifyWaiting = (store, tab) => {
       if (tab.type === "server") return;
       const activeGroup = store.groups.find((group) => group.id === store.activeGroupId);
@@ -77,6 +212,15 @@ export default function Terminal({ tabId, isActive, cwd }) {
       const nextTitle = title || tab.statusTitle || "";
       if (status === prevStatus && nextTitle === tab.statusTitle) return;
 
+      if (detectorRef.current.provider === "codex") {
+        logCodexDebug("status-change", {
+          from: prevStatus,
+          to: status,
+          title: nextTitle,
+          recentText: codexDebugRef.current.recentText,
+        });
+      }
+
       prevStatusRef.current = status;
       console.log(`[Forge] status: ${prevStatus} -> ${status}`);
 
@@ -91,23 +235,92 @@ export default function Terminal({ tabId, isActive, cwd }) {
       }
     };
 
+    const handlePtyDisconnect = (title, message, detail = "") => {
+      ptyReady.current = false;
+      clearCodexIdleTimeout();
+      detectorRef.current = { provider: "unknown", awaitingUser: false };
+      applyDetectedStatus("idle", title, { countResponse: false, notifyWaiting: false });
+      showPersistentNotice(title, message, detail);
+    };
+
+    const inspectCodexSurface = (source, fallbackTitle = "") => {
+      if (detectorRef.current.provider !== "codex") return null;
+
+      const { status, screenText } = inspectCodexScreen(termRef.current);
+      if (!status) return null;
+
+      const title = fallbackTitle || summarizeStatusText(screenText, status === "working" ? "Codex working" : "Codex needs input");
+
+      logCodexDebug("surface-check", {
+        source,
+        detectedStatus: status,
+        title,
+        screenText: clipDebugText(screenText.replace(/\s+/g, " ").trim()),
+      });
+
+      detectorRef.current.awaitingUser = status === "waiting";
+      applyDetectedStatus(status, title);
+      return status;
+    };
+
+    const scheduleCodexIdleCheck = () => {
+      if (detectorRef.current.provider !== "codex") return;
+      clearCodexIdleTimeout();
+      codexIdleTimeout = setTimeout(() => {
+        if (detectorRef.current.provider !== "codex") return;
+
+        const surfaceStatus = inspectCodexSurface("idle-timeout");
+        if (surfaceStatus === "working") {
+          scheduleCodexIdleCheck();
+          return;
+        }
+        if (surfaceStatus === "waiting") {
+          return;
+        }
+
+        detectorRef.current.awaitingUser = true;
+        applyDetectedStatus("waiting", "Codex ready");
+      }, CODEX_IDLE_TIMEOUT_MS);
+    };
+
     const handleCodexOutput = (payload) => {
       const plainText = extractPlainText(payload);
       const summary = summarizeStatusText(plainText);
+      const recentText = rememberCodexText(plainText);
+      const hasBellByte = payload.includes("\u0007");
+
+      if (hasBellByte) {
+        codexDebugRef.current.lastBellByteAt = Date.now();
+        logCodexDebug("bell-byte", {
+          summary,
+          recentText,
+        });
+      }
 
       const detector = detectorRef.current;
       if (detector.provider === "unknown" && looksLikeCodexSession(plainText)) {
         detector.provider = "codex";
         detector.awaitingUser = true;
         useForgeStore.getState().setTabAutoName(tabId, "Codex");
+        logCodexDebug("session-detected", {
+          summary: summary || "Codex ready",
+          recentText,
+        });
         applyDetectedStatus("waiting", summary || "Codex ready", { notifyWaiting: false });
         return;
       }
 
       if (detector.provider !== "codex") return;
-      if (detector.awaitingUser) return;
+      scheduleCodexIdleCheck();
+
+      const surfaceStatus = inspectCodexSurface("output", summary);
+      if (surfaceStatus) return;
 
       if (summary) {
+        logCodexDebug("working-output", {
+          summary,
+          recentText,
+        });
         applyDetectedStatus("working", summary);
       }
     };
@@ -124,6 +337,11 @@ export default function Terminal({ tabId, isActive, cwd }) {
         detector.provider = "codex";
       }
 
+      codexDebugRef.current.lastBellEventAt = Date.now();
+      logCodexDebug("bell-event", {
+        recentText: codexDebugRef.current.recentText,
+      });
+      clearCodexIdleTimeout();
       detector.awaitingUser = true;
       const title = snapshot.tab.statusTitle || "Codex needs attention";
       applyDetectedStatus("waiting", title);
@@ -166,10 +384,19 @@ export default function Terminal({ tabId, isActive, cwd }) {
         detector.provider = "codex";
         detector.awaitingUser = codexLaunchMode === "interactive";
         useForgeStore.getState().setTabAutoName(tabId, "Codex");
+        codexDebugRef.current.recentText = "";
+        codexDebugRef.current.lastBellByteAt = null;
+        codexDebugRef.current.lastBellEventAt = null;
+        logCodexDebug("command-submitted", {
+          command,
+          launchMode: codexLaunchMode,
+        });
         if (codexLaunchMode === "interactive") {
+          clearCodexIdleTimeout();
           applyDetectedStatus("waiting", "Codex ready", { notifyWaiting: false });
         } else {
           applyDetectedStatus("working", summarizeStatusText(command, "Codex"));
+          scheduleCodexIdleCheck();
         }
         return;
       }
@@ -177,6 +404,11 @@ export default function Terminal({ tabId, isActive, cwd }) {
       if (detector.provider !== "codex") return;
 
       if (isCodexExitCommand(command)) {
+        logCodexDebug("session-exit", {
+          command,
+          recentText: codexDebugRef.current.recentText,
+        });
+        clearCodexIdleTimeout();
         detector.provider = "unknown";
         detector.awaitingUser = false;
         applyDetectedStatus("idle", "", { countResponse: false, notifyWaiting: false });
@@ -184,7 +416,12 @@ export default function Terminal({ tabId, isActive, cwd }) {
       }
 
       detector.awaitingUser = false;
+      logCodexDebug("user-reply", {
+        command,
+        recentText: codexDebugRef.current.recentText,
+      });
       applyDetectedStatus("working", summarizeStatusText(command, "Codex"));
+      scheduleCodexIdleCheck();
     };
 
     const term = new XTerm({
@@ -207,23 +444,68 @@ export default function Terminal({ tabId, isActive, cwd }) {
     term.open(containerRef.current);
     fitAddon.fit();
 
+    let webglAddon = null;
+    let webglContextLossListener = null;
     try {
-      term.loadAddon(new WebglAddon());
+      webglAddon = new WebglAddon();
+      webglContextLossListener = webglAddon.onContextLoss(() => {
+        if (isTearingDown) return;
+        console.warn("WebGL renderer lost context, falling back to DOM renderer");
+        showTransientNotice(
+          "Terminal display recovered",
+          "Forge switched this tab to a safer renderer. Your session should still be running."
+        );
+        try {
+          webglAddon?.dispose();
+        } catch (error) {
+          console.warn("Failed to dispose WebGL addon after context loss", error);
+        }
+        requestAnimationFrame(() => {
+          fitAddon.fit();
+          term.refresh(0, term.rows - 1);
+        });
+      });
+      term.loadAddon(webglAddon);
     } catch (error) {
       console.warn("WebGL addon failed, falling back to default renderer", error);
     }
 
     const unlistenOutput = listen(`pty-output-${tabId}`, (event) => {
+      clearPersistentNotice();
       term.write(event.payload);
       handleCodexOutput(event.payload);
+    });
+    const unlistenExit = listen(`pty-exit-${tabId}`, () => {
+      if (isTearingDown) return;
+      handlePtyDisconnect(
+        "Terminal session ended",
+        `This shell ended or disconnected. ${TERMINAL_RECOVERY_MESSAGE}`,
+        cwd ? `Working directory: ${cwd}` : ""
+      );
+    });
+    const unlistenError = listen(`pty-error-${tabId}`, (event) => {
+      if (isTearingDown) return;
+      handlePtyDisconnect(
+        "Terminal session lost",
+        `Forge lost the connection to this shell. ${TERMINAL_RECOVERY_MESSAGE}`,
+        event.payload ? String(event.payload) : cwd ? `Working directory: ${cwd}` : ""
+      );
     });
     const bellListener = term.onBell(handleBell);
 
     invoke("spawn_pty", { tabId, rows: term.rows, cols: term.cols, cwd: cwd || null })
       .then(() => {
         ptyReady.current = true;
+        clearNotice();
       })
-      .catch((err) => console.error("Failed to spawn PTY:", err));
+      .catch((err) => {
+        console.error("Failed to spawn PTY:", err);
+        handlePtyDisconnect(
+          "Terminal failed to start",
+          "Forge could not start the shell for this tab.",
+          String(err)
+        );
+      });
 
     term.onData((data) => {
       const command = updateInputBuffer(data);
@@ -232,7 +514,15 @@ export default function Terminal({ tabId, isActive, cwd }) {
       }
 
       if (ptyReady.current) {
-        invoke("write_pty", { tabId, data });
+        invoke("write_pty", { tabId, data }).catch((error) => {
+          if (isTearingDown) return;
+          console.error("Failed to write to PTY:", error);
+          handlePtyDisconnect(
+            "Terminal session lost",
+            `Forge could not send input to this shell. ${TERMINAL_RECOVERY_MESSAGE}`,
+            String(error)
+          );
+        });
       }
     });
 
@@ -253,7 +543,15 @@ export default function Terminal({ tabId, isActive, cwd }) {
         navigator.clipboard.readText().then((text) => {
           if (text && ptyReady.current) {
             const bracketed = `\x1b[200~${text}\x1b[201~`;
-            invoke("write_pty", { tabId, data: bracketed });
+            invoke("write_pty", { tabId, data: bracketed }).catch((error) => {
+              if (isTearingDown) return;
+              console.error("Failed to paste into PTY:", error);
+              handlePtyDisconnect(
+                "Terminal session lost",
+                `Forge could not send pasted text to this shell. ${TERMINAL_RECOVERY_MESSAGE}`,
+                String(error)
+              );
+            });
           }
         });
         return false;
@@ -261,7 +559,15 @@ export default function Terminal({ tabId, isActive, cwd }) {
 
       if (e.ctrlKey && e.key === "Enter") {
         if (ptyReady.current) {
-          invoke("write_pty", { tabId, data: "\n" });
+          invoke("write_pty", { tabId, data: "\n" }).catch((error) => {
+            if (isTearingDown) return;
+            console.error("Failed to send Ctrl+Enter to PTY:", error);
+            handlePtyDisconnect(
+              "Terminal session lost",
+              `Forge could not send input to this shell. ${TERMINAL_RECOVERY_MESSAGE}`,
+              String(error)
+            );
+          });
         }
         return false;
       }
@@ -270,7 +576,15 @@ export default function Terminal({ tabId, isActive, cwd }) {
     });
 
     term.onResize(({ cols, rows }) => {
-      invoke("resize_pty", { tabId, rows, cols });
+      invoke("resize_pty", { tabId, rows, cols }).catch((error) => {
+        if (isTearingDown || !ptyReady.current) return;
+        console.error("Failed to resize PTY:", error);
+        handlePtyDisconnect(
+          "Terminal session lost",
+          `Forge lost the shell while resizing this tab. ${TERMINAL_RECOVERY_MESSAGE}`,
+          String(error)
+        );
+      });
     });
 
     term.onTitleChange((title) => {
@@ -304,16 +618,28 @@ export default function Terminal({ tabId, isActive, cwd }) {
     resizeObserver.observe(containerRef.current);
 
     return () => {
+      isTearingDown = true;
       bellListener.dispose();
+      clearCodexIdleTimeout();
+      clearNoticeTimer();
       clearTimeout(resizeTimeout);
       resizeObserver.disconnect();
       unlistenOutput.then((unlisten) => unlisten());
+      unlistenExit.then((unlisten) => unlisten());
+      unlistenError.then((unlisten) => unlisten());
+      webglContextLossListener?.dispose?.();
+      webglAddon?.dispose?.();
       invoke("kill_pty", { tabId });
       term.dispose();
       fitAddonRef.current = null;
       termRef.current = null;
       ptyReady.current = false;
       inputBufferRef.current = "";
+      codexDebugRef.current = {
+        recentText: "",
+        lastBellByteAt: null,
+        lastBellEventAt: null,
+      };
       detectorRef.current = { provider: "unknown", awaitingUser: false };
     };
   }, [tabId, cwd]);
@@ -329,9 +655,19 @@ export default function Terminal({ tabId, isActive, cwd }) {
   }, [isActive]);
 
   return (
-    <div
-      ref={containerRef}
-      style={{ width: "100%", height: "100%", padding: "4px" }}
-    />
+    <div className="terminal-shell">
+      <div
+        ref={containerRef}
+        className="terminal-canvas"
+        style={{ width: "100%", height: "100%", padding: "4px" }}
+      />
+      {notice ? (
+        <div className={`terminal-notice terminal-notice-${notice.level}`}>
+          <div className="terminal-notice-title">{notice.title}</div>
+          <div className="terminal-notice-message">{notice.message}</div>
+          {notice.detail ? <div className="terminal-notice-detail">{notice.detail}</div> : null}
+        </div>
+      ) : null}
+    </div>
   );
 }

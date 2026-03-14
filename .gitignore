@@ -3,4 +3,6 @@ dist/
 target/
 .cargo/
 .claude/
+.codex-app-server-schema/
+tmp/
 OPEN_SOURCE_PLAN.md

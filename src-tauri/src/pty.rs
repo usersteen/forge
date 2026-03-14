@@ -61,18 +61,26 @@ pub fn spawn_pty(
         .insert(tab_id.clone(), session);
 
     let event_name = format!("pty-output-{}", tab_id);
+    let exit_event_name = format!("pty-exit-{}", tab_id);
+    let error_event_name = format!("pty-error-{}", tab_id);
     let sessions = Arc::clone(&state.sessions);
     let cleanup_tab_id = tab_id.clone();
     std::thread::spawn(move || {
         let mut buf = [0u8; 4096];
         loop {
             match reader.read(&mut buf) {
-                Ok(0) => break,
+                Ok(0) => {
+                    let _ = app.emit(&exit_event_name, "pty-ended");
+                    break;
+                }
                 Ok(n) => {
                     let data = String::from_utf8_lossy(&buf[..n]).to_string();
                     let _ = app.emit(&event_name, data);
                 }
-                Err(_) => break,
+                Err(err) => {
+                    let _ = app.emit(&error_event_name, err.to_string());
+                    break;
+                }
             }
         }
         if let Ok(mut sessions) = sessions.lock() {

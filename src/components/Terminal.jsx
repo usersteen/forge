@@ -94,21 +94,22 @@ export default function Terminal({ tabId, isActive, cwd }) {
     const handleCodexOutput = (payload) => {
       const plainText = extractPlainText(payload);
       const summary = summarizeStatusText(plainText);
-      if (!summary) return;
 
       const detector = detectorRef.current;
       if (detector.provider === "unknown" && looksLikeCodexSession(plainText)) {
         detector.provider = "codex";
         detector.awaitingUser = true;
         useForgeStore.getState().setTabAutoName(tabId, "Codex");
-        applyDetectedStatus("waiting", summary, { notifyWaiting: false });
+        applyDetectedStatus("waiting", summary || "Codex ready", { notifyWaiting: false });
         return;
       }
 
       if (detector.provider !== "codex") return;
       if (detector.awaitingUser) return;
 
-      applyDetectedStatus("working", summary);
+      if (summary) {
+        applyDetectedStatus("working", summary);
+      }
     };
 
     const handleBell = () => {

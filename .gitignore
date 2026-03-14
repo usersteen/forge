@@ -2,4 +2,5 @@ node_modules/
 dist/
 target/
 .cargo/
+.claude/
 OPEN_SOURCE_PLAN.md

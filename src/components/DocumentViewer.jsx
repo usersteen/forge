@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 import useForgeStore from "../store/useForgeStore";
 import useEffectiveHeatStage from "../hooks/useEffectiveHeatStage";
@@ -35,6 +35,13 @@ function getImageSrc(assetPath) {
   return assetPath.startsWith("data:") ? assetPath : convertFileSrc(assetPath);
 }
 
+function isEditableTarget(target) {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  const tagName = target.tagName.toLowerCase();
+  return tagName === "input" || tagName === "textarea" || tagName === "select";
+}
+
 export default function DocumentViewer() {
   const activeGroupId = useForgeStore((state) => state.activeGroupId);
   const groups = useForgeStore((state) => state.groups);
@@ -55,6 +62,9 @@ export default function DocumentViewer() {
   const [editModeByPath, setEditModeByPath] = useState({});
   const [savingByPath, setSavingByPath] = useState({});
   const [saveErrorsByPath, setSaveErrorsByPath] = useState({});
+  const [reloadingByPath, setReloadingByPath] = useState({});
+  const [contextMenu, setContextMenu] = useState(null);
+  const contextMenuRef = useRef(null);
 
   useEffect(() => {
     if (!activeGroup) return;
@@ -67,7 +77,34 @@ export default function DocumentViewer() {
     setEditModeByPath(filterMap);
     setSavingByPath(filterMap);
     setSaveErrorsByPath(filterMap);
+    setReloadingByPath(filterMap);
   }, [activeGroup]);
+
+  useEffect(() => {
+    if (!contextMenu) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (contextMenuRef.current?.contains(event.target)) return;
+      setContextMenu(null);
+    };
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setContextMenu(null);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [contextMenu]);
+
+  useEffect(() => {
+    setContextMenu(null);
+  }, [activeGroupId]);
 
   useEffect(() => {
     if (!activeDocument || documentState?.status !== "ready" || documentState.payload?.type !== "markdown") {
@@ -96,6 +133,7 @@ export default function DocumentViewer() {
   const editorValue = activeDraft ?? activeContent;
   const isEditing = Boolean(activeDocument && editModeByPath[activeDocument.path]);
   const isSaving = Boolean(activeDocument && savingByPath[activeDocument.path]);
+  const isReloading = Boolean(activeDocument && reloadingByPath[activeDocument.path]);
   const saveError = activeDocument ? saveErrorsByPath[activeDocument.path] : "";
   const isDirty = Boolean(isMarkdown && activeDocument && editorValue !== activeContent);
   const documentTabEmbers = useMemo(() => {
@@ -204,6 +242,68 @@ export default function DocumentViewer() {
     }
   };
 
+  const handleReloadDocument = async (documentPath) => {
+    if (!activeGroup?.rootPath || !documentPath) return;
+    const targetDocument = activeGroup.openDocuments.find((document) => document.path === documentPath);
+    if (!targetDocument) return;
+
+    if (
+      dirtyPaths.has(documentPath) &&
+      !window.confirm(`Discard unsaved changes in ${targetDocument.title} and reload from disk?`)
+    ) {
+      return;
+    }
+
+    setReloadingByPath((current) => ({
+      ...current,
+      [documentPath]: true,
+    }));
+    setSaveErrorsByPath((current) => ({
+      ...current,
+      [documentPath]: "",
+    }));
+    setDocumentState(activeGroup.id, documentPath, {
+      status: "loading",
+      error: "",
+      payload: null,
+    });
+
+    try {
+      const payload = await invoke("read_workspace_file", {
+        rootPath: activeGroup.rootPath,
+        relativePath: documentPath,
+      });
+      const normalizedPayload = normalizeFilePayload(payload);
+      const nextStatus =
+        normalizedPayload.type === "unsupported"
+          ? "unsupported"
+          : normalizedPayload.truncated
+            ? "too-large"
+            : "ready";
+
+      setDocumentState(activeGroup.id, documentPath, {
+        status: nextStatus,
+        error: "",
+        payload: normalizedPayload,
+      });
+      setDraftsByPath((current) => ({
+        ...current,
+        [documentPath]: normalizedPayload.content || "",
+      }));
+    } catch (error) {
+      setDocumentState(activeGroup.id, documentPath, {
+        status: "error",
+        error: String(error),
+        payload: null,
+      });
+    } finally {
+      setReloadingByPath((current) => ({
+        ...current,
+        [documentPath]: false,
+      }));
+    }
+  };
+
   const handleCloseDocument = (document) => {
     if (!document || !activeGroup) return;
     if (dirtyPaths.has(document.path) && !window.confirm(`Discard unsaved changes in ${document.title}?`)) {
@@ -224,8 +324,31 @@ export default function DocumentViewer() {
     }));
   };
 
+  const openDocumentContextMenu = (event, document) => {
+    if (!document) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setContextMenu({
+      x: event.clientX,
+      y: event.clientY,
+      path: document.path,
+      title: document.title,
+    });
+  };
+
   return (
-    <aside className="document-viewer-shell">
+    <aside
+      className="document-viewer-shell"
+      onContextMenu={(event) => {
+        if (isEditableTarget(event.target)) return;
+        if (window.getSelection?.()?.toString()) return;
+        if (activeDocument) {
+          openDocumentContextMenu(event, activeDocument);
+          return;
+        }
+        event.preventDefault();
+      }}
+    >
       <div className="document-viewer-header">
         <div className="document-viewer-tab-bar">
           <div className="document-viewer-tabs">
@@ -236,6 +359,7 @@ export default function DocumentViewer() {
                 tabIndex={0}
                 className={`document-viewer-tab ${activeGroup.activeDocumentPath === document.path ? "document-viewer-tab-active" : ""}`}
                 onClick={() => setActiveDocument(activeGroup.id, document.path)}
+                onContextMenu={(event) => openDocumentContextMenu(event, document)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
@@ -315,6 +439,14 @@ export default function DocumentViewer() {
                 {isEditing ? "Preview" : "Edit"}
               </button>
             ) : null}
+            <button
+              type="button"
+              className="document-viewer-action"
+              onClick={() => handleReloadDocument(activeDocument.path)}
+              disabled={isReloading || isSaving}
+            >
+              {isReloading ? "Reloading..." : "Reload"}
+            </button>
             {isEditing && isDirty ? (
               <button type="button" className="document-viewer-action" onClick={handleRevert}>
                 Revert
@@ -369,6 +501,33 @@ export default function DocumentViewer() {
               <img className="document-image" src={getImageSrc(documentState.payload.assetPath)} alt={activeDocument.title} />
             </div>
           ) : null}
+        </div>
+      ) : null}
+      {contextMenu ? (
+        <div ref={contextMenuRef} className="tab-context-menu" style={{ left: contextMenu.x, top: contextMenu.y }}>
+          <button
+            type="button"
+            className="tab-context-item"
+            onClick={() => {
+              setContextMenu(null);
+              void handleReloadDocument(contextMenu.path);
+            }}
+          >
+            Reload {contextMenu.title}
+          </button>
+          <button
+            type="button"
+            className="tab-context-item"
+            onClick={() => {
+              const targetDocument = activeGroup.openDocuments.find((document) => document.path === contextMenu.path);
+              setContextMenu(null);
+              if (targetDocument) {
+                handleCloseDocument(targetDocument);
+              }
+            }}
+          >
+            Close {contextMenu.title}
+          </button>
         </div>
       ) : null}
     </aside>

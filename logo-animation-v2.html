@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Forge Logo Animation v2</title>
+<style>
+  :root {
+    --bg-deep: #080c14;
+    --bg-sidebar: #0a0f1a;
+    --heat-4: #ef4444;
+    --heat-5: #b91c1c;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg-deep);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .scene {
+    width: 800px;
+    height: 300px;
+    position: relative;
+    overflow: hidden;
+    background: var(--bg-deep);
+  }
+
+  /* Logo container — centered in scene */
+  .sidebar-logo {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 640px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    filter: drop-shadow(0 0 6px var(--heat-5)) drop-shadow(0 0 12px var(--heat-5));
+  }
+
+  .sidebar-logo svg {
+    height: 32px;
+    width: auto;
+  }
+
+  /* Embers spawn at random vertical positions already in motion */
+  .forge-ember {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: var(--heat-4);
+    pointer-events: none;
+    box-shadow: 0 0 4px var(--heat-4);
+    animation: ember-rise var(--dur, 3s) ease-out infinite;
+    animation-delay: var(--delay, 0s);
+  }
+
+  @keyframes ember-rise {
+    0% {
+      opacity: 0;
+      transform: translateY(0) scale(0.5);
+    }
+    8% {
+      opacity: 1;
+      transform: translateY(calc(var(--rise) * 0.05)) scale(1);
+    }
+    60% {
+      opacity: 0.7;
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(var(--rise, -80px)) scale(0.2);
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="scene">
+  <!-- Embers scattered across the scene, spawning from the logo area -->
+  <!-- Short embers (near logo) -->
+  <span class="forge-ember" style="left: 14%; top: 55%; --rise: -60px; --dur: 2.2s; --delay: 0s;"></span>
+  <span class="forge-ember" style="left: 28%; top: 58%; --rise: -50px; --dur: 2.0s; --delay: 0.6s;"></span>
+  <span class="forge-ember" style="left: 42%; top: 52%; --rise: -55px; --dur: 2.4s; --delay: 1.1s;"></span>
+  <span class="forge-ember" style="left: 56%; top: 56%; --rise: -45px; --dur: 1.8s; --delay: 0.3s;"></span>
+  <span class="forge-ember" style="left: 70%; top: 54%; --rise: -60px; --dur: 2.1s; --delay: 1.5s;"></span>
+  <span class="forge-ember" style="left: 84%; top: 57%; --rise: -50px; --dur: 2.3s; --delay: 0.8s;"></span>
+  <span class="forge-ember" style="left: 20%; top: 53%; --rise: -65px; --dur: 2.5s; --delay: 1.8s;"></span>
+  <span class="forge-ember" style="left: 63%; top: 50%; --rise: -55px; --dur: 2.0s; --delay: 0.2s;"></span>
+
+  <!-- Medium embers (rise higher) -->
+  <span class="forge-ember" style="left: 10%; top: 60%; --rise: -120px; --dur: 3.5s; --delay: 0.4s;"></span>
+  <span class="forge-ember" style="left: 25%; top: 62%; --rise: -110px; --dur: 3.2s; --delay: 1.9s;"></span>
+  <span class="forge-ember" style="left: 38%; top: 58%; --rise: -130px; --dur: 3.8s; --delay: 0.7s;"></span>
+  <span class="forge-ember" style="left: 50%; top: 60%; --rise: -100px; --dur: 3.0s; --delay: 2.2s;"></span>
+  <span class="forge-ember" style="left: 65%; top: 63%; --rise: -115px; --dur: 3.4s; --delay: 1.3s;"></span>
+  <span class="forge-ember" style="left: 78%; top: 59%; --rise: -125px; --dur: 3.6s; --delay: 0.1s;"></span>
+  <span class="forge-ember" style="left: 90%; top: 61%; --rise: -105px; --dur: 3.1s; --delay: 2.5s;"></span>
+  <span class="forge-ember" style="left: 45%; top: 57%; --rise: -110px; --dur: 3.3s; --delay: 1.6s;"></span>
+
+  <!-- Tall embers (slow, long travel) -->
+  <span class="forge-ember" style="left: 18%; top: 65%; --rise: -200px; --dur: 5.5s; --delay: 1.2s;"></span>
+  <span class="forge-ember" style="left: 35%; top: 68%; --rise: -220px; --dur: 6.0s; --delay: 3.8s;"></span>
+  <span class="forge-ember" style="left: 55%; top: 66%; --rise: -190px; --dur: 5.0s; --delay: 0.5s;"></span>
+  <span class="forge-ember" style="left: 72%; top: 64%; --rise: -210px; --dur: 5.8s; --delay: 2.4s;"></span>
+  <span class="forge-ember" style="left: 88%; top: 67%; --rise: -200px; --dur: 5.3s; --delay: 4.1s;"></span>
+  <span class="forge-ember" style="left: 30%; top: 63%; --rise: -180px; --dur: 4.8s; --delay: 1.7s;"></span>
+  <span class="forge-ember" style="left: 82%; top: 70%; --rise: -230px; --dur: 6.5s; --delay: 3.0s;"></span>
+  <span class="forge-ember" style="left: 48%; top: 65%; --rise: -195px; --dur: 5.2s; --delay: 5.0s;"></span>
+
+  <!-- Logo: 5 separate SVGs, flex spaced -->
+  <div class="sidebar-logo">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 51.59 60.7">
+      <path fill="#b91c1c" d="M51.59.91v2.73c0,.5-.41.91-.91.91h-27.01c-.5,0-.91.41-.91.91v21.7c0,.5.41.91.91.91h10.32c.5,0,.91-.41.91-.91v-.46c0-.5.41-.91.91-.91h1.21c.5,0,.91.41.91.91v7.28c0,.5-.41.91-.91.91h-1.21c-.5,0-.91-.41-.91-.91v-.45c0-.5-.41-.91-.91-.91h-10.32c-.5,0-.91.41-.91.91v21.7c0,.5.41.91.91.91h7.28c.5,0,.91.41.91.91v2.73c0,.5-.41.91-.91.91H.91c-.5,0-.91-.41-.91-.91v-2.73c0-.5.41-.91.91-.91h4.55c2.01,0,3.64-1.63,3.64-3.64V8.19c0-2.01-1.63-3.64-3.64-3.64H.91c-.5,0-.91-.41-.91-.91V.91C0,.41.41,0,.91,0h49.77c.5,0,.91.41.91.91Z"/>
+    </svg>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="68 0 42.59 60.7">
+      <path fill="#b91c1c" d="M109.68,4.55c.5,0,.91.41.91.91v49.77c0,.5-.41.91-.91.91-2.01,0-3.64,1.63-3.64,3.64,0,.5-.41.91-.91.91h-31.56c-.5,0-.91-.41-.91-.91,0-2.01-1.63-3.64-3.64-3.64-.5,0-.91-.41-.91-.91V5.46c0-.5.41-.91.91-.91,2.01,0,3.64-1.63,3.64-3.64,0-.5.41-.91.91-.91h31.56c.5,0,.91.41.91.91,0,2.01,1.63,3.64,3.64,3.64ZM96.93,55.23V5.46c0-.5-.41-.91-.91-.91h-13.35c-.5,0-.91.41-.91.91v49.77c0,.5.41.91.91.91h13.35c.5,0,.91-.41.91-.91Z"/>
+    </svg>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="129 0 60.01 60.7">
+      <path fill="#b91c1c" d="M188.1,56.14c.5,0,.91.41.91.91v2.73c0,.5-.41.91-.91.91h-16.39c-.5,0-.91-.41-.91-.91,0-2.01-1.63-3.64-3.64-3.64-.5,0-.91-.41-.91-.91v-21.7c0-.5-.41-.91-.91-.91h-13.35c-.5,0-.91.41-.91.91v21.7c0,.5-.41.91-.91.91-2.01,0-3.64,1.63-3.64,3.64,0,.5-.41.91-.91.91h-16.39c-.5,0-.91-.41-.91-.91v-2.73c0-.5.41-.91.91-.91h4.55c2.01,0,3.64-1.63,3.64-3.64V8.19c0-2.01-1.63-3.64-3.64-3.64h-4.55c-.5,0-.91-.41-.91-.91V.91c0-.5.41-.91.91-.91h45.22c.5,0,.91.41.91.91,0,2.01,1.63,3.64,3.64,3.64.5,0,.91.41.91.91v21.7c0,.5-.41.91-.91.91h-2.73c-.5,0-.91.41-.91.91v2.73c0,.5.41.91.91.91h2.73c.5,0,.91.41.91.91v18.97c0,2.01,1.63,3.64,3.64,3.64h4.55ZM151.99,28.07h13.35c.5,0,.91-.41.91-.91V5.46c0-.5-.41-.91-.91-.91h-13.35c-.5,0-.91.41-.91.91v21.7c0,.5.41.91.91.91Z"/>
+    </svg>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="207 0 50.72 60.7">
+      <path fill="#b91c1c" d="M257.72,28.98v2.73c0,.5-.41.91-.91.91h-7.28c-.5,0-.91.41-.91.91v21.7c0,.5-.41.91-.91.91-2.01,0-3.64,1.63-3.64,3.64,0,.5-.41.91-.91.91h-31.56c-.5,0-.91-.41-.91-.91,0-2.01-1.63-3.64-3.64-3.64-.5,0-.91-.41-.91-.91V5.46c0-.5.41-.91.91-.91,2.01,0,3.64-1.63,3.64-3.64,0-.5.41-.91.91-.91h31.56c.5,0,.91.41.91.91,0,2.01,1.63,3.64,3.64,3.64.5,0,.91.41.91.91v2.73c0,.5-.41.91-.91.91h-11.84c-.5,0-.91-.41-.91-.91v-2.73c0-.5-.41-.91-.91-.91h-13.35c-.5,0-.91.41-.91.91v49.77c0,.5.41.91.91.91h13.35c.5,0,.91-.41.91-.91v-21.7c0-.5-.41-.91-.91-.91h-7.28c-.5,0-.91-.41-.91-.91v-2.73c0-.5.41-.91.91-.91h30.04c.5,0,.91.41.91.91Z"/>
+    </svg>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="268 0 52 60.7">
+      <path fill="#b91c1c" d="M291.17,5.46v21.7c0,.5.41.91.91.91h10.32c.5,0,.91-.41.91-.91v-.46c0-.5.41-.91.91-.91h1.21c.5,0,.91.41.91.91v7.28c0,.5-.41.91-.91.91h-1.21c-.5,0-.91-.41-.91-.91v-.45c0-.5-.41-.91-.91-.91h-10.32c-.5,0-.91.41-.91.91v21.7c0,.5.41.91.91.91h27.01c.5,0,.91.41.91.91v2.73c0,.5-.41.91-.91.91h-49.77c-.5,0-.91-.41-.91-.91v-2.73c0-.5.41-.91.91-.91h4.55c2.01,0,3.64-1.63,3.64-3.64V8.19c0-2.01-1.63-3.64-3.64-3.64h-4.55c-.5,0-.91-.41-.91-.91V.91c0-.5.41-.91.91-.91h49.77c.5,0,.91.41.91.91v2.73c0,.5-.41.91-.91.91h-27.01c-.5,0-.91.41-.91.91Z"/>
+    </svg>
+  </div>
+</div>
+
+</body>
+</html>

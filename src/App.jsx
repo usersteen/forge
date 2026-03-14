@@ -196,6 +196,13 @@ function App() {
 
   useEffect(() => {
     const handleKeyDown = (event) => {
+      const isReloadShortcut =
+        event.key === "F5" || ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "r");
+      if (isReloadShortcut) {
+        event.preventDefault();
+        return;
+      }
+
       if (isEditableTarget(event.target)) return;
 
       if (event.ctrlKey && event.key === "Tab") {
@@ -274,7 +281,13 @@ function App() {
 
   useEffect(() => {
     if (!activeGroupId || !activeRootPath || !activeDocument) return;
-    if (activeDocumentState?.status === "ready" || activeDocumentState?.status === "unsupported" || activeDocumentState?.status === "too-large") {
+    if (
+      activeDocumentState?.status === "ready" ||
+      activeDocumentState?.status === "loading" ||
+      activeDocumentState?.status === "error" ||
+      activeDocumentState?.status === "unsupported" ||
+      activeDocumentState?.status === "too-large"
+    ) {
       return;
     }
 

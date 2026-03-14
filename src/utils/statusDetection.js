@@ -25,8 +25,6 @@ const CODEX_NONINTERACTIVE_SUBCOMMANDS = new Set([
   "sandbox",
   "debug",
   "apply",
-  "resume",
-  "fork",
   "cloud",
   "features",
   "help",

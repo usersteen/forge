@@ -60,11 +60,13 @@ See FORGE_PLAN.md for full architecture and spec.
 ```bash
 dev.bat              # Run in dev mode (sets up MSVC env)
 npx tauri build      # Build .exe (run from Git Bash, no vcvarsall needed)
+release.bat          # Bump version, then build reinstallable desktop artifacts
 ```
 
 ## Build Notes
 - Build with `npx tauri build` directly from Git Bash — no need for `dev.bat` or Developer Command Prompt
 - Build target is at `~/.forge-build/target` (moved outside OneDrive to prevent Explorer freezing)
 - Installers output to `~/.forge-build/target/release/bundle/nsis/` and `.../msi/`
-- Version bumps are manual via `npm run version:bump`; full builds no longer mutate tracked files
+- `build.bat` is a clean verification build and does not change tracked version files
+- `release.bat` is the reinstallable release path and auto-bumps version before building
 - Vite 6 (not 7) due to Node 20 compatibility

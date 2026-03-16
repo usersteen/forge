@@ -49,6 +49,8 @@ export default function DocumentViewer() {
   const setActiveDocument = useForgeStore((state) => state.setActiveDocument);
   const closeDocument = useForgeStore((state) => state.closeDocument);
   const setDocumentState = useForgeStore((state) => state.setDocumentState);
+  const theme = useForgeStore((state) => state.theme);
+  const fxEnabled = useForgeStore((state) => state.fxEnabled);
 
   const activeGroup = groups.find((group) => group.id === activeGroupId);
   const documentStateMap = documentStateByGroup[activeGroupId] || {};
@@ -137,16 +139,17 @@ export default function DocumentViewer() {
   const saveError = activeDocument ? saveErrorsByPath[activeDocument.path] : "";
   const isDirty = Boolean(isMarkdown && activeDocument && editorValue !== activeContent);
   const documentTabEmbers = useMemo(() => {
+    if (!fxEnabled) return null;
     const positions = DOCUMENT_TAB_EMBER_CONFIGS[heatStage];
     if (!positions) return null;
     return positions.map((left, i) => (
       <span
         key={`dt-${i}`}
         className="forge-ember-wide document-viewer-ember"
-        style={{ left: `${left}%`, animationDelay: `${(i * 0.3) % 2}s`, ...getEmberStyle(i) }}
+        style={{ left: `${left}%`, animationDelay: `${(i * 0.3) % 2}s`, ...getEmberStyle(i, theme) }}
       />
     ));
-  }, [heatStage]);
+  }, [fxEnabled, heatStage, theme]);
 
   const dirtyPaths = useMemo(() => {
     const result = new Set();

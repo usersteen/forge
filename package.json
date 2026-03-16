@@ -8,7 +8,7 @@
     "build": "vite build",
     "version:bump": "node scripts/bump-version.cjs",
     "release": "npm run version:bump && tauri build",
-    "tauri": "tauri"
+    "tauri": "node scripts/tauri.cjs"
   },
   "keywords": [],
   "author": "",

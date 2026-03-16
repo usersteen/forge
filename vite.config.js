@@ -9,7 +9,6 @@ export default defineConfig({
   clearScreen: false,
   server: {
     port: 5199,
-    strictPort: true,
   },
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),

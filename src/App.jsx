@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { LogicalPosition, LogicalSize } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -10,6 +10,7 @@ import TerminalArea from "./components/TerminalArea";
 import useEffectiveHeatStage from "./hooks/useEffectiveHeatStage";
 import useHeatTick from "./hooks/useHeatTick";
 import useForgeStore, { storeToConfig } from "./store/useForgeStore";
+import { getThemeTokens } from "./utils/themes";
 import { MAX_READER_WIDTH, MIN_READER_WIDTH } from "./utils/workspace";
 
 function isEditableTarget(target) {
@@ -43,12 +44,15 @@ function App() {
   const groups = useForgeStore((state) => state.groups);
   const activeGroupId = useForgeStore((state) => state.activeGroupId);
   const documentStateByGroup = useForgeStore((state) => state.documentStateByGroup);
+  const theme = useForgeStore((state) => state.theme);
+  const fxEnabled = useForgeStore((state) => state.fxEnabled);
   const setWorkspaceLoading = useForgeStore((state) => state.setWorkspaceLoading);
   const setWorkspaceTree = useForgeStore((state) => state.setWorkspaceTree);
   const setWorkspaceError = useForgeStore((state) => state.setWorkspaceError);
   const setDocumentState = useForgeStore((state) => state.setDocumentState);
   const setReaderWidth = useForgeStore((state) => state.setReaderWidth);
   const effectiveHeat = useEffectiveHeatStage();
+  const themeTokens = useMemo(() => getThemeTokens(theme, effectiveHeat), [theme, effectiveHeat]);
 
   const activeGroup = groups.find((group) => group.id === activeGroupId) ?? null;
   const activeRootPath = activeGroup?.rootPath ?? null;
@@ -335,7 +339,13 @@ function App() {
   }
 
   return (
-    <div className="app-layout" data-heat={effectiveHeat}>
+    <div
+      className="app-layout"
+      data-heat={effectiveHeat}
+      data-theme={theme}
+      data-fx={fxEnabled ? "on" : "off"}
+      style={themeTokens}
+    >
       <Sidebar />
       <div className="main-panel">
         <TabBar onRefreshWorkspace={requestWorkspaceRefresh} />

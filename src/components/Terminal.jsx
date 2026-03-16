@@ -21,6 +21,7 @@ const CODEX_SCREEN_TAIL_LINES = 12;
 const CODEX_WORKING_FOOTER_PATTERN = /\besc to interrupt\b/i;
 const CODEX_WAITING_FOOTER_PATTERNS = [/\bpress enter to confirm\b/i, /\besc to go back\b/i];
 const CODEX_WAITING_OPTION_PATTERN = /^\s*\d+\.\s+/m;
+const CODEX_REPLY_TO_WORKING_MS = 10000;
 const HUMAN_INPUT_PAUSE_MS = 5000;
 const TERMINAL_NOTICE_MS = 6000;
 const TERMINAL_RECOVERY_MESSAGE = "Open a new terminal tab and rerun the command you were using.";
@@ -109,6 +110,11 @@ export default function Terminal({ tabId, isActive, cwd }) {
     provider: "unknown",
     awaitingUser: false,
   });
+  const recentCodexInputRef = useRef({
+    summary: "",
+    at: 0,
+  });
+  const recentCodexReplyAtRef = useRef(0);
 
   useEffect(() => {
     let isTearingDown = false;
@@ -192,6 +198,32 @@ export default function Terminal({ tabId, isActive, cwd }) {
       codexIdleTimeout = undefined;
     };
 
+    const rememberRecentCodexInput = (command) => {
+      recentCodexInputRef.current = {
+        summary: summarizeStatusText(command).replace(/\s+/g, " ").trim().toLowerCase(),
+        at: Date.now(),
+      };
+    };
+
+    const hasRecentCodexReply = () => Date.now() - recentCodexReplyAtRef.current <= CODEX_REPLY_TO_WORKING_MS;
+
+    const isRecentCodexEcho = (summary) => {
+      const normalizedSummary = summary.replace(/\s+/g, " ").trim().toLowerCase();
+      if (!normalizedSummary) return false;
+
+      const recentInput = recentCodexInputRef.current;
+      if (!recentInput.summary || Date.now() - recentInput.at > 1500) {
+        return false;
+      }
+
+      if (normalizedSummary !== recentInput.summary) {
+        return false;
+      }
+
+      recentCodexInputRef.current = { summary: "", at: 0 };
+      return true;
+    };
+
     const stopHumanInputPause = () => {
       clearTimeout(humanInputPauseTimeout);
       humanInputPauseTimeout = undefined;
@@ -259,7 +291,7 @@ export default function Terminal({ tabId, isActive, cwd }) {
 
       store.setTabStatus(tabId, status, nextTitle);
 
-      if (notifyWaiting && status === "waiting") {
+      if (notifyWaiting && status === "waiting" && prevStatus !== "waiting") {
         maybeNotifyWaiting(store, tab);
       }
     };
@@ -289,6 +321,9 @@ export default function Terminal({ tabId, isActive, cwd }) {
       });
 
       detectorRef.current.awaitingUser = status === "waiting";
+      if (status === "waiting") {
+        recentCodexReplyAtRef.current = 0;
+      }
       applyDetectedStatus(status, title);
       return status;
     };
@@ -309,7 +344,8 @@ export default function Terminal({ tabId, isActive, cwd }) {
         }
 
         detectorRef.current.awaitingUser = true;
-        applyDetectedStatus("waiting", "Codex ready");
+        recentCodexReplyAtRef.current = 0;
+        applyDetectedStatus("waiting", "Codex ready", { notifyWaiting: false });
       }, CODEX_IDLE_TIMEOUT_MS);
     };
 
@@ -331,6 +367,7 @@ export default function Terminal({ tabId, isActive, cwd }) {
       if (detector.provider === "unknown" && looksLikeCodexSession(plainText)) {
         detector.provider = "codex";
         detector.awaitingUser = true;
+        recentCodexReplyAtRef.current = 0;
         useForgeStore.getState().setTabAutoName(tabId, "Codex");
         logCodexDebug("session-detected", {
           summary: summary || "Codex ready",
@@ -343,8 +380,36 @@ export default function Terminal({ tabId, isActive, cwd }) {
       if (detector.provider !== "codex") return;
       scheduleCodexIdleCheck();
 
+      const snapshot = getTabSnapshot(useForgeStore.getState(), tabId);
+      const currentTabStatus = snapshot?.tab.status ?? prevStatusRef.current;
+
       const surfaceStatus = inspectCodexSurface("output", summary);
       if (surfaceStatus) return;
+
+      if (summary && isRecentCodexEcho(summary)) {
+        logCodexDebug("ignored-echo", {
+          summary,
+          recentText,
+        });
+        return;
+      }
+
+      if (currentTabStatus === "waiting") {
+        if (summary && hasRecentCodexReply()) {
+          logCodexDebug("working-after-reply", {
+            summary,
+            recentText,
+          });
+          applyDetectedStatus("working", summary);
+          return;
+        }
+
+        logCodexDebug("ignored-ambiguous-output", {
+          summary,
+          recentText,
+        });
+        return;
+      }
 
       if (summary) {
         logCodexDebug("working-output", {
@@ -373,6 +438,7 @@ export default function Terminal({ tabId, isActive, cwd }) {
       });
       clearCodexIdleTimeout();
       detector.awaitingUser = true;
+      recentCodexReplyAtRef.current = 0;
       const title = snapshot.tab.statusTitle || "Codex needs attention";
       applyDetectedStatus("waiting", title);
     };
@@ -446,6 +512,8 @@ export default function Terminal({ tabId, isActive, cwd }) {
       }
 
       detector.awaitingUser = false;
+      recentCodexReplyAtRef.current = Date.now();
+      rememberRecentCodexInput(command);
       logCodexDebug("user-reply", {
         command,
         recentText: codexDebugRef.current.recentText,
@@ -674,6 +742,8 @@ export default function Terminal({ tabId, isActive, cwd }) {
         lastBellEventAt: null,
       };
       detectorRef.current = { provider: "unknown", awaitingUser: false };
+      recentCodexInputRef.current = { summary: "", at: 0 };
+      recentCodexReplyAtRef.current = 0;
     };
   }, [tabId, cwd]);
 

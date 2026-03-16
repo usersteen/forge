@@ -1,8 +1,12 @@
-import { HEAT_COLORS, HEAT_LABELS } from "../utils/heat";
+import useForgeStore from "../store/useForgeStore";
 import useEscapeKey from "../hooks/useEscapeKey";
+import { HEAT_LABELS } from "../utils/heat";
+import { getThemeHeatColors } from "../utils/themes";
 
 export default function InfoPanel({ onClose }) {
   useEscapeKey(onClose);
+  const theme = useForgeStore((s) => s.theme);
+  const heatColors = getThemeHeatColors(theme);
 
   return (
     <div className="settings-overlay" onClick={onClose}>
@@ -43,8 +47,8 @@ export default function InfoPanel({ onClose }) {
           <p>Each tab has a colored dot showing the session state:</p>
           <ul>
             <li><span className="info-dot"></span> <strong>Gray</strong> = idle (nothing running)</li>
-            <li><span className="info-dot working"></span> <strong>Red</strong> = working (the agent is busy)</li>
-            <li><span className="info-dot waiting"></span> <strong>Orange</strong> = waiting (the agent needs your input)</li>
+            <li><span className="info-dot working"></span> <strong>Working</strong> = the agent is actively running</li>
+            <li><span className="info-dot waiting"></span> <strong>Waiting</strong> = the agent needs your input</li>
             <li><span className="info-dot server-running"></span> <strong>Blue</strong> = server (marked as a long-running process)</li>
           </ul>
           <p>
@@ -72,7 +76,7 @@ export default function InfoPanel({ onClose }) {
             <li>Try <strong>Demo Mode</strong> in Settings to preview all heat stages</li>
           </ul>
           <div className="info-heat-preview">
-            {HEAT_COLORS.map((color, i) => (
+            {heatColors.map((color, i) => (
               <div className="info-heat-stage" key={i}>
                 <div
                   className="info-heat-swatch"

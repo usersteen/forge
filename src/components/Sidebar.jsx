@@ -6,7 +6,8 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import useForgeStore from "../store/useForgeStore";
 import useInlineRename from "../hooks/useInlineRename";
 import useEffectiveHeatStage from "../hooks/useEffectiveHeatStage";
-import { HEAT_COLORS, getEmberStyle } from "../utils/heat";
+import { getEmberStyle } from "../utils/heat";
+import { getThemeHeatColor } from "../utils/themes";
 import Settings from "./Settings";
 import InfoPanel from "./InfoPanel";
 
@@ -103,6 +104,8 @@ export default function Sidebar() {
   const removeGroup = useForgeStore((s) => s.removeGroup);
   const renameGroup = useForgeStore((s) => s.renameGroup);
   const reorderGroups = useForgeStore((s) => s.reorderGroups);
+  const theme = useForgeStore((s) => s.theme);
+  const fxEnabled = useForgeStore((s) => s.fxEnabled);
 
   const onCommit = useCallback((id, name) => renameGroup(id, name), [renameGroup]);
   const { editingId, startEditing, inputProps } = useInlineRename(onCommit);
@@ -127,7 +130,7 @@ export default function Sidebar() {
   const closeSettings = useCallback(() => setShowSettings(false), []);
 
   const heatStage = useEffectiveHeatStage();
-  const logoFill = HEAT_COLORS[heatStage];
+  const logoFill = getThemeHeatColor(theme, heatStage);
   const logoHeatClass = heatStage > 0 ? ` sidebar-logo-heat-${heatStage}` : "";
 
   const headerClasses = [
@@ -136,28 +139,30 @@ export default function Sidebar() {
   ].filter(Boolean).join(" ");
 
   const embers = useMemo(() => {
+    if (!fxEnabled) return null;
     const positions = EMBER_CONFIGS[heatStage] || (heatStage > 5 ? EMBER_CONFIGS[5] : null);
     if (!positions) return null;
     return positions.map((left, i) => (
       <span
         key={i}
         className="forge-ember"
-        style={{ left: `${left}%`, animationDelay: `${(i * 0.4) % 2}s`, ...getEmberStyle(i) }}
+        style={{ left: `${left}%`, animationDelay: `${(i * 0.4) % 2}s`, ...getEmberStyle(i, theme) }}
       />
     ));
-  }, [heatStage]);
+  }, [fxEnabled, heatStage, theme]);
 
   const sidebarEmbers = useMemo(() => {
+    if (!fxEnabled) return null;
     const positions = SIDEBAR_EMBER_CONFIGS[heatStage];
     if (!positions) return null;
     return positions.map(([left, delay], i) => (
       <span
         key={`sb-${i}`}
         className="forge-ember-tall"
-        style={{ left: `${left}%`, animationDelay: `${delay}s`, ...getEmberStyle(i) }}
+        style={{ left: `${left}%`, animationDelay: `${delay}s`, ...getEmberStyle(i, theme) }}
       />
     ));
-  }, [heatStage]);
+  }, [fxEnabled, heatStage, theme]);
 
   return (
     <div className="sidebar">

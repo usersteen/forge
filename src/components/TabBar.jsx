@@ -77,6 +77,8 @@ export default function TabBar({ onRefreshWorkspace }) {
   const renameTab = useForgeStore((s) => s.renameTab);
   const reorderTabs = useForgeStore((s) => s.reorderTabs);
   const setTabType = useForgeStore((s) => s.setTabType);
+  const theme = useForgeStore((s) => s.theme);
+  const fxEnabled = useForgeStore((s) => s.fxEnabled);
 
   const [contextMenu, setContextMenu] = useState(null);
   const [repoOpen, setRepoOpen] = useState(false);
@@ -107,16 +109,17 @@ export default function TabBar({ onRefreshWorkspace }) {
   const heatStage = useEffectiveHeatStage();
 
   const tabBarEmbers = useMemo(() => {
+    if (!fxEnabled) return null;
     const positions = TABBAR_EMBER_CONFIGS[heatStage];
     if (!positions) return null;
     return positions.map((left, i) => (
       <span
         key={`tb-${i}`}
         className="forge-ember-wide"
-        style={{ left: `${left}%`, animationDelay: `${(i * 0.3) % 2}s`, ...getEmberStyle(i) }}
+        style={{ left: `${left}%`, animationDelay: `${(i * 0.3) % 2}s`, ...getEmberStyle(i, theme) }}
       />
     ));
-  }, [heatStage]);
+  }, [fxEnabled, heatStage, theme]);
 
   const repoLabel = useMemo(() => {
     if (!activeGroup?.rootPath) return "Set Repo Path";

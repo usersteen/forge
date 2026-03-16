@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { clampHeatStreak } from "../utils/heat";
+import { DEFAULT_THEME, normalizeTheme } from "../utils/themes";
 import {
   classifyWorkspacePath,
   makeRuntimeWorkspaceState,
@@ -80,6 +81,8 @@ const useForgeStore = create((set, get) => ({
   activeGroupId: null,
   configLoaded: false,
   favoriteRepoPaths: [],
+  theme: DEFAULT_THEME,
+  fxEnabled: true,
 
   workspaceByGroup: {},
   documentStateByGroup: {},
@@ -103,6 +106,8 @@ const useForgeStore = create((set, get) => ({
       workspaceByGroup: { [group.id]: makeRuntimeWorkspaceState() },
       documentStateByGroup: { [group.id]: {} },
       favoriteRepoPaths: [],
+      theme: DEFAULT_THEME,
+      fxEnabled: true,
       configLoaded: true,
     });
   },
@@ -146,6 +151,8 @@ const useForgeStore = create((set, get) => ({
       workspaceByGroup,
       documentStateByGroup,
       favoriteRepoPaths: normalizeFavoriteRepoPaths(config.settings?.favorite_repo_paths),
+      theme: normalizeTheme(config.settings?.theme),
+      fxEnabled: config.settings?.fx_enabled ?? true,
       streakTimer: config.settings?.streak_timer ?? 10000,
       cooldownTimer: config.settings?.cooldown_timer ?? 30000,
       configLoaded: true,
@@ -722,6 +729,8 @@ const useForgeStore = create((set, get) => ({
 
   setStreakTimer: (ms) => set({ streakTimer: ms }),
   setCooldownTimer: (ms) => set({ cooldownTimer: ms }),
+  setTheme: (theme) => set({ theme: normalizeTheme(theme) }),
+  setFxEnabled: (fxEnabled) => set({ fxEnabled: Boolean(fxEnabled) }),
 
   setDemoHeatStage: (stage) => set({ demoHeatStage: stage }),
   exitDemoMode: () => set({ demoHeatStage: null }),
@@ -761,6 +770,8 @@ export function storeToConfig(state, windowGeometry) {
       streak_timer: state.streakTimer,
       cooldown_timer: state.cooldownTimer,
       favorite_repo_paths: state.favoriteRepoPaths,
+      theme: normalizeTheme(state.theme),
+      fx_enabled: state.fxEnabled,
     },
   };
 }

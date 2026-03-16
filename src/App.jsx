@@ -281,22 +281,25 @@ function App() {
 
   useEffect(() => {
     if (!activeGroupId || !activeRootPath || !activeDocument) return;
+
+    const documentPath = activeDocument.path;
+    const currentStatus = activeDocumentState?.status;
     if (
-      activeDocumentState?.status === "ready" ||
-      activeDocumentState?.status === "loading" ||
-      activeDocumentState?.status === "error" ||
-      activeDocumentState?.status === "unsupported" ||
-      activeDocumentState?.status === "too-large"
+      currentStatus === "ready" ||
+      currentStatus === "loading" ||
+      currentStatus === "error" ||
+      currentStatus === "unsupported" ||
+      currentStatus === "too-large"
     ) {
       return;
     }
 
     let cancelled = false;
-    setDocumentState(activeGroupId, activeDocument.path, { status: "loading", error: "", payload: null });
+    setDocumentState(activeGroupId, documentPath, { status: "loading", error: "", payload: null });
 
     invoke("read_workspace_file", {
       rootPath: activeRootPath,
-      relativePath: activeDocument.path,
+      relativePath: documentPath,
     })
       .then((payload) => {
         if (cancelled) return;
@@ -307,7 +310,7 @@ function App() {
             : normalizedPayload.truncated
               ? "too-large"
               : "ready";
-        setDocumentState(activeGroupId, activeDocument.path, {
+        setDocumentState(activeGroupId, documentPath, {
           status: nextStatus,
           error: "",
           payload: normalizedPayload,
@@ -315,7 +318,7 @@ function App() {
       })
       .catch((error) => {
         if (cancelled) return;
-        setDocumentState(activeGroupId, activeDocument.path, {
+        setDocumentState(activeGroupId, documentPath, {
           status: "error",
           error: String(error),
           payload: null,
@@ -325,7 +328,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [activeDocument, activeDocumentState?.status, activeRootPath, activeGroupId, setDocumentState]);
+  }, [activeDocument, activeRootPath, activeGroupId, setDocumentState]);
 
   if (!configLoaded) {
     return null;

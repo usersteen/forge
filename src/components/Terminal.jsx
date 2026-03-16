@@ -21,6 +21,7 @@ const CODEX_SCREEN_TAIL_LINES = 12;
 const CODEX_WORKING_FOOTER_PATTERN = /\besc to interrupt\b/i;
 const CODEX_WAITING_FOOTER_PATTERNS = [/\bpress enter to confirm\b/i, /\besc to go back\b/i];
 const CODEX_WAITING_OPTION_PATTERN = /^\s*\d+\.\s+/m;
+const HUMAN_INPUT_PAUSE_MS = 5000;
 const TERMINAL_NOTICE_MS = 6000;
 const TERMINAL_RECOVERY_MESSAGE = "Open a new terminal tab and rerun the command you were using.";
 
@@ -111,6 +112,8 @@ export default function Terminal({ tabId, isActive, cwd }) {
 
   useEffect(() => {
     let isTearingDown = false;
+    let humanInputPauseTimeout;
+    let humanInputPauseActive = false;
 
     const logCodexDebug = (event, details = {}) => {
       const snapshot = getTabSnapshot(useForgeStore.getState(), tabId);
@@ -189,6 +192,32 @@ export default function Terminal({ tabId, isActive, cwd }) {
       codexIdleTimeout = undefined;
     };
 
+    const stopHumanInputPause = () => {
+      clearTimeout(humanInputPauseTimeout);
+      humanInputPauseTimeout = undefined;
+      if (!humanInputPauseActive) return;
+      humanInputPauseActive = false;
+      useForgeStore.getState().stopHeatPause(`typing:${tabId}`);
+    };
+
+    const noteHumanInput = () => {
+      const snapshot = getTabSnapshot(useForgeStore.getState(), tabId);
+      if (!snapshot || snapshot.tab.type === "server") return;
+
+      if (!humanInputPauseActive) {
+        humanInputPauseActive = true;
+        useForgeStore.getState().startHeatPause(`typing:${tabId}`);
+      }
+
+      clearTimeout(humanInputPauseTimeout);
+      humanInputPauseTimeout = setTimeout(() => {
+        humanInputPauseTimeout = undefined;
+        if (!humanInputPauseActive) return;
+        humanInputPauseActive = false;
+        useForgeStore.getState().stopHeatPause(`typing:${tabId}`);
+      }, HUMAN_INPUT_PAUSE_MS);
+    };
+
     const maybeNotifyWaiting = (store, tab) => {
       if (tab.type === "server") return;
       const activeGroup = store.groups.find((group) => group.id === store.activeGroupId);
@@ -224,7 +253,7 @@ export default function Terminal({ tabId, isActive, cwd }) {
       prevStatusRef.current = status;
       console.log(`[Forge] status: ${prevStatus} -> ${status}`);
 
-      if (countResponse && prevStatus === "waiting" && status !== "waiting" && tab.type !== "server") {
+      if (countResponse && prevStatus === "waiting" && status === "working" && tab.type !== "server") {
         store.recordResponse(tabId);
       }
 
@@ -238,6 +267,7 @@ export default function Terminal({ tabId, isActive, cwd }) {
     const handlePtyDisconnect = (title, message, detail = "") => {
       ptyReady.current = false;
       clearCodexIdleTimeout();
+      stopHumanInputPause();
       detectorRef.current = { provider: "unknown", awaitingUser: false };
       applyDetectedStatus("idle", title, { countResponse: false, notifyWaiting: false });
       showPersistentNotice(title, message, detail);
@@ -420,7 +450,6 @@ export default function Terminal({ tabId, isActive, cwd }) {
         command,
         recentText: codexDebugRef.current.recentText,
       });
-      applyDetectedStatus("working", summarizeStatusText(command, "Codex"));
       scheduleCodexIdleCheck();
     };
 
@@ -508,6 +537,7 @@ export default function Terminal({ tabId, isActive, cwd }) {
       });
 
     term.onData((data) => {
+      noteHumanInput();
       const command = updateInputBuffer(data);
       if (command !== null) {
         handleSubmittedCommand(command);
@@ -542,6 +572,7 @@ export default function Terminal({ tabId, isActive, cwd }) {
         e.preventDefault();
         navigator.clipboard.readText().then((text) => {
           if (text && ptyReady.current) {
+            noteHumanInput();
             const bracketed = `\x1b[200~${text}\x1b[201~`;
             invoke("write_pty", { tabId, data: bracketed }).catch((error) => {
               if (isTearingDown) return;
@@ -559,6 +590,7 @@ export default function Terminal({ tabId, isActive, cwd }) {
 
       if (e.ctrlKey && e.key === "Enter") {
         if (ptyReady.current) {
+          noteHumanInput();
           invoke("write_pty", { tabId, data: "\n" }).catch((error) => {
             if (isTearingDown) return;
             console.error("Failed to send Ctrl+Enter to PTY:", error);
@@ -621,6 +653,7 @@ export default function Terminal({ tabId, isActive, cwd }) {
       isTearingDown = true;
       bellListener.dispose();
       clearCodexIdleTimeout();
+      stopHumanInputPause();
       clearNoticeTimer();
       clearTimeout(resizeTimeout);
       resizeObserver.disconnect();

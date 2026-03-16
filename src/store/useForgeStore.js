@@ -89,6 +89,8 @@ const useForgeStore = create((set, get) => ({
   lastStreakTime: null,
   streakTimer: 10000,
   cooldownTimer: 30000,
+  heatPauseStartedAt: null,
+  heatPauseSources: {},
 
   // Demo mode (ephemeral, not persisted)
   demoHeatStage: null,
@@ -644,9 +646,61 @@ const useForgeStore = create((set, get) => ({
     });
   },
 
+  startHeatPause: (sourceId, now = Date.now()) =>
+    set((state) => {
+      if (!sourceId || state.heatPauseSources[sourceId]) {
+        return state;
+      }
+
+      return {
+        heatPauseStartedAt: state.heatPauseStartedAt ?? now,
+        heatPauseSources: {
+          ...state.heatPauseSources,
+          [sourceId]: true,
+        },
+      };
+    }),
+
+  stopHeatPause: (sourceId, now = Date.now()) =>
+    set((state) => {
+      if (!sourceId || !state.heatPauseSources[sourceId]) {
+        return state;
+      }
+
+      const { [sourceId]: _removedSource, ...remainingSources } = state.heatPauseSources;
+      if (Object.keys(remainingSources).length > 0) {
+        return {
+          heatPauseSources: remainingSources,
+        };
+      }
+
+      const pausedAt = state.heatPauseStartedAt;
+      const pausedDuration = pausedAt ? Math.max(0, now - pausedAt) : 0;
+      return {
+        groups:
+          pausedDuration > 0
+            ? state.groups.map((group) => ({
+                ...group,
+                tabs: group.tabs.map((tab) => ({
+                  ...tab,
+                  waitingSince: tab.waitingSince ? tab.waitingSince + pausedDuration : null,
+                })),
+              }))
+            : state.groups,
+        lastStreakTime: state.lastStreakTime ? state.lastStreakTime + pausedDuration : null,
+        heatPauseStartedAt: null,
+        heatPauseSources: remainingSources,
+      };
+    }),
+
   coolStreak: (now = Date.now()) =>
     set((state) => {
-      if (state.streak <= 0 || !state.lastStreakTime || state.cooldownTimer <= 0) {
+      if (
+        state.heatPauseStartedAt ||
+        state.streak <= 0 ||
+        !state.lastStreakTime ||
+        state.cooldownTimer <= 0
+      ) {
         return state;
       }
 

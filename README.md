@@ -6,12 +6,14 @@ It is built for workflows where you have several Claude Code or Codex-style term
 
 ## Status
 
-Forge is an early preview.
+Forge is an early public preview.
 
 - Windows-first
 - built with Tauri + React
 - focused on terminal-first multi-agent workflows
-- still being hardened for external testers
+- currently being shared with a small batch of testers
+
+This repo is public so people can understand the project and track releases, but it should not be read as a polished open-source package yet.
 
 ## Install
 
@@ -22,6 +24,14 @@ The intended install path for most people is:
 3. Install Forge like a normal desktop app.
 
 If you are just trying Forge, use the installer release instead of building from source.
+
+## Who This Is For
+
+Forge is for people who:
+
+- run multiple Claude Code or Codex sessions in terminals
+- want project grouping and quick status visibility
+- want lightweight repo context without turning the app into a full IDE
 
 ## What Forge Does
 
@@ -48,6 +58,7 @@ The current core loop is:
 - repo browsing is intentionally lightweight, not a full IDE
 - first-run onboarding is still being refined
 - broader release hardening is still in progress
+- this is a preview build, so rough edges are expected
 
 ## Build From Source
 
@@ -82,7 +93,7 @@ build.bat
 release.bat
 ```
 
-Project notes currently expect release artifacts under:
+Release artifacts are written under:
 
 - `~/.forge-build/target/release/bundle/nsis/`
 - `~/.forge-build/target/release/bundle/msi/`
@@ -100,7 +111,7 @@ Project notes currently expect release artifacts under:
 
 - default shell behavior is currently Windows-oriented
 - persisted config is stored at `~/.forge/config.json`
-- Forge is being prepared for small-batch external testing before any broader open-source push
+- Forge is being shared as a public preview before any broader open-source push
 
 ## Feedback
 

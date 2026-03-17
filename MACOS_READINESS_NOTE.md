@@ -23,16 +23,16 @@ Non-goal for now: a full macOS implementation plan or active porting work before
 These are the main Windows-specific assumptions to revisit later:
 
 1. Terminal shell launch
-   [src-tauri/src/pty.rs](C:\Users\tenis\OneDrive\Documents\GitHub\forge-v2\src-tauri\src\pty.rs) hardcodes `powershell.exe` for PTY sessions.
+   `src-tauri/src/pty.rs` hardcodes `powershell.exe` for PTY sessions.
 
 2. Config path handling
-   [src-tauri/src/config.rs](C:\Users\tenis\OneDrive\Documents\GitHub\forge-v2\src-tauri\src\config.rs) uses `USERPROFILE` and writes to `.forge/config.json` with Windows-oriented assumptions.
+   `src-tauri/src/config.rs` uses `USERPROFILE` and writes to `.forge/config.json` with Windows-oriented assumptions.
 
 3. Folder picker
-   [src-tauri/src/workspace.rs](C:\Users\tenis\OneDrive\Documents\GitHub\forge-v2\src-tauri\src\workspace.rs) uses a PowerShell COM folder picker on Windows only.
+   `src-tauri/src/workspace.rs` uses a PowerShell COM folder picker on Windows only.
 
 4. Window chrome and desktop behavior
-   [src/components/TabBar.jsx](C:\Users\tenis\OneDrive\Documents\GitHub\forge-v2\src\components\TabBar.jsx) and [src/App.jsx](C:\Users\tenis\OneDrive\Documents\GitHub\forge-v2\src\App.jsx) assume desktop window controls and window geometry behavior that need validation on macOS.
+   `src/components/TabBar.jsx` and `src/App.jsx` assume desktop window controls and window geometry behavior that need validation on macOS.
 
 ## What To Validate Before Starting macOS
 

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -10,6 +10,7 @@ import { getEmberStyle } from "../utils/heat";
 import { getThemeHeatColor } from "../utils/themes";
 import Settings from "./Settings";
 import InfoPanel from "./InfoPanel";
+import WelcomeModal from "./WelcomeModal";
 
 const EMBER_CONFIGS = {
   3: [15, 35, 60, 82],
@@ -106,6 +107,8 @@ export default function Sidebar() {
   const reorderGroups = useForgeStore((s) => s.reorderGroups);
   const theme = useForgeStore((s) => s.theme);
   const fxEnabled = useForgeStore((s) => s.fxEnabled);
+  const configLoaded = useForgeStore((s) => s.configLoaded);
+  const showWelcomeOnLaunch = useForgeStore((s) => s.showWelcomeOnLaunch);
 
   const onCommit = useCallback((id, name) => renameGroup(id, name), [renameGroup]);
   const { editingId, startEditing, inputProps } = useInlineRename(onCommit);
@@ -126,8 +129,12 @@ export default function Sidebar() {
 
   const [showSettings, setShowSettings] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
   const closeInfo = useCallback(() => setShowInfo(false), []);
   const closeSettings = useCallback(() => setShowSettings(false), []);
+  const openInfo = useCallback(() => setShowInfo(true), []);
+  const openSettings = useCallback(() => setShowSettings(true), []);
+  const closeWelcome = useCallback(() => setShowWelcome(false), []);
 
   const heatStage = useEffectiveHeatStage();
   const logoFill = getThemeHeatColor(theme, heatStage);
@@ -163,6 +170,11 @@ export default function Sidebar() {
       />
     ));
   }, [fxEnabled, heatStage, theme]);
+
+  useEffect(() => {
+    if (!configLoaded || !showWelcomeOnLaunch) return;
+    setShowWelcome(true);
+  }, [configLoaded, showWelcomeOnLaunch]);
 
   return (
     <div className="sidebar">
@@ -209,14 +221,22 @@ export default function Sidebar() {
         + New Project
       </button>
       <div className="sidebar-actions">
-        <button className="sidebar-action-btn" onClick={() => setShowInfo(true)}>
+        <button
+          className={`sidebar-action-btn ${showWelcome ? "sidebar-action-btn-highlighted" : ""}`}
+          onClick={openInfo}
+          aria-label="Open Forge info"
+        >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10"/>
             <line x1="12" y1="16" x2="12" y2="12"/>
             <line x1="12" y1="8" x2="12.01" y2="8"/>
           </svg>
         </button>
-        <button className="sidebar-action-btn" onClick={() => setShowSettings(true)}>
+        <button
+          className={`sidebar-action-btn ${showWelcome ? "sidebar-action-btn-highlighted" : ""}`}
+          onClick={openSettings}
+          aria-label="Open Forge settings"
+        >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="3"/>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
@@ -225,6 +245,7 @@ export default function Sidebar() {
       </div>
       {sidebarEmbers}
 
+      {showWelcome && <WelcomeModal onClose={closeWelcome} />}
       {showInfo && <InfoPanel onClose={closeInfo} />}
       {showSettings && <Settings onClose={closeSettings} />}
     </div>

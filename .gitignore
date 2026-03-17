@@ -6,3 +6,5 @@ target/
 .codex-app-server-schema/
 tmp/
 OPEN_SOURCE_PLAN.md
+dev-server.log
+dev-server.err

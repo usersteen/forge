@@ -83,6 +83,7 @@ const useForgeStore = create((set, get) => ({
   favoriteRepoPaths: [],
   theme: DEFAULT_THEME,
   fxEnabled: true,
+  showWelcomeOnLaunch: true,
 
   workspaceByGroup: {},
   documentStateByGroup: {},
@@ -108,6 +109,7 @@ const useForgeStore = create((set, get) => ({
       favoriteRepoPaths: [],
       theme: DEFAULT_THEME,
       fxEnabled: true,
+      showWelcomeOnLaunch: true,
       configLoaded: true,
     });
   },
@@ -153,6 +155,7 @@ const useForgeStore = create((set, get) => ({
       favoriteRepoPaths: normalizeFavoriteRepoPaths(config.settings?.favorite_repo_paths),
       theme: normalizeTheme(config.settings?.theme),
       fxEnabled: config.settings?.fx_enabled ?? true,
+      showWelcomeOnLaunch: config.settings?.show_welcome_on_launch ?? true,
       streakTimer: config.settings?.streak_timer ?? 10000,
       cooldownTimer: config.settings?.cooldown_timer ?? 30000,
       configLoaded: true,
@@ -731,6 +734,8 @@ const useForgeStore = create((set, get) => ({
   setCooldownTimer: (ms) => set({ cooldownTimer: ms }),
   setTheme: (theme) => set({ theme: normalizeTheme(theme) }),
   setFxEnabled: (fxEnabled) => set({ fxEnabled: Boolean(fxEnabled) }),
+  setShowWelcomeOnLaunch: (showWelcomeOnLaunch) =>
+    set({ showWelcomeOnLaunch: Boolean(showWelcomeOnLaunch) }),
 
   setDemoHeatStage: (stage) => set({ demoHeatStage: stage }),
   exitDemoMode: () => set({ demoHeatStage: null }),
@@ -772,6 +777,7 @@ export function storeToConfig(state, windowGeometry) {
       favorite_repo_paths: state.favoriteRepoPaths,
       theme: normalizeTheme(state.theme),
       fx_enabled: state.fxEnabled,
+      show_welcome_on_launch: state.showWelcomeOnLaunch,
     },
   };
 }

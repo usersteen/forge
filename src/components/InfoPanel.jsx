@@ -55,23 +55,17 @@ export default function InfoPanel({ onClose }) {
             The sidebar shows mini dots for all tabs in each group at a glance.
             You will get a notification and sound when a background tab starts waiting.
           </p>
-
-          <h2>Keyboard Shortcuts</h2>
-          <div className="info-shortcuts">
-            <div className="info-shortcut-row"><kbd>Ctrl+Tab</kbd><span>Next tab</span></div>
-            <div className="info-shortcut-row"><kbd>Ctrl+Shift+Tab</kbd><span>Previous tab</span></div>
-            <div className="info-shortcut-row"><kbd>Ctrl+PageDown</kbd><span>Next group</span></div>
-            <div className="info-shortcut-row"><kbd>Ctrl+PageUp</kbd><span>Previous group</span></div>
-            <div className="info-shortcut-row"><kbd>Ctrl+1-9</kbd><span>Jump to tab 1-9</span></div>
-            <div className="info-shortcut-row"><kbd>Ctrl+V</kbd><span>Paste into terminal</span></div>
-            <div className="info-shortcut-row"><kbd>Ctrl+Enter</kbd><span>Newline without executing</span></div>
-          </div>
+          <p>
+            Working and waiting colors shift with the active theme. The theme chips in Settings preview those status
+            colors so you can see the difference before switching.
+          </p>
 
           <h2>The Forge Heat System</h2>
           <ul>
             <li>Respond to waiting AI tabs quickly and the forge heats up through stages 1-5</li>
             <li>Keep a streak going to reach higher stages as the logo glows and the UI comes alive</li>
             <li>Stop responding and the forge cools back down</li>
+            <li>The active theme changes the heat ramp swatches shown below</li>
             <li>Tune streak and cooldown timers in Settings</li>
             <li>Try <strong>Demo Mode</strong> in Settings to preview all heat stages</li>
           </ul>
@@ -87,7 +81,18 @@ export default function InfoPanel({ onClose }) {
                 />
                 <span className="info-heat-label">{HEAT_LABELS[i]}</span>
               </div>
-            ))}
+              ))}
+          </div>
+
+          <h2>Keyboard Shortcuts</h2>
+          <div className="info-shortcuts">
+            <div className="info-shortcut-row"><kbd>Ctrl+Tab</kbd><span>Next tab</span></div>
+            <div className="info-shortcut-row"><kbd>Ctrl+Shift+Tab</kbd><span>Previous tab</span></div>
+            <div className="info-shortcut-row"><kbd>Ctrl+PageDown</kbd><span>Next group</span></div>
+            <div className="info-shortcut-row"><kbd>Ctrl+PageUp</kbd><span>Previous group</span></div>
+            <div className="info-shortcut-row"><kbd>Ctrl+1-9</kbd><span>Jump to tab 1-9</span></div>
+            <div className="info-shortcut-row"><kbd>Ctrl+V</kbd><span>Paste into terminal</span></div>
+            <div className="info-shortcut-row"><kbd>Ctrl+Enter</kbd><span>Newline without executing</span></div>
           </div>
 
           <h2>Tips</h2>

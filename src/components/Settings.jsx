@@ -60,7 +60,9 @@ export default function Settings({ onClose }) {
               );
             })}
           </div>
-          <span className="settings-hint">Theme changes the shell heat ramp without affecting the terminal palette.</span>
+          <span className="settings-hint">
+            Theme changes the shell heat ramp and working/waiting status-dot colors without affecting the terminal palette.
+          </span>
         </div>
         <div className="settings-row">
           <label>Effects</label>

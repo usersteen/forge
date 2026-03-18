@@ -5,7 +5,7 @@
   --border: #1e293b;
   --text-primary: #e2e8f0;
   --text-secondary: #94a3b8;
-  --text-muted: #475569;
+  --text-muted: #64748b;
   --accent-idle: #64748b;
   --accent-idle-rgb: 100, 116, 139;
   --accent-active: #60a5fa;
@@ -203,6 +203,13 @@ html, body, #root {
   transition: background 0.5s ease-out, border-color 0.5s ease-out, box-shadow 0.5s ease-out;
 }
 
+.forge-ember-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 .sidebar-header::before {
   content: "";
   position: absolute;
@@ -220,6 +227,18 @@ html, body, #root {
 }
 
 .sidebar-header > .sidebar-logo {
+  position: relative;
+  z-index: 1;
+}
+
+.tab-bar-leading,
+.tab-list,
+.window-controls,
+.repo-browser-title,
+.repo-browser-header-actions,
+.sidebar-groups,
+.sidebar-add,
+.sidebar-actions {
   position: relative;
   z-index: 1;
 }
@@ -619,6 +638,51 @@ html, body, #root {
   touch-action: none;
 }
 
+.tab-provider-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--text-muted);
+  font-family: "IBM Plex Mono", "Cascadia Code", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: border-color 0.12s ease, color 0.12s ease, background-color 0.12s ease;
+}
+
+.tab-provider-claude {
+  border-color: rgba(217, 119, 6, 0.24);
+  color: rgba(251, 191, 36, 0.88);
+}
+
+.tab-provider-codex {
+  border-color: rgba(125, 211, 252, 0.22);
+  color: rgba(186, 230, 253, 0.88);
+}
+
+.tab-active .tab-provider-badge {
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.tab-active .tab-provider-claude {
+  border-color: rgba(245, 158, 11, 0.34);
+  color: rgba(252, 211, 77, 0.96);
+}
+
+.tab-active .tab-provider-codex {
+  border-color: rgba(96, 165, 250, 0.34);
+  color: rgba(219, 234, 254, 0.96);
+}
+
 .tab:hover {
   background: var(--bg-active);
   color: var(--text-primary);
@@ -639,6 +703,8 @@ html, body, #root {
 }
 
 .tab-name {
+  min-width: 0;
+  flex: 1 1 auto;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 150px;
@@ -654,6 +720,7 @@ html, body, #root {
   line-height: 1;
   opacity: 0;
   transition: opacity 0.1s;
+  flex-shrink: 0;
 }
 
 .tab:hover .tab-close {
@@ -682,6 +749,107 @@ html, body, #root {
 
 .tab-add:hover {
   color: var(--text-primary);
+}
+
+.quick-tab-menu {
+  position: fixed;
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px;
+  z-index: 1000;
+  min-width: 220px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.42);
+}
+
+.quick-tab-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.quick-tab-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.quick-tab-item:hover {
+  background: var(--bg-active);
+}
+
+.quick-tab-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.quick-tab-item-label {
+  font-weight: 600;
+}
+
+.quick-tab-item-hint {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.quick-tab-item-meta {
+  color: var(--text-muted);
+  font-size: 10px;
+  opacity: 0.9;
+}
+
+.quick-tab-item-chevron {
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1;
+}
+
+.quick-tab-submenu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 2px 0 6px;
+  padding-left: 10px;
+  border-left: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.quick-tab-subitem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.025);
+  border: none;
+  color: var(--text-primary);
+  padding: 9px 12px;
+  text-align: left;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.quick-tab-subitem:hover {
+  background: var(--bg-active);
+}
+
+.quick-tab-subitem-disabled {
+  cursor: default;
+}
+
+.quick-tab-subitem-disabled:hover {
+  background: rgba(255, 255, 255, 0.025);
 }
 
 .document-tabs {
@@ -1200,7 +1368,7 @@ body.reader-resizing {
 }
 
 .repo-browser-ember {
-  bottom: -1px;
+  bottom: calc(-2px - (4px * var(--size, 1)));
 }
 
 .document-viewer-shell {
@@ -1308,7 +1476,7 @@ body.reader-resizing {
 }
 
 .document-viewer-ember {
-  bottom: -1px;
+  bottom: calc(-2px - (4px * var(--size, 1)));
 }
 
 .document-viewer-body {
@@ -1700,7 +1868,7 @@ body.reader-resizing {
 /* Ember particles (span-based) */
 .forge-ember {
   position: absolute;
-  bottom: 0;
+  bottom: calc(-2px - (4px * var(--size, 1)));
   width: calc(3px * var(--size, 1));
   height: calc(3px * var(--size, 1));
   border-radius: 50%;
@@ -1767,7 +1935,7 @@ body.reader-resizing {
 
 .forge-ember-tall {
   position: absolute;
-  bottom: 0;
+  bottom: calc(-2px - (4px * var(--size, 1)));
   width: calc(3px * var(--size, 1));
   height: calc(3px * var(--size, 1));
   border-radius: 50%;
@@ -1797,7 +1965,7 @@ body.reader-resizing {
 
 .forge-ember-wide {
   position: absolute;
-  bottom: 0;
+  bottom: calc(-2px - (4px * var(--size, 1)));
   width: calc(3px * var(--size, 1));
   height: calc(3px * var(--size, 1));
   border-radius: 50%;

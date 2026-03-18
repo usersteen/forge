@@ -8,6 +8,8 @@ import useInlineRename from "../hooks/useInlineRename";
 import useEffectiveHeatStage from "../hooks/useEffectiveHeatStage";
 import { getEmberStyle } from "../utils/heat";
 import { getThemeHeatColor } from "../utils/themes";
+import ForgeWordmark from "./ForgeWordmark";
+import ProjectContextMenu from "./ProjectContextMenu";
 import Settings from "./Settings";
 import InfoPanel from "./InfoPanel";
 import WelcomeModal from "./WelcomeModal";
@@ -51,7 +53,7 @@ function getGroupPriorityClass(group) {
   return "";
 }
 
-function SortableGroup({ group, isActive, onSelect, onDoubleClick, editingId, inputProps, onRemove }) {
+function SortableGroup({ group, isActive, onSelect, onDoubleClick, onContextMenu, editingId, inputProps, onRemove }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: group.id });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -68,6 +70,7 @@ function SortableGroup({ group, isActive, onSelect, onDoubleClick, editingId, in
       className={`sidebar-group ${isActive ? "sidebar-group-active" : ""} ${getGroupPriorityClass(group)}`}
       onClick={onSelect}
       onDoubleClick={onDoubleClick}
+      onContextMenu={onContextMenu}
     >
       <div className="sidebar-group-info">
         {editingId === group.id ? (
@@ -90,6 +93,7 @@ function SortableGroup({ group, isActive, onSelect, onDoubleClick, editingId, in
           onRemove();
         }}
         onPointerDown={(e) => e.stopPropagation()}
+        onContextMenu={(e) => e.stopPropagation()}
       >
         x
       </button>
@@ -130,6 +134,7 @@ export default function Sidebar() {
   const [showSettings, setShowSettings] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [contextMenu, setContextMenu] = useState(null);
   const closeInfo = useCallback(() => setShowInfo(false), []);
   const closeSettings = useCallback(() => setShowSettings(false), []);
   const openInfo = useCallback(() => setShowInfo(true), []);
@@ -176,27 +181,17 @@ export default function Sidebar() {
     setShowWelcome(true);
   }, [configLoaded, showWelcomeOnLaunch]);
 
+  useEffect(() => {
+    setContextMenu(null);
+  }, [activeGroupId]);
+
   return (
     <div className="sidebar">
       <div className={headerClasses} onMouseDown={() => appWindow.startDragging()}>
-        {embers}
+        {embers ? <div className="forge-ember-layer forge-ember-layer-header">{embers}</div> : null}
 
         <div className={`sidebar-logo${logoHeatClass}`}>
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 51.59 60.7">
-            <path fill={logoFill} d="M51.59.91v2.73c0,.5-.41.91-.91.91h-27.01c-.5,0-.91.41-.91.91v21.7c0,.5.41.91.91.91h10.32c.5,0,.91-.41.91-.91v-.46c0-.5.41-.91.91-.91h1.21c.5,0,.91.41.91.91v7.28c0,.5-.41.91-.91.91h-1.21c-.5,0-.91-.41-.91-.91v-.45c0-.5-.41-.91-.91-.91h-10.32c-.5,0-.91.41-.91.91v21.7c0,.5.41.91.91.91h7.28c.5,0,.91.41.91.91v2.73c0,.5-.41.91-.91.91H.91c-.5,0-.91-.41-.91-.91v-2.73c0-.5.41-.91.91-.91h4.55c2.01,0,3.64-1.63,3.64-3.64V8.19c0-2.01-1.63-3.64-3.64-3.64H.91c-.5,0-.91-.41-.91-.91V.91C0,.41.41,0,.91,0h49.77c.5,0,.91.41.91.91Z"/>
-          </svg>
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="68 0 42.59 60.7">
-            <path fill={logoFill} d="M109.68,4.55c.5,0,.91.41.91.91v49.77c0,.5-.41.91-.91.91-2.01,0-3.64,1.63-3.64,3.64,0,.5-.41.91-.91.91h-31.56c-.5,0-.91-.41-.91-.91,0-2.01-1.63-3.64-3.64-3.64-.5,0-.91-.41-.91-.91V5.46c0-.5.41-.91.91-.91,2.01,0,3.64-1.63,3.64-3.64,0-.5.41-.91.91-.91h31.56c.5,0,.91.41.91.91,0,2.01,1.63,3.64,3.64,3.64ZM96.93,55.23V5.46c0-.5-.41-.91-.91-.91h-13.35c-.5,0-.91.41-.91.91v49.77c0,.5.41.91.91.91h13.35c.5,0,.91-.41.91-.91Z"/>
-          </svg>
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="129 0 60.01 60.7">
-            <path fill={logoFill} d="M188.1,56.14c.5,0,.91.41.91.91v2.73c0,.5-.41.91-.91.91h-16.39c-.5,0-.91-.41-.91-.91,0-2.01-1.63-3.64-3.64-3.64-.5,0-.91-.41-.91-.91v-21.7c0-.5-.41-.91-.91-.91h-13.35c-.5,0-.91.41-.91.91v21.7c0,.5-.41.91-.91.91-2.01,0-3.64,1.63-3.64,3.64,0,.5-.41.91-.91.91h-16.39c-.5,0-.91-.41-.91-.91v-2.73c0-.5.41-.91.91-.91h4.55c2.01,0,3.64-1.63,3.64-3.64V8.19c0-2.01-1.63-3.64-3.64-3.64h-4.55c-.5,0-.91-.41-.91-.91V.91c0-.5.41-.91.91-.91h45.22c.5,0,.91.41.91.91,0,2.01,1.63,3.64,3.64,3.64.5,0,.91.41.91.91v21.7c0,.5-.41.91-.91.91h-2.73c-.5,0-.91.41-.91.91v2.73c0,.5.41.91.91.91h2.73c.5,0,.91.41.91.91v18.97c0,2.01,1.63,3.64,3.64,3.64h4.55ZM151.99,28.07h13.35c.5,0,.91-.41.91-.91V5.46c0-.5-.41-.91-.91-.91h-13.35c-.5,0-.91.41-.91.91v21.7c0,.5.41.91.91.91Z"/>
-          </svg>
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="207 0 50.72 60.7">
-            <path fill={logoFill} d="M257.72,28.98v2.73c0,.5-.41.91-.91.91h-7.28c-.5,0-.91.41-.91.91v21.7c0,.5-.41.91-.91.91-2.01,0-3.64,1.63-3.64,3.64,0,.5-.41.91-.91.91h-31.56c-.5,0-.91-.41-.91-.91,0-2.01-1.63-3.64-3.64-3.64-.5,0-.91-.41-.91-.91V5.46c0-.5.41-.91.91-.91,2.01,0,3.64-1.63,3.64-3.64,0-.5.41-.91.91-.91h31.56c.5,0,.91.41.91.91,0,2.01,1.63,3.64,3.64,3.64.5,0,.91.41.91.91v2.73c0,.5-.41.91-.91.91h-11.84c-.5,0-.91-.41-.91-.91v-2.73c0-.5-.41-.91-.91-.91h-13.35c-.5,0-.91.41-.91.91v49.77c0,.5.41.91.91.91h13.35c.5,0,.91-.41.91-.91v-21.7c0-.5-.41-.91-.91-.91h-7.28c-.5,0-.91-.41-.91-.91v-2.73c0-.5.41-.91.91-.91h30.04c.5,0,.91.41.91.91Z"/>
-          </svg>
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="268 0 52 60.7">
-            <path fill={logoFill} d="M291.17,5.46v21.7c0,.5.41.91.91.91h10.32c.5,0,.91-.41.91-.91v-.46c0-.5.41-.91.91-.91h1.21c.5,0,.91.41.91.91v7.28c0,.5-.41.91-.91.91h-1.21c-.5,0-.91-.41-.91-.91v-.45c0-.5-.41-.91-.91-.91h-10.32c-.5,0-.91.41-.91.91v21.7c0,.5.41.91.91.91h27.01c.5,0,.91.41.91.91v2.73c0,.5-.41.91-.91.91h-49.77c-.5,0-.91-.41-.91-.91v-2.73c0-.5.41-.91.91-.91h4.55c2.01,0,3.64-1.63,3.64-3.64V8.19c0-2.01-1.63-3.64-3.64-3.64h-4.55c-.5,0-.91-.41-.91-.91V.91c0-.5.41-.91.91-.91h49.77c.5,0,.91.41.91.91v2.73c0,.5-.41.91-.91.91h-27.01c-.5,0-.91.41-.91.91Z"/>
-          </svg>
+          <ForgeWordmark fill={logoFill} />
         </div>
       </div>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -209,6 +204,16 @@ export default function Sidebar() {
                 isActive={group.id === activeGroupId}
                 onSelect={() => setActiveGroup(group.id)}
                 onDoubleClick={() => startEditing(group.id, group.name)}
+                onContextMenu={(event) => {
+                  event.preventDefault();
+                  setActiveGroup(group.id);
+                  setContextMenu({
+                    groupId: group.id,
+                    groupName: group.name,
+                    x: event.clientX,
+                    y: event.clientY,
+                  });
+                }}
                 editingId={editingId}
                 inputProps={inputProps}
                 onRemove={() => removeGroup(group.id)}
@@ -243,11 +248,20 @@ export default function Sidebar() {
           </svg>
         </button>
       </div>
-      {sidebarEmbers}
+      {sidebarEmbers ? <div className="forge-ember-layer forge-ember-layer-sidebar">{sidebarEmbers}</div> : null}
 
       {showWelcome && <WelcomeModal onClose={closeWelcome} />}
       {showInfo && <InfoPanel onClose={closeInfo} />}
       {showSettings && <Settings onClose={closeSettings} />}
+      {contextMenu && (
+        <ProjectContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onRename={() => startEditing(contextMenu.groupId, contextMenu.groupName)}
+          onRemove={() => removeGroup(contextMenu.groupId)}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </div>
   );
 }

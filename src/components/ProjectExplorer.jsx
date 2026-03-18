@@ -164,6 +164,7 @@ export default function ProjectExplorer({ open, onClose, onRefresh }) {
       onPointerDown={(event) => event.stopPropagation()}
     >
       <div className="repo-browser-header">
+        {repoBrowserEmbers ? <div className="forge-ember-layer forge-ember-layer-repo-browser">{repoBrowserEmbers}</div> : null}
         <div className="repo-browser-title">Repository</div>
         <div className="repo-browser-header-actions">
           {activeGroup.rootPath ? (
@@ -181,7 +182,6 @@ export default function ProjectExplorer({ open, onClose, onRefresh }) {
             </>
           ) : null}
         </div>
-        {repoBrowserEmbers}
       </div>
 
       {editingPath ? (

@@ -12,9 +12,9 @@ export default function useInlineRename(onCommit) {
     }
   }, [editingId]);
 
-  const startEditing = useCallback((id, currentName) => {
+  const startEditing = useCallback((id, currentName, initialValue = currentName) => {
     setEditingId(id);
-    setEditValue(currentName);
+    setEditValue(initialValue);
   }, []);
 
   const commitRename = useCallback(() => {

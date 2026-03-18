@@ -30,7 +30,7 @@ export default function InfoPanel({ onClose }) {
 
           <h2>Projects and Tabs</h2>
           <ul>
-            <li><strong>Rename</strong> by double-clicking any group or tab name</li>
+            <li><strong>Rename</strong> by double-clicking, or right-clicking and choosing Rename</li>
             <li><strong>Reorder</strong> by dragging groups or tabs into place</li>
             <li><strong>Delete</strong> with the x button on a group or tab</li>
           </ul>
@@ -40,7 +40,7 @@ export default function InfoPanel({ onClose }) {
             <li><strong>Right-click</strong> any tab and choose "Set as Server Terminal" to tag it as a server process</li>
             <li>Server tabs show a blue dot instead of status colors</li>
             <li>Great for dev servers, watchers, or anything that runs continuously</li>
-            <li>Right-click again to switch it back to a normal AI tab</li>
+            <li>Right-click again to switch it back to a Claude Code or Codex terminal</li>
           </ul>
 
           <h2>Status Indicators</h2>
@@ -58,6 +58,9 @@ export default function InfoPanel({ onClose }) {
           <p>
             Working and waiting colors shift with the active theme. The theme chips in Settings preview those status
             colors so you can see the difference before switching.
+          </p>
+          <p>
+            AI tabs also show a small badge in the tab bar so you can tell Claude Code and Codex apart at a glance.
           </p>
 
           <h2>The Forge Heat System</h2>

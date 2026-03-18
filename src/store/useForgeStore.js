@@ -12,16 +12,69 @@ import {
   withWorkspaceDefaults,
 } from "../utils/workspace";
 
-function makeTab(name = "Terminal 1", cwd = null) {
+const AI_TAB_TYPE = "ai";
+const SERVER_TAB_TYPE = "server";
+
+function normalizeTabType(value) {
+  return value === SERVER_TAB_TYPE ? SERVER_TAB_TYPE : AI_TAB_TYPE;
+}
+
+function inferProviderFromLaunchCommand(command) {
+  if (typeof command !== "string") return "unknown";
+  const normalized = command.trim().toLowerCase();
+  if (/^codex(?:\s|$)/.test(normalized)) return "codex";
+  if (/^claude(?:\s|$)/.test(normalized)) return "claude";
+  return "unknown";
+}
+
+function inferProviderFromName(name) {
+  if (typeof name !== "string") return "unknown";
+  const normalized = name.trim().toLowerCase();
+  if (normalized === "codex") return "codex";
+  if (normalized === "claude" || normalized === "claude code") return "claude";
+  return "unknown";
+}
+
+function normalizeTabProvider(provider) {
+  if (provider === "claude" || provider === "codex") return provider;
+  return "unknown";
+}
+
+function resolveInitialTabProvider(provider, launchCommand = null, name = null) {
+  if (provider === "claude" || provider === "codex") return provider;
+  const inferredFromLaunchCommand = inferProviderFromLaunchCommand(launchCommand);
+  if (inferredFromLaunchCommand !== "unknown") return inferredFromLaunchCommand;
+  return inferProviderFromName(name);
+}
+
+function normalizeLoadedTabProvider(tabConfig, schemaVersion) {
+  const provider = normalizeTabProvider(tabConfig.provider);
+  if (schemaVersion >= 4) {
+    return provider;
+  }
+
+  if (provider === "unknown") {
+    return "unknown";
+  }
+
+  const inferredFromName = inferProviderFromName(tabConfig.name);
+  return inferredFromName === provider ? provider : "unknown";
+}
+
+function makeTab(name = "Terminal 1", cwd = null, options = {}) {
+  const type = normalizeTabType(options.type);
   return {
     id: crypto.randomUUID(),
     name,
     cwd,
     status: "idle",
     statusTitle: "",
-    type: "claude",
+    type,
+    provider: resolveInitialTabProvider(options.provider, options.launchCommand, name),
     manuallyRenamed: false,
+    suggestedServerName: "",
     waitingSince: null,
+    launchCommand: options.launchCommand || null,
   };
 }
 
@@ -115,6 +168,7 @@ const useForgeStore = create((set, get) => ({
   },
 
   loadFromConfig: (config) => {
+    const schemaVersion = Number(config.schema_version) || 0;
     const groups = (config.groups || []).map((groupConfig) => {
       const workspace = withWorkspaceDefaults(groupConfig);
       const tabs = (groupConfig.tabs || []).map((tabConfig) => ({
@@ -123,9 +177,12 @@ const useForgeStore = create((set, get) => ({
         cwd: tabConfig.cwd || null,
         status: "idle",
         statusTitle: "",
-        type: tabConfig.tab_type || "claude",
+        type: normalizeTabType(tabConfig.tab_type),
+        provider: normalizeLoadedTabProvider(tabConfig, schemaVersion),
         manuallyRenamed: tabConfig.manually_renamed || false,
+        suggestedServerName: "",
         waitingSince: null,
+        launchCommand: null,
       }));
       const safeTabs = tabs.length > 0 ? tabs : [makeTab()];
 
@@ -206,11 +263,15 @@ const useForgeStore = create((set, get) => ({
 
   setActiveGroup: (groupId) => set({ activeGroupId: groupId }),
 
-  addTab: (groupId, name) =>
+  addTab: (groupId, options = {}) =>
     set((state) => {
       const group = state.groups.find((entry) => entry.id === groupId);
-      const tabName = name || `Terminal ${group ? group.tabs.length + 1 : 1}`;
-      const tab = makeTab(tabName, group?.rootPath ?? null);
+      const tabName = options.name || `Terminal ${group ? group.tabs.length + 1 : 1}`;
+      const tab = makeTab(tabName, group?.rootPath ?? null, {
+        type: options.type,
+        provider: options.provider,
+        launchCommand: options.launchCommand,
+      });
       return {
         groups: mapGroups(state.groups, groupId, (entry) => ({
           ...entry,
@@ -290,13 +351,94 @@ const useForgeStore = create((set, get) => ({
       ),
     })),
 
+  setTabSuggestedServerName: (tabId, name) =>
+    set((state) => ({
+      groups: state.groups.map((group) =>
+        group.tabs.some((tab) => tab.id === tabId)
+          ? {
+              ...group,
+              tabs: group.tabs.map((tab) =>
+                tab.id === tabId ? { ...tab, suggestedServerName: name?.trim?.() || "" } : tab
+              ),
+            }
+          : group
+      ),
+    })),
+
   setTabType: (tabId, type) =>
     set((state) => ({
       groups: state.groups.map((group) =>
         group.tabs.some((tab) => tab.id === tabId)
           ? {
               ...group,
-              tabs: group.tabs.map((tab) => (tab.id === tabId ? { ...tab, type } : tab)),
+              tabs: group.tabs.map((tab) => {
+                if (tab.id !== tabId) return tab;
+                const nextType = normalizeTabType(type);
+                if (nextType !== SERVER_TAB_TYPE || tab.manuallyRenamed) {
+                  return { ...tab, type: nextType };
+                }
+                return {
+                  ...tab,
+                  type: nextType,
+                  name: tab.suggestedServerName || "Server",
+                };
+              }),
+            }
+          : group
+      ),
+    })),
+
+  setTabProvider: (tabId, provider) =>
+    set((state) => ({
+      groups: state.groups.map((group) =>
+        group.tabs.some((tab) => tab.id === tabId)
+          ? {
+              ...group,
+              tabs: group.tabs.map((tab) =>
+                tab.id === tabId ? { ...tab, provider: normalizeTabProvider(provider) } : tab
+              ),
+            }
+          : group
+      ),
+    })),
+
+  updateTabTerminal: (tabId, updates = {}) =>
+    set((state) => ({
+      groups: state.groups.map((group) =>
+        group.tabs.some((tab) => tab.id === tabId)
+          ? {
+              ...group,
+              tabs: group.tabs.map((tab) =>
+                tab.id === tabId
+                  ? {
+                      ...tab,
+                      type:
+                        updates.type === undefined ? tab.type : normalizeTabType(updates.type),
+                      provider:
+                        updates.provider === undefined
+                          ? tab.provider
+                          : normalizeTabProvider(updates.provider),
+                      name:
+                        updates.type !== undefined &&
+                        normalizeTabType(updates.type) === SERVER_TAB_TYPE &&
+                        !tab.manuallyRenamed
+                          ? tab.suggestedServerName || "Server"
+                          : tab.name,
+                    }
+                  : tab
+              ),
+            }
+          : group
+      ),
+    })),
+
+  clearTabLaunchCommand: (tabId) =>
+    set((state) => ({
+      groups: state.groups.map((group) =>
+        group.tabs.some((tab) => tab.id === tabId)
+          ? {
+              ...group,
+              tabs: group.tabs.map((tab) => (tab.id === tabId ? { ...tab, launchCommand: null } : tab)),
             }
           : group
       ),
@@ -743,7 +885,7 @@ const useForgeStore = create((set, get) => ({
 
 export function storeToConfig(state, windowGeometry) {
   return {
-    schema_version: 2,
+    schema_version: 4,
     groups: state.groups.map((group) => ({
       id: group.id,
       name: group.name,
@@ -753,6 +895,7 @@ export function storeToConfig(state, windowGeometry) {
         name: tab.name,
         cwd: tab.cwd || null,
         tab_type: tab.type,
+        provider: tab.provider || "unknown",
         manually_renamed: tab.manuallyRenamed,
       })),
       root_path: group.rootPath,

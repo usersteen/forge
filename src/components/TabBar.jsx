@@ -6,6 +6,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import useForgeStore from "../store/useForgeStore";
 import useInlineRename from "../hooks/useInlineRename";
 import useEffectiveHeatStage from "../hooks/useEffectiveHeatStage";
+import NewTabMenu from "./NewTabMenu";
 import ProjectExplorer from "./ProjectExplorer";
 import TabContextMenu from "./TabContextMenu";
 import { getEmberStyle } from "../utils/heat";
@@ -27,6 +28,24 @@ function getStatusDotClass(tab) {
   return "status-dot idle";
 }
 
+function getProviderBadge(tab) {
+  if (tab.type === "server") return null;
+  if (tab.provider === "claude") {
+    return { label: "CL", title: "Claude Code terminal" };
+  }
+  if (tab.provider === "codex") {
+    return { label: "CX", title: "Codex terminal" };
+  }
+  return null;
+}
+
+function getRenameSeed(tab) {
+  if (tab.type === "server" && !tab.manuallyRenamed && tab.suggestedServerName) {
+    return tab.suggestedServerName;
+  }
+  return tab.name;
+}
+
 function SortableTab({ tab, isActive, onSelect, onDoubleClick, onContextMenu, editingId, inputProps, onClose }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: tab.id });
   const style = {
@@ -36,6 +55,7 @@ function SortableTab({ tab, isActive, onSelect, onDoubleClick, onContextMenu, ed
   };
   const statusClass =
     tab.type === "server" ? "" : tab.status === "waiting" ? "tab-waiting" : tab.status === "working" ? "tab-working" : "";
+  const providerBadge = getProviderBadge(tab);
 
   return (
     <div
@@ -49,6 +69,11 @@ function SortableTab({ tab, isActive, onSelect, onDoubleClick, onContextMenu, ed
       onContextMenu={onContextMenu}
     >
       <span className={getStatusDotClass(tab)} />
+      {providerBadge ? (
+        <span className={`tab-provider-badge tab-provider-${tab.provider}`} title={providerBadge.title}>
+          {providerBadge.label}
+        </span>
+      ) : null}
       {editingId === tab.id ? (
         <input className="tab-rename-input" {...inputProps} />
       ) : (
@@ -76,12 +101,14 @@ export default function TabBar({ onRefreshWorkspace }) {
   const removeTab = useForgeStore((s) => s.removeTab);
   const renameTab = useForgeStore((s) => s.renameTab);
   const reorderTabs = useForgeStore((s) => s.reorderTabs);
-  const setTabType = useForgeStore((s) => s.setTabType);
+  const updateTabTerminal = useForgeStore((s) => s.updateTabTerminal);
   const theme = useForgeStore((s) => s.theme);
   const fxEnabled = useForgeStore((s) => s.fxEnabled);
 
   const [contextMenu, setContextMenu] = useState(null);
+  const [newTabMenu, setNewTabMenu] = useState(null);
   const [repoOpen, setRepoOpen] = useState(false);
+  const addButtonRef = useRef(null);
   const repoPanelRef = useRef(null);
 
   const activeGroup = groups.find((g) => g.id === activeGroupId);
@@ -149,6 +176,11 @@ export default function TabBar({ onRefreshWorkspace }) {
     };
   }, [repoOpen]);
 
+  useEffect(() => {
+    setContextMenu(null);
+    setNewTabMenu(null);
+  }, [activeGroupId]);
+
   if (!activeGroup) return null;
 
   return (
@@ -161,6 +193,7 @@ export default function TabBar({ onRefreshWorkspace }) {
         appWindow.startDragging();
       }}
     >
+      {tabBarEmbers ? <div className="forge-ember-layer forge-ember-layer-tabbar">{tabBarEmbers}</div> : null}
       <div className="tab-bar-leading" ref={repoPanelRef}>
         <button
           className={`repo-trigger ${repoOpen ? "repo-trigger-active" : ""}`}
@@ -184,10 +217,18 @@ export default function TabBar({ onRefreshWorkspace }) {
                 tab={tab}
                 isActive={tab.id === activeGroup.activeTabId}
                 onSelect={() => setActiveTab(activeGroupId, tab.id)}
-                onDoubleClick={() => startEditing(tab.id, tab.name)}
+                onDoubleClick={() => startEditing(tab.id, tab.name, getRenameSeed(tab))}
                 onContextMenu={(e) => {
                   e.preventDefault();
-                  setContextMenu({ tabId: tab.id, tabType: tab.type, x: e.clientX, y: e.clientY });
+                  setActiveTab(activeGroupId, tab.id);
+                  setContextMenu({
+                    tabId: tab.id,
+                    tabName: tab.name,
+                    renameSeed: getRenameSeed(tab),
+                    tabType: tab.type,
+                    x: e.clientX,
+                    y: e.clientY,
+                  });
                 }}
                 editingId={editingId}
                 inputProps={inputProps}
@@ -195,9 +236,23 @@ export default function TabBar({ onRefreshWorkspace }) {
               />
             ))}
             <button
+              ref={addButtonRef}
               className="tab-add"
+              aria-label="Open new tab menu"
+              aria-haspopup="menu"
+              aria-expanded={Boolean(newTabMenu)}
+              onPointerDown={(event) => event.stopPropagation()}
               onClick={() => {
-                addTab(activeGroupId);
+                const rect = addButtonRef.current?.getBoundingClientRect();
+                if (!rect) return;
+                setNewTabMenu((current) =>
+                  current
+                    ? null
+                    : {
+                        x: rect.left,
+                        y: rect.bottom + 6,
+                      }
+                );
               }}
             >
               +
@@ -210,15 +265,24 @@ export default function TabBar({ onRefreshWorkspace }) {
         <button className="window-control window-maximize" onClick={() => appWindow.toggleMaximize()} aria-label="Maximize">&#x25A1;</button>
         <button className="window-control window-close" onClick={() => appWindow.close()} aria-label="Close">&#x2715;</button>
       </div>
-      {tabBarEmbers}
-
       {contextMenu && (
         <TabContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
           tabType={contextMenu.tabType}
-          onSetType={(type) => setTabType(contextMenu.tabId, type)}
+          onRename={() => startEditing(contextMenu.tabId, contextMenu.tabName, contextMenu.renameSeed)}
+          onUpdateTab={(updates) => updateTabTerminal(contextMenu.tabId, updates)}
+          onCloseTab={() => removeTab(activeGroupId, contextMenu.tabId)}
           onClose={() => setContextMenu(null)}
+        />
+      )}
+      {newTabMenu && (
+        <NewTabMenu
+          x={newTabMenu.x}
+          y={newTabMenu.y}
+          rootPath={activeGroup.rootPath}
+          onSelect={(tabOptions) => addTab(activeGroupId, tabOptions)}
+          onClose={() => setNewTabMenu(null)}
         />
       )}
     </div>

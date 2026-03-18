@@ -25,6 +25,10 @@ const CODEX_REPLY_TO_WORKING_MS = 10000;
 const HUMAN_INPUT_PAUSE_MS = 5000;
 const TERMINAL_NOTICE_MS = 6000;
 const TERMINAL_RECOVERY_MESSAGE = "Open a new terminal tab and rerun the command you were using.";
+const SERVER_URL_PATTERN = /\bhttps?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]|::1|(?:\d{1,3}\.){3}\d{1,3})(?::(\d{2,5}))?(?:\/[^\s]*)?/gi;
+const SERVER_HOST_PORT_PATTERN = /\b(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]|::1|(?:\d{1,3}\.){3}\d{1,3}):(\d{2,5})\b/gi;
+const SERVER_PORT_HINT_PATTERN =
+  /\b(?:local|localhost|listening|ready|started|available|port|network|app|server)\b[^\n\r:]*[: ]+\s*(\d{2,5})\b/i;
 
 function playNotificationSound() {
   if (!_audioCtx) _audioCtx = new AudioContext();
@@ -92,10 +96,56 @@ function inspectCodexScreen(term) {
   return { screenText, status: null };
 }
 
-export default function Terminal({ tabId, isActive, cwd }) {
+function normalizeServerHost(host) {
+  const normalized = host.replace(/^\[|\]$/g, "").toLowerCase();
+  if (normalized === "127.0.0.1" || normalized === "0.0.0.0" || normalized === "::1") {
+    return "localhost";
+  }
+  return normalized;
+}
+
+function detectServerName(text) {
+  if (!text) return "";
+
+  const candidates = [];
+  const seen = new Set();
+  const addCandidate = (host, port) => {
+    const normalizedHost = normalizeServerHost(host);
+    const label = port ? `${normalizedHost}:${port}` : normalizedHost;
+    if (!label || seen.has(label)) return;
+    seen.add(label);
+    candidates.push({
+      label,
+      priority: normalizedHost === "localhost" ? 0 : 1,
+    });
+  };
+
+  let match;
+  while ((match = SERVER_URL_PATTERN.exec(text))) {
+    addCandidate(match[1], match[2] || "");
+  }
+  while ((match = SERVER_HOST_PORT_PATTERN.exec(text))) {
+    addCandidate(match[1], match[2]);
+  }
+
+  if (candidates.length > 0) {
+    candidates.sort((a, b) => a.priority - b.priority);
+    return candidates[0].label;
+  }
+
+  const portHintMatch = text.match(SERVER_PORT_HINT_PATTERN);
+  if (portHintMatch?.[1]) {
+    return `localhost:${portHintMatch[1]}`;
+  }
+
+  return "";
+}
+
+export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
   const containerRef = useRef(null);
   const fitAddonRef = useRef(null);
   const termRef = useRef(null);
+  const initialLaunchCommandRef = useRef(launchCommand);
   const noticeTimerRef = useRef(null);
   const ptyReady = useRef(false);
   const prevStatusRef = useRef("idle");
@@ -262,6 +312,23 @@ export default function Terminal({ tabId, isActive, cwd }) {
       }
     };
 
+    const syncServerSuggestion = (plainText = "") => {
+      const store = useForgeStore.getState();
+      const snapshot = getTabSnapshot(store, tabId);
+      if (!snapshot || snapshot.tab.type !== "server") return;
+
+      const detectedName = detectServerName(plainText) || detectServerName(readTerminalTail(termRef.current, 24));
+      if (!detectedName) return;
+
+      if (snapshot.tab.suggestedServerName !== detectedName) {
+        store.setTabSuggestedServerName(tabId, detectedName);
+      }
+
+      if (!snapshot.tab.manuallyRenamed && snapshot.tab.name !== detectedName) {
+        store.setTabAutoName(tabId, detectedName);
+      }
+    };
+
     const applyDetectedStatus = (status, title = "", options = {}) => {
       const { countResponse = true, notifyWaiting = true } = options;
       const store = useForgeStore.getState();
@@ -368,7 +435,12 @@ export default function Terminal({ tabId, isActive, cwd }) {
         detector.provider = "codex";
         detector.awaitingUser = true;
         recentCodexReplyAtRef.current = 0;
-        useForgeStore.getState().setTabAutoName(tabId, "Codex");
+        const store = useForgeStore.getState();
+        store.setTabProvider(tabId, "codex");
+        const snapshot = getTabSnapshot(store, tabId);
+        if (snapshot?.tab.type !== "server") {
+          store.setTabAutoName(tabId, "Codex");
+        }
         logCodexDebug("session-detected", {
           summary: summary || "Codex ready",
           recentText,
@@ -430,6 +502,7 @@ export default function Terminal({ tabId, isActive, cwd }) {
 
       if (detector.provider === "unknown") {
         detector.provider = "codex";
+        store.setTabProvider(tabId, "codex");
       }
 
       codexDebugRef.current.lastBellEventAt = Date.now();
@@ -479,7 +552,12 @@ export default function Terminal({ tabId, isActive, cwd }) {
       if (codexLaunchMode) {
         detector.provider = "codex";
         detector.awaitingUser = codexLaunchMode === "interactive";
-        useForgeStore.getState().setTabAutoName(tabId, "Codex");
+        const store = useForgeStore.getState();
+        store.setTabProvider(tabId, "codex");
+        const snapshot = getTabSnapshot(store, tabId);
+        if (snapshot?.tab.type !== "server") {
+          store.setTabAutoName(tabId, "Codex");
+        }
         codexDebugRef.current.recentText = "";
         codexDebugRef.current.lastBellByteAt = null;
         codexDebugRef.current.lastBellEventAt = null;
@@ -570,6 +648,7 @@ export default function Terminal({ tabId, isActive, cwd }) {
     const unlistenOutput = listen(`pty-output-${tabId}`, (event) => {
       clearPersistentNotice();
       term.write(event.payload);
+      syncServerSuggestion(extractPlainText(event.payload));
       handleCodexOutput(event.payload);
     });
     const unlistenExit = listen(`pty-exit-${tabId}`, () => {
@@ -594,6 +673,20 @@ export default function Terminal({ tabId, isActive, cwd }) {
       .then(() => {
         ptyReady.current = true;
         clearNotice();
+        const initialLaunchCommand = initialLaunchCommandRef.current;
+        if (!initialLaunchCommand) return;
+
+        useForgeStore.getState().clearTabLaunchCommand(tabId);
+        handleSubmittedCommand(initialLaunchCommand);
+        invoke("write_pty", { tabId, data: `${initialLaunchCommand}\r` }).catch((error) => {
+          if (isTearingDown) return;
+          console.error("Failed to send launch command to PTY:", error);
+          handlePtyDisconnect(
+            "Terminal session lost",
+            `Forge could not start the preset command in this shell. ${TERMINAL_RECOVERY_MESSAGE}`,
+            String(error)
+          );
+        });
       })
       .catch((err) => {
         console.error("Failed to spawn PTY:", err);
@@ -702,8 +795,10 @@ export default function Terminal({ tabId, isActive, cwd }) {
       detectorRef.current.awaitingUser = false;
 
       const store = useForgeStore.getState();
+      store.setTabProvider(tabId, "claude");
+      const snapshot = getTabSnapshot(store, tabId);
       const textPart = title.replace(/^[\u2800-\u28ff\u2733\uFE0F]+\s*/, "").trim();
-      if (textPart) {
+      if (textPart && snapshot?.tab.type !== "server") {
         store.setTabAutoName(tabId, textPart);
       }
 

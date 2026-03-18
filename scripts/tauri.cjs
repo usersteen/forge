@@ -43,6 +43,7 @@ async function runTauriDev(args) {
   const port = await findOpenPort(DEFAULT_PORT, MAX_PORT);
   const devUrl = `http://localhost:${port}`;
   const configOverride = JSON.stringify({
+    identifier: "com.forge.terminal.dev",
     build: {
       beforeDevCommand: "",
       devUrl,

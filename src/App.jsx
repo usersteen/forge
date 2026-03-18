@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { LogicalPosition, LogicalSize } from "@tauri-apps/api/dpi";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { availableMonitors, getCurrentWindow } from "@tauri-apps/api/window";
 import DemoStrip from "./components/DemoStrip";
 import DocumentViewer from "./components/DocumentViewer";
 import Sidebar from "./components/Sidebar";
@@ -30,6 +30,103 @@ function normalizeFilePayload(payload) {
     assetPath: payload.assetPath ?? payload.asset_path ?? null,
     byteSize: payload.byteSize ?? payload.byte_size ?? 0,
     truncated: payload.truncated ?? false,
+  };
+}
+
+const MIN_WINDOW_WIDTH = 720;
+const MIN_WINDOW_HEIGHT = 520;
+
+function isFiniteNumber(value) {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function hasValidWindowSize(windowConfig) {
+  return (
+    isFiniteNumber(windowConfig?.width) &&
+    isFiniteNumber(windowConfig?.height) &&
+    windowConfig.width >= MIN_WINDOW_WIDTH &&
+    windowConfig.height >= MIN_WINDOW_HEIGHT
+  );
+}
+
+function rectIntersectsMonitor(rect, monitor) {
+  const monitorLeft = monitor.position.x;
+  const monitorTop = monitor.position.y;
+  const monitorRight = monitorLeft + monitor.size.width;
+  const monitorBottom = monitorTop + monitor.size.height;
+  const rectRight = rect.x + rect.width;
+  const rectBottom = rect.y + rect.height;
+
+  return (
+    rect.x < monitorRight &&
+    rectRight > monitorLeft &&
+    rect.y < monitorBottom &&
+    rectBottom > monitorTop
+  );
+}
+
+async function restoreWindowGeometry(win, windowConfig) {
+  if (!windowConfig) return;
+
+  if (windowConfig.maximized) {
+    await win.maximize();
+    return;
+  }
+
+  const validSize = hasValidWindowSize(windowConfig);
+  if (validSize) {
+    await win.setSize(new LogicalSize(windowConfig.width, windowConfig.height));
+  }
+
+  if (!isFiniteNumber(windowConfig?.x) || !isFiniteNumber(windowConfig?.y)) {
+    if (!validSize) {
+      await win.center();
+    }
+    return;
+  }
+
+  const monitors = await availableMonitors();
+  const nextRect = {
+    x: windowConfig.x,
+    y: windowConfig.y,
+    width: validSize ? windowConfig.width : MIN_WINDOW_WIDTH,
+    height: validSize ? windowConfig.height : MIN_WINDOW_HEIGHT,
+  };
+
+  if (monitors.some((monitor) => rectIntersectsMonitor(nextRect, monitor))) {
+    await win.setPosition(new LogicalPosition(windowConfig.x, windowConfig.y));
+    return;
+  }
+
+  await win.center();
+}
+
+async function captureWindowGeometry(win) {
+  const minimized = await win.isMinimized();
+  if (minimized) {
+    return {
+      window: null,
+      canPersist: true,
+    };
+  }
+
+  const size = await win.innerSize();
+  const maximized = await win.isMaximized();
+  const position = maximized ? null : await win.outerPosition();
+
+  if (!maximized && (size.width < MIN_WINDOW_WIDTH || size.height < MIN_WINDOW_HEIGHT)) {
+    return null;
+  }
+
+  return {
+    window: {
+      width: size.width,
+      height: size.height,
+      x: position?.x ?? 0,
+      y: position?.y ?? 0,
+      maximized,
+    },
+    canPersist: true,
   };
 }
 
@@ -68,6 +165,7 @@ function App() {
   const [refreshNonce, setRefreshNonce] = useState(0);
   const requestWorkspaceRefresh = () => setRefreshNonce((value) => value + 1);
   const mainSurfaceRef = useRef(null);
+  const lastSavedWindowRef = useRef(null);
   const resizeStateRef = useRef({
     active: false,
     groupId: null,
@@ -79,6 +177,7 @@ function App() {
     (async () => {
       try {
         const config = await invoke("load_config");
+        lastSavedWindowRef.current = config.window || null;
         if (config.groups && config.groups.length > 0) {
           useForgeStore.getState().loadFromConfig(config);
         } else {
@@ -86,15 +185,7 @@ function App() {
         }
 
         const win = getCurrentWindow();
-        const windowConfig = config.window;
-        if (windowConfig) {
-          if (windowConfig.maximized) {
-            await win.maximize();
-          } else {
-            await win.setSize(new LogicalSize(windowConfig.width, windowConfig.height));
-            await win.setPosition(new LogicalPosition(windowConfig.x, windowConfig.y));
-          }
-        }
+        await restoreWindowGeometry(win, config.window);
       } catch (error) {
         console.error("Failed to load config:", error);
         useForgeStore.getState().initFresh();
@@ -111,17 +202,12 @@ function App() {
         try {
           const state = useForgeStore.getState();
           const win = getCurrentWindow();
-          const size = await win.innerSize();
-          const pos = await win.outerPosition();
-          const maximized = await win.isMaximized();
-          const config = storeToConfig(state, {
-            width: size.width,
-            height: size.height,
-            x: pos.x,
-            y: pos.y,
-            maximized,
-          });
+          const geometry = await captureWindowGeometry(win);
+          if (!geometry?.canPersist) return;
+          const windowGeometry = geometry.window ?? lastSavedWindowRef.current;
+          const config = storeToConfig(state, windowGeometry);
           await invoke("save_config", { config });
+          lastSavedWindowRef.current = config.window ?? null;
         } catch (error) {
           console.error("Auto-save failed:", error);
         }
@@ -140,17 +226,12 @@ function App() {
         const state = useForgeStore.getState();
         if (!state.configLoaded) return;
         const win = getCurrentWindow();
-        const size = await win.innerSize();
-        const pos = await win.outerPosition();
-        const maximized = await win.isMaximized();
-        const config = storeToConfig(state, {
-          width: size.width,
-          height: size.height,
-          x: pos.x,
-          y: pos.y,
-          maximized,
-        });
+        const geometry = await captureWindowGeometry(win);
+        if (!geometry?.canPersist) return;
+        const windowGeometry = geometry.window ?? lastSavedWindowRef.current;
+        const config = storeToConfig(state, windowGeometry);
         await invoke("save_config", { config });
+        lastSavedWindowRef.current = config.window ?? null;
       } catch (error) {
         console.error("Save on close failed:", error);
       }

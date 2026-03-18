@@ -10,12 +10,18 @@ pub struct TabConfig {
     pub cwd: Option<String>,
     #[serde(default = "default_tab_type")]
     pub tab_type: String,
+    #[serde(default = "default_tab_provider")]
+    pub provider: String,
     #[serde(default)]
     pub manually_renamed: bool,
 }
 
 fn default_tab_type() -> String {
-    "claude".to_string()
+    "ai".to_string()
+}
+
+fn default_tab_provider() -> String {
+    "unknown".to_string()
 }
 
 #[derive(Serialize, Deserialize, Default, Clone)]
@@ -89,6 +95,12 @@ pub struct SettingsConfig {
     pub cooldown_timer: u64,
     #[serde(default)]
     pub favorite_repo_paths: Vec<String>,
+    #[serde(default = "default_theme")]
+    pub theme: String,
+    #[serde(default = "default_true")]
+    pub fx_enabled: bool,
+    #[serde(default = "default_true")]
+    pub show_welcome_on_launch: bool,
 }
 
 fn default_streak_timer() -> u64 {
@@ -98,12 +110,19 @@ fn default_cooldown_timer() -> u64 {
     30000
 }
 
+fn default_theme() -> String {
+    "forge".to_string()
+}
+
 impl Default for SettingsConfig {
     fn default() -> Self {
         Self {
             streak_timer: 10000,
             cooldown_timer: 30000,
             favorite_repo_paths: Vec::new(),
+            theme: default_theme(),
+            fx_enabled: true,
+            show_welcome_on_launch: true,
         }
     }
 }
@@ -123,12 +142,13 @@ pub struct ForgeConfig {
 }
 
 fn default_schema_version() -> u32 {
-    2
+    4
 }
 
 fn config_path() -> PathBuf {
     let home = std::env::var("USERPROFILE").unwrap_or_else(|_| ".".to_string());
-    PathBuf::from(home).join(".forge").join("config.json")
+    let config_dir = std::env::var("FORGE_CONFIG_DIR_NAME").unwrap_or_else(|_| ".forge".to_string());
+    PathBuf::from(home).join(config_dir).join("config.json")
 }
 
 #[tauri::command]

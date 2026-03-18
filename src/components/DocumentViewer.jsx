@@ -354,6 +354,7 @@ export default function DocumentViewer() {
     >
       <div className="document-viewer-header">
         <div className="document-viewer-tab-bar">
+          {documentTabEmbers ? <div className="forge-ember-layer forge-ember-layer-document-tabs">{documentTabEmbers}</div> : null}
           <div className="document-viewer-tabs">
             {activeGroup.openDocuments.map((document) => (
               <div
@@ -385,7 +386,6 @@ export default function DocumentViewer() {
               </div>
             ))}
           </div>
-          {documentTabEmbers}
         </div>
       </div>
 

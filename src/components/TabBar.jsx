@@ -6,6 +6,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import useForgeStore from "../store/useForgeStore";
 import useInlineRename from "../hooks/useInlineRename";
 import useEffectiveHeatStage from "../hooks/useEffectiveHeatStage";
+import useRecencyTick from "../hooks/useRecencyTick";
 import NewTabMenu from "./NewTabMenu";
 import ProjectExplorer from "./ProjectExplorer";
 import TabContextMenu from "./TabContextMenu";
@@ -19,11 +20,13 @@ const TABBAR_EMBER_CONFIGS = {
   5: [3, 10, 17, 24, 31, 38, 45, 52, 59, 66, 73, 80, 87, 94],
 };
 
-function getStatusDotClass(tab) {
+function getStatusDotClass(tab, isRecent) {
   if (tab.type === "server") {
     return "status-dot server-running";
   }
-  if (tab.status === "waiting") return "status-dot waiting";
+  if (tab.status === "waiting") {
+    return isRecent ? "status-dot waiting waiting-hot" : "status-dot waiting waiting-cold";
+  }
   if (tab.status === "working") return "status-dot working";
   return "status-dot idle";
 }
@@ -46,7 +49,7 @@ function getRenameSeed(tab) {
   return tab.name;
 }
 
-function SortableTab({ tab, isActive, onSelect, onDoubleClick, onContextMenu, editingId, inputProps, onClose }) {
+function SortableTab({ tab, isActive, isRecent, onSelect, onDoubleClick, onContextMenu, editingId, inputProps, onClose }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: tab.id });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -68,7 +71,7 @@ function SortableTab({ tab, isActive, onSelect, onDoubleClick, onContextMenu, ed
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
     >
-      <span className={getStatusDotClass(tab)} />
+      <span className={getStatusDotClass(tab, isRecent)} />
       {providerBadge ? (
         <span className={`tab-provider-badge tab-provider-${tab.provider}`} title={providerBadge.title}>
           {providerBadge.label}
@@ -105,6 +108,8 @@ export default function TabBar({ onRefreshWorkspace }) {
   const theme = useForgeStore((s) => s.theme);
   const fxEnabled = useForgeStore((s) => s.fxEnabled);
 
+  const tabRecencyMinutes = useForgeStore((s) => s.tabRecencyMinutes);
+
   const [contextMenu, setContextMenu] = useState(null);
   const [newTabMenu, setNewTabMenu] = useState(null);
   const [repoOpen, setRepoOpen] = useState(false);
@@ -112,6 +117,10 @@ export default function TabBar({ onRefreshWorkspace }) {
   const repoPanelRef = useRef(null);
 
   const activeGroup = groups.find((g) => g.id === activeGroupId);
+  const hasWaitingTabs = activeGroup?.tabs.some((t) => t.status === "waiting") ?? false;
+  const now = useRecencyTick(hasWaitingTabs);
+  const recencyThreshold = tabRecencyMinutes * 60000;
+  const isTabRecent = (tab) => tab.lastEngagedAt && now - tab.lastEngagedAt < recencyThreshold;
 
   const onCommit = useCallback(
     (id, name) => renameTab(activeGroupId, id, name),
@@ -216,6 +225,7 @@ export default function TabBar({ onRefreshWorkspace }) {
                 key={tab.id}
                 tab={tab}
                 isActive={tab.id === activeGroup.activeTabId}
+                isRecent={isTabRecent(tab)}
                 onSelect={() => setActiveTab(activeGroupId, tab.id)}
                 onDoubleClick={() => startEditing(tab.id, tab.name, getRenameSeed(tab))}
                 onContextMenu={(e) => {

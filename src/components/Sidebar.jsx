@@ -7,6 +7,7 @@ import useForgeStore from "../store/useForgeStore";
 import useInlineRename from "../hooks/useInlineRename";
 import useEffectiveHeatStage from "../hooks/useEffectiveHeatStage";
 import { getEmberStyle } from "../utils/heat";
+import useRecencyTick from "../hooks/useRecencyTick";
 import { getThemeHeatColor } from "../utils/themes";
 import ForgeWordmark from "./ForgeWordmark";
 import ProjectContextMenu from "./ProjectContextMenu";
@@ -36,11 +37,13 @@ const SIDEBAR_EMBER_CONFIGS = {
 
 const appWindow = getCurrentWindow();
 
-function getSidebarDotClass(tab) {
+function getSidebarDotClass(tab, isRecent) {
   if (tab.type === "server") {
     return "server-running";
   }
-  if (tab.status === "waiting") return "waiting";
+  if (tab.status === "waiting") {
+    return isRecent ? "waiting waiting-hot" : "waiting waiting-cold";
+  }
   if (tab.status === "working") return "working";
   return "";
 }
@@ -54,7 +57,7 @@ function getGroupPriorityClass(group) {
   return "";
 }
 
-function SortableGroup({ group, isActive, onSelect, onDoubleClick, onContextMenu, editingId, inputProps, onRemove }) {
+function SortableGroup({ group, isActive, now, recencyThreshold, onSelect, onDoubleClick, onContextMenu, editingId, inputProps, onRemove }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: group.id });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -83,7 +86,7 @@ function SortableGroup({ group, isActive, onSelect, onDoubleClick, onContextMenu
         )}
         <div className="sidebar-group-dots">
           {group.tabs.map((tab) => (
-            <span key={tab.id} className={`sidebar-dot ${getSidebarDotClass(tab)}`} />
+            <span key={tab.id} className={`sidebar-dot ${getSidebarDotClass(tab, tab.lastEngagedAt && now - tab.lastEngagedAt < recencyThreshold)}`} />
           ))}
         </div>
       </div>
@@ -114,6 +117,11 @@ export default function Sidebar() {
   const fxEnabled = useForgeStore((s) => s.fxEnabled);
   const configLoaded = useForgeStore((s) => s.configLoaded);
   const showWelcomeOnLaunch = useForgeStore((s) => s.showWelcomeOnLaunch);
+  const tabRecencyMinutes = useForgeStore((s) => s.tabRecencyMinutes);
+
+  const hasWaitingTabs = groups.some((g) => g.tabs.some((t) => t.status === "waiting"));
+  const now = useRecencyTick(hasWaitingTabs);
+  const recencyThreshold = tabRecencyMinutes * 60000;
 
   const onCommit = useCallback((id, name) => renameGroup(id, name), [renameGroup]);
   const { editingId, startEditing, inputProps } = useInlineRename(onCommit);
@@ -206,6 +214,8 @@ export default function Sidebar() {
                 key={group.id}
                 group={group}
                 isActive={group.id === activeGroupId}
+                now={now}
+                recencyThreshold={recencyThreshold}
                 onSelect={() => setActiveGroup(group.id)}
                 onDoubleClick={() => startEditing(group.id, group.name)}
                 onContextMenu={(event) => {

@@ -74,6 +74,7 @@ function makeTab(name = "Terminal 1", cwd = null, options = {}) {
     manuallyRenamed: false,
     suggestedServerName: "",
     waitingSince: null,
+    lastEngagedAt: null,
     launchCommand: options.launchCommand || null,
   };
 }
@@ -146,6 +147,7 @@ const useForgeStore = create((set, get) => ({
   lastStreakTime: null,
   streakTimer: 10000,
   cooldownTimer: 30000,
+  tabRecencyMinutes: 5,
   heatPauseStartedAt: null,
   heatPauseSources: {},
 
@@ -182,6 +184,7 @@ const useForgeStore = create((set, get) => ({
         manuallyRenamed: tabConfig.manually_renamed || false,
         suggestedServerName: "",
         waitingSince: null,
+        lastEngagedAt: null,
         launchCommand: null,
       }));
       const safeTabs = tabs.length > 0 ? tabs : [makeTab()];
@@ -215,6 +218,7 @@ const useForgeStore = create((set, get) => ({
       showWelcomeOnLaunch: config.settings?.show_welcome_on_launch ?? true,
       streakTimer: config.settings?.streak_timer ?? 10000,
       cooldownTimer: config.settings?.cooldown_timer ?? 30000,
+      tabRecencyMinutes: config.settings?.tab_recency_minutes ?? 5,
       configLoaded: true,
     });
   },
@@ -336,7 +340,9 @@ const useForgeStore = create((set, get) => ({
               tabs: group.tabs.map((tab) => {
                 if (tab.id !== tabId) return tab;
                 const waitingSince = status === "waiting" ? (tab.waitingSince ?? Date.now()) : null;
-                return { ...tab, status, statusTitle: title, waitingSince };
+                const lastEngagedAt =
+                  status === "working" && tab.status === "waiting" ? Date.now() : tab.lastEngagedAt;
+                return { ...tab, status, statusTitle: title, waitingSince, lastEngagedAt };
               }),
             }
           : group
@@ -842,6 +848,7 @@ const useForgeStore = create((set, get) => ({
                 tabs: group.tabs.map((tab) => ({
                   ...tab,
                   waitingSince: tab.waitingSince ? tab.waitingSince + pausedDuration : null,
+                  lastEngagedAt: tab.lastEngagedAt ? tab.lastEngagedAt + pausedDuration : null,
                 })),
               }))
             : state.groups,
@@ -878,6 +885,7 @@ const useForgeStore = create((set, get) => ({
   decrementStreak: () =>
     set((state) => ({ streak: Math.max(0, state.streak - 1), lastStreakTime: Date.now() })),
 
+  setTabRecencyMinutes: (minutes) => set({ tabRecencyMinutes: Math.max(1, Math.min(60, Number(minutes) || 5)) }),
   setStreakTimer: (ms) => set({ streakTimer: ms }),
   setCooldownTimer: (ms) => set({ cooldownTimer: ms }),
   setTheme: (theme) => set({ theme: normalizeTheme(theme) }),
@@ -923,6 +931,7 @@ export function storeToConfig(state, windowGeometry) {
     settings: {
       streak_timer: state.streakTimer,
       cooldown_timer: state.cooldownTimer,
+      tab_recency_minutes: state.tabRecencyMinutes,
       favorite_repo_paths: state.favoriteRepoPaths,
       theme: normalizeTheme(state.theme),
       fx_enabled: state.fxEnabled,

@@ -147,7 +147,7 @@ html, body, #root {
   animation: glow-working-small 1.5s ease-in-out infinite;
 }
 
-[data-fx="on"] .status-dot.waiting {
+[data-fx="on"] .status-dot.waiting.waiting-hot {
   box-shadow: var(--status-waiting-glow);
 }
 
@@ -155,8 +155,13 @@ html, body, #root {
   box-shadow: var(--status-waiting-glow);
 }
 
-[data-fx="on"] .sidebar-dot.waiting {
+[data-fx="on"] .sidebar-dot.waiting.waiting-hot {
   box-shadow: var(--status-waiting-small-glow);
+}
+
+[data-fx="on"] .status-dot.waiting.waiting-cold,
+[data-fx="on"] .sidebar-dot.waiting.waiting-cold {
+  box-shadow: none;
 }
 
 @keyframes glow-working {
@@ -2484,7 +2489,9 @@ body.reader-resizing {
   }
 }
 
-/* Micro-embers on active status dots at heat 4-5 */
+/* Micro-embers on hot waiting dots (always) and working dots (heat 4-5) */
+[data-fx="on"] .status-dot.waiting-hot,
+[data-fx="on"] .sidebar-dot.waiting-hot,
 [data-fx="on"][data-heat="4"] .status-dot.working,
 [data-fx="on"][data-heat="4"] .sidebar-dot.working,
 [data-fx="on"][data-heat="5"] .status-dot.working,
@@ -2493,6 +2500,8 @@ body.reader-resizing {
   overflow: visible;
 }
 
+[data-fx="on"] .status-dot.waiting-hot::after,
+[data-fx="on"] .sidebar-dot.waiting-hot::after,
 [data-fx="on"][data-heat="4"] .status-dot.working::after,
 [data-fx="on"][data-heat="4"] .sidebar-dot.working::after {
   content: "";
@@ -2502,9 +2511,14 @@ body.reader-resizing {
   width: 2px;
   height: 2px;
   border-radius: 50%;
-  background: var(--heat-4);
+  background: var(--accent-waiting);
   pointer-events: none;
   animation: micro-ember-rise 1.6s ease-out infinite;
+}
+
+[data-fx="on"][data-heat="4"] .status-dot.working::after,
+[data-fx="on"][data-heat="4"] .sidebar-dot.working::after {
+  background: var(--heat-4);
 }
 
 [data-fx="on"][data-heat="5"] .status-dot.working::before,

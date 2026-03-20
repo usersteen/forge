@@ -12,6 +12,8 @@ export default function Settings({ onClose }) {
   const setCooldownTimer = useForgeStore((s) => s.setCooldownTimer);
   const setTheme = useForgeStore((s) => s.setTheme);
   const setFxEnabled = useForgeStore((s) => s.setFxEnabled);
+  const tabRecencyMinutes = useForgeStore((s) => s.tabRecencyMinutes);
+  const setTabRecencyMinutes = useForgeStore((s) => s.setTabRecencyMinutes);
   const setDemoHeatStage = useForgeStore((s) => s.setDemoHeatStage);
   const themeOptions = getThemeOptions();
 
@@ -132,6 +134,21 @@ export default function Settings({ onClose }) {
             <span className="settings-time-label">sec</span>
           </div>
           <span className="settings-hint">After this long idle, lose one heat level</span>
+        </div>
+        <div className="settings-row">
+          <label>Tab Recency</label>
+          <div className="settings-time-row">
+            <input
+              type="number"
+              className="settings-time-input"
+              min={1}
+              max={60}
+              value={tabRecencyMinutes}
+              onChange={(e) => setTabRecencyMinutes(Number(e.target.value))}
+            />
+            <span className="settings-time-label">min</span>
+          </div>
+          <span className="settings-hint">Waiting tabs glow for this long after last engagement</span>
         </div>
         <button
           className="settings-demo-btn"

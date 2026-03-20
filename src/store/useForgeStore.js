@@ -219,13 +219,19 @@ const useForgeStore = create((set, get) => ({
     });
   },
 
-  addGroup: (name) => {
+  addGroup: (name, options = {}) => {
     const count = get().groups.length;
-    const group = makeGroup(name || `Project ${count + 1}`);
+    const rootPath = options.rootPath ? normalizeRootPath(options.rootPath) : null;
+    const derivedName = name || (rootPath && rootPath.split(/[\\/]/).filter(Boolean).pop()) || `Project ${count + 1}`;
+    const group = makeGroup(derivedName);
+    if (rootPath) {
+      group.rootPath = rootPath;
+      group.tabs[0].cwd = rootPath;
+    }
     set((state) => ({
       groups: [...state.groups, group],
       activeGroupId: group.id,
-      workspaceByGroup: { ...state.workspaceByGroup, [group.id]: makeRuntimeWorkspaceState() },
+      workspaceByGroup: { ...state.workspaceByGroup, [group.id]: makeRuntimeWorkspaceState(rootPath) },
       documentStateByGroup: { ...state.documentStateByGroup, [group.id]: {} },
     }));
   },

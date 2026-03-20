@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -12,6 +12,7 @@ import ForgeWordmark from "./ForgeWordmark";
 import ProjectContextMenu from "./ProjectContextMenu";
 import Settings from "./Settings";
 import InfoPanel from "./InfoPanel";
+import NewProjectMenu from "./NewProjectMenu";
 import WelcomeModal from "./WelcomeModal";
 
 const EMBER_CONFIGS = {
@@ -135,11 +136,14 @@ export default function Sidebar() {
   const [showInfo, setShowInfo] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [contextMenu, setContextMenu] = useState(null);
+  const [newProjectMenu, setNewProjectMenu] = useState(null);
+  const newProjectBtnRef = useRef(null);
   const closeInfo = useCallback(() => setShowInfo(false), []);
   const closeSettings = useCallback(() => setShowSettings(false), []);
   const openInfo = useCallback(() => setShowInfo(true), []);
   const openSettings = useCallback(() => setShowSettings(true), []);
   const closeWelcome = useCallback(() => setShowWelcome(false), []);
+  const closeNewProjectMenu = useCallback(() => setNewProjectMenu(null), []);
 
   const heatStage = useEffectiveHeatStage();
   const logoFill = getThemeHeatColor(theme, heatStage);
@@ -222,7 +226,14 @@ export default function Sidebar() {
           </div>
         </SortableContext>
       </DndContext>
-      <button className="sidebar-add" onClick={() => addGroup()}>
+      <button
+        ref={newProjectBtnRef}
+        className="sidebar-add"
+        onClick={() => {
+          const rect = newProjectBtnRef.current.getBoundingClientRect();
+          setNewProjectMenu({ x: rect.right + 6, y: rect.top });
+        }}
+      >
         + New Project
       </button>
       <div className="sidebar-actions">
@@ -250,6 +261,20 @@ export default function Sidebar() {
       </div>
       {sidebarEmbers ? <div className="forge-ember-layer forge-ember-layer-sidebar">{sidebarEmbers}</div> : null}
 
+      {newProjectMenu && (
+        <NewProjectMenu
+          x={newProjectMenu.x}
+          y={newProjectMenu.y}
+          onSelect={(path) => {
+            if (path) {
+              addGroup(undefined, { rootPath: path });
+            } else {
+              addGroup();
+            }
+          }}
+          onClose={closeNewProjectMenu}
+        />
+      )}
       {showWelcome && <WelcomeModal onClose={closeWelcome} />}
       {showInfo && <InfoPanel onClose={closeInfo} />}
       {showSettings && <Settings onClose={closeSettings} />}

@@ -852,6 +852,57 @@ html, body, #root {
   background: rgba(255, 255, 255, 0.025);
 }
 
+/* New Project Menu */
+.new-project-menu {
+  min-width: 240px;
+  max-width: 320px;
+}
+
+.new-project-input-row {
+  padding: 4px;
+}
+
+.new-project-path-input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  padding: 8px 10px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.new-project-path-input:focus {
+  border-color: var(--accent);
+}
+
+.new-project-path-input::placeholder {
+  color: var(--text-muted);
+}
+
+.new-project-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 6px;
+}
+
+.new-project-section-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 6px 12px 2px;
+  letter-spacing: 0.5px;
+}
+
+.new-project-starred-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
 .document-tabs {
   display: flex;
   align-items: center;

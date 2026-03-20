@@ -8,3 +8,7 @@ tmp/
 OPEN_SOURCE_PLAN.md
 dev-server.log
 dev-server.err
+src/components/ThemeLab.jsx
+src/styles/theme-lab.css
+src/video/ForgeThemeLab.jsx
+src/video/theme-lab-video.css

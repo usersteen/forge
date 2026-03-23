@@ -281,25 +281,32 @@ export default function TabBar({ onRefreshWorkspace }) {
           </div>
         </SortableContext>
       </DndContext>
-      <div className="window-controls">
-        <button className="window-control window-minimize" onClick={() => appWindow.minimize()} aria-label="Minimize">&#x2013;</button>
-        <button className="window-control window-maximize" onClick={() => appWindow.toggleMaximize()} aria-label="Maximize">&#x25A1;</button>
-        {IS_MACOS && (
-          <button
-            className="window-control window-fullscreen"
-            onClick={async () => {
-              const next = !isFullscreen;
-              await appWindow.setFullscreen(next);
-              setIsFullscreen(next);
-            }}
-            aria-label={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
-            title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
-          >
-            {isFullscreen ? "\u29C9" : "\u2922"}
-          </button>
-        )}
-        <button className="window-control window-close" onClick={() => appWindow.close()} aria-label="Close">&#x2715;</button>
-      </div>
+      {/* macOS windowed: native title bar handles controls; show inline only in fullscreen.
+           Windows: always show inline controls (no native title bar). */}
+      {(!IS_MACOS || isFullscreen) && (
+        <div className="window-controls">
+          {!IS_MACOS && (
+            <>
+              <button className="window-control window-minimize" onClick={() => appWindow.minimize()} aria-label="Minimize">&#x2013;</button>
+              <button className="window-control window-maximize" onClick={() => appWindow.toggleMaximize()} aria-label="Maximize">&#x25A1;</button>
+            </>
+          )}
+          {IS_MACOS && isFullscreen && (
+            <button
+              className="window-control window-fullscreen"
+              onClick={async () => {
+                await appWindow.setFullscreen(false);
+                setIsFullscreen(false);
+              }}
+              aria-label="Exit Fullscreen"
+              title="Exit Fullscreen"
+            >
+              {"\u29C9"}
+            </button>
+          )}
+          <button className="window-control window-close" onClick={() => appWindow.close()} aria-label="Close">&#x2715;</button>
+        </div>
+      )}
       {contextMenu && (
         <TabContextMenu
           x={contextMenu.x}

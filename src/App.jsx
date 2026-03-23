@@ -206,10 +206,17 @@ function App() {
       saveTimerRef.current = setTimeout(async () => {
         try {
           const state = useForgeStore.getState();
-          const win = getCurrentWindow();
-          const geometry = await captureWindowGeometry(win);
-          if (!geometry?.canPersist) return;
-          const windowGeometry = geometry.window ?? lastSavedWindowRef.current;
+          // Skip native window geometry queries while user is actively typing —
+          // they cause main-thread IPC contention. Reuse cached geometry instead.
+          let windowGeometry;
+          if (state.heatPauseStartedAt) {
+            windowGeometry = lastSavedWindowRef.current;
+          } else {
+            const win = getCurrentWindow();
+            const geometry = await captureWindowGeometry(win);
+            if (!geometry?.canPersist) return;
+            windowGeometry = geometry.window ?? lastSavedWindowRef.current;
+          }
           const config = storeToConfig(state, windowGeometry);
           await invoke("save_config", { config });
           lastSavedWindowRef.current = config.window ?? null;

@@ -5,6 +5,7 @@ import { WebglAddon } from "@xterm/addon-webgl";
 import "@xterm/xterm/css/xterm.css";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import useForgeStore from "../store/useForgeStore";
 import {
   extractPlainText,
@@ -908,42 +909,50 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
     }
   }, [isActive]);
 
-  // Guard against focus loss — macOS WebKit can drop focus from xterm's internal
-  // textarea when CSS pseudo-elements with animations are added elsewhere in the DOM
-  // (e.g. status dot glow on waiting transitions). Detect via focusout on the shell
-  // and reclaim unless focus moved to a legitimate editable target.
+  // Focus guard — use native Tauri window events instead of DOM-level listeners.
+  // Previous attempts with focusin/focusout/window.focus all failed because the
+  // focus loss was at the native NSWindow level (borderless window losing key status),
+  // not the DOM level. With decorations: true on macOS the root cause is fixed,
+  // but we keep these as defense-in-depth.
   useEffect(() => {
     if (!isActive) return;
-    const shell = containerRef.current?.closest(".terminal-shell");
-    if (!shell) return;
 
-    const handleFocusOut = (event) => {
-      const related = event.relatedTarget;
-      // Focus moving to an editable element — allow it
-      if (related instanceof HTMLElement) {
-        if (related.isContentEditable) return;
-        const tag = related.tagName.toLowerCase();
-        if (tag === "input" || tag === "textarea" || tag === "select") return;
-      }
-      // Focus left the terminal unexpectedly — reclaim on next frame
-      requestAnimationFrame(() => {
-        // Double-check focus hasn't moved to an input in the meantime
-        const active = document.activeElement;
-        if (active && active !== document.body) {
-          const tag = active.tagName.toLowerCase();
-          if (tag === "input" || tag === "textarea" || tag === "select" || active.isContentEditable) return;
+    const appWindow = getCurrentWindow();
+    let windowBlurred = false;
+    let unlistenFocusChanged;
+
+    // Native Tauri event: fires when NSWindow gains/loses key window status.
+    const setup = async () => {
+      unlistenFocusChanged = await appWindow.onFocusChanged(({ payload: focused }) => {
+        if (focused) {
+          windowBlurred = false;
+          termRef.current?.focus();
+        } else {
+          windowBlurred = true;
         }
-        termRef.current?.focus();
       });
     };
+    setup();
 
-    const handleWindowFocus = () => termRef.current?.focus();
+    // Safety net: if a keystroke reaches the document but xterm's textarea isn't
+    // focused, redirect immediately. Skip if user intentionally left the window.
+    const handleKeyDown = (event) => {
+      if (windowBlurred) return;
+      const target = event.target;
+      if (target instanceof HTMLElement) {
+        if (target.isContentEditable) return;
+        const tag = target.tagName?.toLowerCase();
+        if (tag === "input" || tag === "select") return;
+        // Allow xterm's own textarea
+        if (tag === "textarea" && containerRef.current?.contains(target)) return;
+      }
+      termRef.current?.focus();
+    };
 
-    shell.addEventListener("focusout", handleFocusOut);
-    window.addEventListener("focus", handleWindowFocus);
+    document.addEventListener("keydown", handleKeyDown, true);
     return () => {
-      shell.removeEventListener("focusout", handleFocusOut);
-      window.removeEventListener("focus", handleWindowFocus);
+      unlistenFocusChanged?.then?.((fn) => fn());
+      document.removeEventListener("keydown", handleKeyDown, true);
     };
   }, [isActive]);
 

@@ -899,6 +899,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
 
   useEffect(() => {
     if (isActive && fitAddonRef.current) {
+      termRef.current?.focus();
       const id = requestAnimationFrame(() => {
         fitAddonRef.current?.fit();
         termRef.current?.focus();
@@ -907,8 +908,47 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
     }
   }, [isActive]);
 
+  // Guard against focus loss — macOS WebKit can drop focus from xterm's internal
+  // textarea when CSS pseudo-elements with animations are added elsewhere in the DOM
+  // (e.g. status dot glow on waiting transitions). Detect via focusout on the shell
+  // and reclaim unless focus moved to a legitimate editable target.
+  useEffect(() => {
+    if (!isActive) return;
+    const shell = containerRef.current?.closest(".terminal-shell");
+    if (!shell) return;
+
+    const handleFocusOut = (event) => {
+      const related = event.relatedTarget;
+      // Focus moving to an editable element — allow it
+      if (related instanceof HTMLElement) {
+        if (related.isContentEditable) return;
+        const tag = related.tagName.toLowerCase();
+        if (tag === "input" || tag === "textarea" || tag === "select") return;
+      }
+      // Focus left the terminal unexpectedly — reclaim on next frame
+      requestAnimationFrame(() => {
+        // Double-check focus hasn't moved to an input in the meantime
+        const active = document.activeElement;
+        if (active && active !== document.body) {
+          const tag = active.tagName.toLowerCase();
+          if (tag === "input" || tag === "textarea" || tag === "select" || active.isContentEditable) return;
+        }
+        termRef.current?.focus();
+      });
+    };
+
+    const handleWindowFocus = () => termRef.current?.focus();
+
+    shell.addEventListener("focusout", handleFocusOut);
+    window.addEventListener("focus", handleWindowFocus);
+    return () => {
+      shell.removeEventListener("focusout", handleFocusOut);
+      window.removeEventListener("focus", handleWindowFocus);
+    };
+  }, [isActive]);
+
   return (
-    <div className="terminal-shell">
+    <div className="terminal-shell" onMouseDown={() => isActive && termRef.current?.focus()}>
       <div
         ref={containerRef}
         className="terminal-canvas"

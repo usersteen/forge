@@ -720,6 +720,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
     term.attachCustomKeyEventHandler((e) => {
       if (e.type !== "keydown") return true;
 
+      // Copy: Ctrl+C with selection (on both platforms, Ctrl not Cmd)
       if (e.ctrlKey && !e.shiftKey && e.key === "c") {
         const selection = term.getSelection();
         if (selection) {
@@ -729,26 +730,15 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
         return true;
       }
 
+      // Paste: Ctrl+V — trigger a native paste event so the paste listener
+      // can read clipboardData (text + images) without WebKit permission prompts.
       if (e.ctrlKey && !e.shiftKey && e.key === "v") {
         e.preventDefault();
-        navigator.clipboard.readText().then((text) => {
-          if (text && ptyReady.current) {
-            noteHumanInput();
-            const bracketed = `\x1b[200~${text}\x1b[201~`;
-            invoke("write_pty", { tabId, data: bracketed }).catch((error) => {
-              if (isTearingDown) return;
-              console.error("Failed to paste into PTY:", error);
-              handlePtyDisconnect(
-                "Terminal session lost",
-                `Forge could not send pasted text to this shell. ${TERMINAL_RECOVERY_MESSAGE}`,
-                String(error)
-              );
-            });
-          }
-        });
+        document.execCommand("paste");
         return false;
       }
 
+      // Linebreak: Ctrl+Enter — send a raw newline without shell execution
       if (e.ctrlKey && e.key === "Enter") {
         if (ptyReady.current) {
           noteHumanInput();
@@ -764,6 +754,10 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
         }
         return false;
       }
+
+      // Block Cmd+key combos from reaching xterm on macOS so they trigger
+      // native behaviour (Cmd+C = copy in non-terminal contexts, etc.)
+      if (e.metaKey) return false;
 
       return true;
     });
@@ -812,6 +806,66 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
     });
     resizeObserver.observe(containerRef.current);
 
+    // Use a native paste event listener instead of navigator.clipboard API
+    // because WebKit (macOS Tauri) blocks the Clipboard API with permission prompts.
+    const pasteContainer = containerRef.current;
+    const handlePaste = (e) => {
+      e.preventDefault();
+      if (!ptyReady.current) return;
+
+      // Check for image data first (screenshots, copied images)
+      const items = e.clipboardData?.items;
+      if (items) {
+        for (const item of items) {
+          if (item.type.startsWith("image/")) {
+            const blob = item.getAsFile();
+            if (!blob) continue;
+            if (blob.size > 50 * 1024 * 1024) {
+              console.warn("Clipboard image too large (>50MB), skipping");
+              return;
+            }
+            const reader = new FileReader();
+            reader.onload = () => {
+              // Strip the data:image/...;base64, prefix
+              const base64 = reader.result.split(",")[1];
+              invoke("save_clipboard_image", { dataBase64: base64, mime: item.type })
+                .then((filePath) => {
+                  if (!ptyReady.current) return;
+                  noteHumanInput();
+                  const bracketed = `\x1b[200~${filePath}\x1b[201~`;
+                  invoke("write_pty", { tabId, data: bracketed }).catch((error) => {
+                    if (isTearingDown) return;
+                    console.error("Failed to paste image path into PTY:", error);
+                  });
+                })
+                .catch((error) => {
+                  console.error("Failed to save clipboard image:", error);
+                });
+            };
+            reader.readAsDataURL(blob);
+            return;
+          }
+        }
+      }
+
+      // Fall back to plain text paste
+      const text = e.clipboardData?.getData("text/plain");
+      if (text) {
+        noteHumanInput();
+        const bracketed = `\x1b[200~${text}\x1b[201~`;
+        invoke("write_pty", { tabId, data: bracketed }).catch((error) => {
+          if (isTearingDown) return;
+          console.error("Failed to paste into PTY:", error);
+          handlePtyDisconnect(
+            "Terminal session lost",
+            `Forge could not send pasted text to this shell. ${TERMINAL_RECOVERY_MESSAGE}`,
+            String(error)
+          );
+        });
+      }
+    };
+    pasteContainer.addEventListener("paste", handlePaste);
+
     return () => {
       isTearingDown = true;
       bellListener.dispose();
@@ -820,6 +874,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       clearNoticeTimer();
       clearTimeout(resizeTimeout);
       resizeObserver.disconnect();
+      pasteContainer.removeEventListener("paste", handlePaste);
       unlistenOutput.then((unlisten) => unlisten());
       unlistenExit.then((unlisten) => unlisten());
       unlistenError.then((unlisten) => unlisten());

@@ -1,4 +1,8 @@
-# Build target outside OneDrive to prevent Explorer freezing
-# OneDrive tries to sync the thousands of files Rust generates in target/
-[build]
-target-dir = "C:\\Users\\tenis\\.forge-build\\target"
+# On Windows, override target-dir to avoid OneDrive sync issues:
+#   Set CARGO_TARGET_DIR=C:\Users\tenis\.forge-build\target
+#   (or uncomment the line below on Windows only)
+#
+# On macOS, the default target/ directory works fine.
+#
+# [build]
+# target-dir = "C:\\Users\\tenis\\.forge-build\\target"

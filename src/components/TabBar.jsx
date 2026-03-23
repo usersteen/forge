@@ -14,6 +14,7 @@ import { getEmberStyle } from "../utils/heat";
 
 
 const appWindow = getCurrentWindow();
+const IS_MACOS = navigator.platform.startsWith("Mac");
 
 const TABBAR_EMBER_CONFIGS = {
   4: [6, 18, 30, 42, 54, 66, 78, 90],
@@ -113,8 +114,18 @@ export default function TabBar({ onRefreshWorkspace }) {
   const [contextMenu, setContextMenu] = useState(null);
   const [newTabMenu, setNewTabMenu] = useState(null);
   const [repoOpen, setRepoOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const addButtonRef = useRef(null);
   const repoPanelRef = useRef(null);
+
+  // Sync fullscreen state with OS (e.g. user clicks macOS green button)
+  useEffect(() => {
+    if (!IS_MACOS) return;
+    const unlisten = appWindow.onResized(() => {
+      appWindow.isFullscreen().then(setIsFullscreen);
+    });
+    return () => unlisten.then((f) => f());
+  }, []);
 
   const activeGroup = groups.find((g) => g.id === activeGroupId);
   const hasWaitingTabs = activeGroup?.tabs.some((t) => t.status === "waiting") ?? false;
@@ -273,6 +284,20 @@ export default function TabBar({ onRefreshWorkspace }) {
       <div className="window-controls">
         <button className="window-control window-minimize" onClick={() => appWindow.minimize()} aria-label="Minimize">&#x2013;</button>
         <button className="window-control window-maximize" onClick={() => appWindow.toggleMaximize()} aria-label="Maximize">&#x25A1;</button>
+        {IS_MACOS && (
+          <button
+            className="window-control window-fullscreen"
+            onClick={async () => {
+              const next = !isFullscreen;
+              await appWindow.setFullscreen(next);
+              setIsFullscreen(next);
+            }}
+            aria-label={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+            title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+          >
+            {isFullscreen ? "\u29C9" : "\u2922"}
+          </button>
+        )}
         <button className="window-control window-close" onClick={() => appWindow.close()} aria-label="Close">&#x2715;</button>
       </div>
       {contextMenu && (

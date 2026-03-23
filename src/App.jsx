@@ -110,20 +110,25 @@ async function captureWindowGeometry(win) {
     };
   }
 
-  const size = await win.innerSize();
+  const scaleFactor = await win.scaleFactor();
+  const physicalSize = await win.innerSize();
+  const width = Math.round(physicalSize.width / scaleFactor);
+  const height = Math.round(physicalSize.height / scaleFactor);
   const maximized = await win.isMaximized();
-  const position = maximized ? null : await win.outerPosition();
+  const physicalPosition = maximized ? null : await win.outerPosition();
+  const x = physicalPosition ? Math.round(physicalPosition.x / scaleFactor) : 0;
+  const y = physicalPosition ? Math.round(physicalPosition.y / scaleFactor) : 0;
 
-  if (!maximized && (size.width < MIN_WINDOW_WIDTH || size.height < MIN_WINDOW_HEIGHT)) {
+  if (!maximized && (width < MIN_WINDOW_WIDTH || height < MIN_WINDOW_HEIGHT)) {
     return null;
   }
 
   return {
     window: {
-      width: size.width,
-      height: size.height,
-      x: position?.x ?? 0,
-      y: position?.y ?? 0,
+      width,
+      height,
+      x,
+      y,
       maximized,
     },
     canPersist: true,

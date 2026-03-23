@@ -98,7 +98,36 @@ pub fn pick_workspace_folder() -> Result<Option<String>, String> {
         return Ok(Some(path));
     }
 
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "macos")]
+    {
+        let output = std::process::Command::new("osascript")
+            .args([
+                "-e",
+                "set chosenFolder to choose folder with prompt \"Select Forge workspace folder\"",
+                "-e",
+                "POSIX path of chosenFolder",
+            ])
+            .output()
+            .map_err(|err| format!("Failed to open folder picker: {err}"))?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            if stderr.contains("User canceled") {
+                return Ok(None);
+            }
+            return Err(stderr);
+        }
+
+        let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if path.is_empty() {
+            return Ok(None);
+        }
+
+        // osascript returns paths with a trailing slash — strip it for consistency
+        return Ok(Some(path.trim_end_matches('/').to_string()));
+    }
+
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     {
         Err("Folder picker is not implemented on this platform".to_string())
     }

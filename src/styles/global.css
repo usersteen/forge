@@ -988,7 +988,8 @@ html, body, #root {
 }
 
 .window-minimize:hover,
-.window-maximize:hover {
+.window-maximize:hover,
+.window-fullscreen:hover {
   background: rgba(255, 255, 255, 0.08);
   color: var(--text-primary);
 }

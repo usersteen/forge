@@ -146,7 +146,12 @@ fn default_schema_version() -> u32 {
 }
 
 fn config_path() -> PathBuf {
-    let home = std::env::var("USERPROFILE").unwrap_or_else(|_| ".".to_string());
+    let home = if cfg!(target_os = "windows") {
+        std::env::var("USERPROFILE")
+    } else {
+        std::env::var("HOME")
+    }
+    .unwrap_or_else(|_| ".".to_string());
     let config_dir = std::env::var("FORGE_CONFIG_DIR_NAME").unwrap_or_else(|_| ".forge".to_string());
     PathBuf::from(home).join(config_dir).join("config.json")
 }

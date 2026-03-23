@@ -52,15 +52,21 @@ See FORGE_PLAN.md for full architecture and spec.
 - [x] Build to .exe
 
 ## Key Decisions
-- Windows-only, built for personal use
-- PowerShell as default shell (hardcoded is fine)
+- Cross-platform (Windows + macOS), built for personal use
+- Platform-aware shell: PowerShell on Windows, user's $SHELL (or /bin/zsh) on macOS
 - Keep it simple — no over-engineering
 
 ## Dev Commands
 ```bash
+# Windows
 dev.bat              # Run in dev mode (sets up MSVC env)
 npx tauri build      # Build .exe (run from Git Bash, no vcvarsall needed)
 release.bat          # Bump version, then build reinstallable desktop artifacts
+
+# macOS
+./dev.sh             # Run in dev mode
+npx tauri build      # Build .app / .dmg
+./release.sh         # Bump version, then build
 ```
 
 ## Build Notes

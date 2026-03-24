@@ -53,7 +53,7 @@ function getRenameSeed(tab) {
 function SortableTab({ tab, isActive, isRecent, onSelect, onDoubleClick, onContextMenu, editingId, inputProps, onClose }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: tab.id });
   const style = {
-    transform: CSS.Transform.toString(transform),
+    transform: transform ? CSS.Transform.toString({ ...transform, y: 0, scaleY: 1 }) : undefined,
     transition,
     opacity: isDragging ? 0.5 : 1,
   };

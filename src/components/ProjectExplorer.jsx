@@ -4,6 +4,16 @@ import useEffectiveHeatStage from "../hooks/useEffectiveHeatStage";
 import { getEmberStyle } from "../utils/heat";
 import { normalizeRootPath } from "../utils/workspace";
 
+const STAR_POINTS = "12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2";
+
+function StarIcon({ filled }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points={STAR_POINTS} />
+    </svg>
+  );
+}
+
 const REPO_BROWSER_EMBER_CONFIGS = {
   4: [8, 21, 34, 47, 60, 73, 86],
   5: [4, 11, 18, 25, 32, 39, 46, 53, 60, 67, 74, 81, 88, 95],
@@ -204,11 +214,12 @@ export default function ProjectExplorer({ open, onClose, onRefresh }) {
           </button>
           <button
             type="button"
-            className={`repo-browser-action ${isFavoriteTarget ? "repo-browser-action-active" : ""}`}
+            className={`repo-browser-star ${isFavoriteTarget ? "repo-browser-star-active" : ""}`}
             onClick={() => toggleFavoriteRepoPath(favoriteTargetPath)}
             disabled={!favoriteTargetPath}
+            aria-label={isFavoriteTarget ? "Unstar repo" : "Star repo"}
           >
-            {isFavoriteTarget ? "Unstar" : "Star"}
+            <StarIcon filled={isFavoriteTarget} />
           </button>
         </div>
       ) : activeGroup.rootPath ? (
@@ -220,10 +231,11 @@ export default function ProjectExplorer({ open, onClose, onRefresh }) {
           <div className="repo-browser-path-actions">
             <button
               type="button"
-              className={`repo-browser-action ${favoriteRepoPaths.includes(activeGroup.rootPath) ? "repo-browser-action-active" : ""}`}
+              className={`repo-browser-star ${favoriteRepoPaths.includes(activeGroup.rootPath) ? "repo-browser-star-active" : ""}`}
               onClick={() => toggleFavoriteRepoPath(activeGroup.rootPath)}
+              aria-label={favoriteRepoPaths.includes(activeGroup.rootPath) ? "Unstar repo" : "Star repo"}
             >
-              {favoriteRepoPaths.includes(activeGroup.rootPath) ? "Unstar" : "Star"}
+              <StarIcon filled={favoriteRepoPaths.includes(activeGroup.rootPath)} />
             </button>
             <button type="button" className="repo-browser-clear" onClick={handleClear}>
               Clear

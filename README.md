@@ -1,6 +1,6 @@
 # Forge
 
-Forge is a Windows desktop control room for multiple AI coding terminals.
+Forge is a desktop control room for multiple AI coding terminals.
 
 It is built for workflows where you have several Claude Code or Codex-style terminal sessions running across different projects and need one place to monitor status, switch context, and pull in repo files without losing terminal state.
 
@@ -8,7 +8,7 @@ It is built for workflows where you have several Claude Code or Codex-style term
 
 Forge is an early public preview.
 
-- Windows-first
+- Windows + macOS
 - built with Tauri + React
 - focused on terminal-first multi-agent workflows
 - currently being shared with a small batch of testers
@@ -20,7 +20,7 @@ This repo is public so people can understand the project and track releases, but
 The intended install path for most people is:
 
 1. Open the repo's `Releases` page on GitHub.
-2. Download the latest Windows installer.
+2. Download the latest installer for your platform (Windows `.exe` or macOS `.dmg`).
 3. Install Forge like a normal desktop app.
 
 If you are just trying Forge, use the installer release instead of building from source.
@@ -54,7 +54,6 @@ The current core loop is:
 
 ## Current Limitations
 
-- Windows-focused for now
 - repo browsing is intentionally lightweight, not a full IDE
 - first-run onboarding is still being refined
 - broader release hardening is still in progress
@@ -66,8 +65,8 @@ The current core loop is:
 
 - Node.js
 - Rust
-- Tauri prerequisites for Windows
-- Visual Studio C++ build tools
+- **Windows:** Visual Studio C++ build tools
+- **macOS:** Xcode Command Line Tools
 
 ### Install dependencies
 
@@ -78,25 +77,27 @@ npm install
 ### Run in dev mode
 
 ```bash
+# Windows
 dev.bat
-```
 
-### Build a local production package
-
-```bash
-build.bat
+# macOS
+./dev.sh
 ```
 
 ### Build a release package
 
 ```bash
+# Windows
 release.bat
+
+# macOS
+./release.sh
 ```
 
 Release artifacts are written under:
 
-- `~/.forge-build/target/release/bundle/nsis/`
-- `~/.forge-build/target/release/bundle/msi/`
+- **Windows:** `~/.forge-build/target/release/bundle/nsis/` and `.../msi/`
+- **macOS:** `~/.forge-build/target/release/bundle/dmg/` and `.../macos/`
 
 ## Tech Stack
 
@@ -105,11 +106,11 @@ Release artifacts are written under:
 - Vite
 - xterm.js
 - Zustand
-- Windows ConPTY via `portable-pty`
+- PTY via `portable-pty` (ConPTY on Windows)
 
 ## Notes
 
-- default shell behavior is currently Windows-oriented
+- shell is detected per platform (PowerShell on Windows, `$SHELL` or `/bin/zsh` on macOS)
 - persisted config is stored at `~/.forge/config.json`
 - Forge is being shared as a public preview before any broader open-source push
 

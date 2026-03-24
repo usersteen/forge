@@ -1,5 +1,6 @@
 import useForgeStore from "../store/useForgeStore";
 import Terminal from "./Terminal";
+import EmptyGroupPicker from "./EmptyGroupPicker";
 
 export default function TerminalArea() {
   const groups = useForgeStore((s) => s.groups);
@@ -7,6 +8,7 @@ export default function TerminalArea() {
 
   const activeGroup = groups.find((g) => g.id === activeGroupId);
   const activeTabId = activeGroup?.activeTabId;
+  const showPicker = activeGroup && activeGroup.tabs.length === 0;
 
   // Sort by stable ID so DnD reordering never moves DOM nodes (which kills xterm WebGL)
   const allTabs = groups
@@ -15,6 +17,9 @@ export default function TerminalArea() {
 
   return (
     <div className="terminal-area">
+      {showPicker && (
+        <EmptyGroupPicker groupId={activeGroupId} rootPath={activeGroup.rootPath} />
+      )}
       {allTabs.map(({ tab, groupId }) => {
         const isActive = groupId === activeGroupId && tab.id === activeTabId;
         return (

@@ -1,48 +1,12 @@
-import { useEffect, useRef, useState } from "react";
-import { inferServerLaunch } from "../utils/devServerSuggestion";
-
-const NEW_TAB_OPTIONS = [
-  {
-    id: "claude",
-    label: "Claude Code",
-    hint: "Run `claude` in a new terminal",
-    tabOptions: {
-      name: "Claude Code",
-      type: "ai",
-      provider: "claude",
-      launchCommand: "claude",
-    },
-  },
-  {
-    id: "codex",
-    label: "Codex",
-    hint: "Run `codex` in a new terminal",
-    tabOptions: {
-      name: "Codex",
-      type: "ai",
-      provider: "codex",
-      launchCommand: "codex",
-    },
-  },
-  {
-    id: "server",
-    label: "Server",
-  },
-  {
-    id: "blank",
-    label: "Blank",
-    hint: "Open a shell in the attached repo when available",
-    tabOptions: {},
-  },
-];
+import { useEffect, useRef } from "react";
+import { NEW_TAB_OPTIONS } from "../data/newTabOptions";
+import useEscapeKey from "../hooks/useEscapeKey";
+import useServerSuggestion from "../hooks/useServerSuggestion";
 
 export default function NewTabMenu({ x, y, rootPath, onSelect, onClose }) {
   const menuRef = useRef(null);
-  const [serverExpanded, setServerExpanded] = useState(false);
-  const [serverSuggestion, setServerSuggestion] = useState({
-    status: rootPath ? "loading" : "idle",
-    value: null,
-  });
+  const { serverSuggestion, serverExpanded, hasSubmenu, serverHint, toggleServerExpanded } =
+    useServerSuggestion(rootPath);
 
   useEffect(() => {
     const handlePointerDown = (event) => {
@@ -50,69 +14,24 @@ export default function NewTabMenu({ x, y, rootPath, onSelect, onClose }) {
       onClose();
     };
 
-    const handleKeyDown = (event) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    };
-
     document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
+    return () => document.removeEventListener("mousedown", handlePointerDown);
   }, [onClose]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    if (!rootPath) {
-      setServerSuggestion({ status: "idle", value: null });
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    setServerSuggestion({ status: "loading", value: null });
-    inferServerLaunch(rootPath).then((value) => {
-      if (cancelled) return;
-      setServerSuggestion({
-        status: value ? "ready" : "idle",
-        value,
-      });
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [rootPath]);
+  useEscapeKey(onClose);
 
   const openServerTab = (launchCommand = null) => {
-    onSelect({
-      name: "Server",
-      type: "server",
-      launchCommand,
-    });
+    onSelect({ name: "Server", type: "server", launchCommand });
     onClose();
   };
 
   const handleServerClick = () => {
-    if (serverSuggestion.status === "loading" || serverSuggestion.value) {
-      setServerExpanded((current) => !current);
+    if (hasSubmenu) {
+      toggleServerExpanded();
       return;
     }
     openServerTab();
   };
-
-  const serverHint =
-    serverSuggestion.status === "loading"
-      ? "Inspecting the attached repo for a likely dev command"
-      : serverSuggestion.value
-        ? `Suggested: ${serverSuggestion.value.command}`
-        : rootPath
-          ? "Open a blank server tab in the attached repo"
-          : "Open a blank server tab";
 
   return (
     <div ref={menuRef} className="quick-tab-menu" style={{ left: x, top: y }}>
@@ -121,12 +40,12 @@ export default function NewTabMenu({ x, y, rootPath, onSelect, onClose }) {
           <div key={option.id} className="quick-tab-group">
             <button
               className="quick-tab-item"
-              aria-expanded={serverSuggestion.status === "loading" || serverSuggestion.value ? serverExpanded : undefined}
+              aria-expanded={hasSubmenu ? serverExpanded : undefined}
               onClick={handleServerClick}
             >
               <span className="quick-tab-item-row">
                 <span className="quick-tab-item-label">{option.label}</span>
-                {serverSuggestion.status === "loading" || serverSuggestion.value ? (
+                {hasSubmenu ? (
                   <span className="quick-tab-item-chevron">{serverExpanded ? "−" : "+"}</span>
                 ) : null}
               </span>

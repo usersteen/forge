@@ -1,14 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import useForgeStore from "../store/useForgeStore";
-
-function repoNameFromPath(path) {
-  return path.split(/[\\/]/).filter(Boolean).pop() || "Project";
-}
+import useEscapeKey from "../hooks/useEscapeKey";
 
 export default function NewProjectMenu({ x, y, onSelect, onClose }) {
   const menuRef = useRef(null);
   const [inputValue, setInputValue] = useState("");
-  const favoriteRepoPaths = useForgeStore((s) => s.favoriteRepoPaths);
+  const [menuStyle, setMenuStyle] = useState({ left: x, top: y, opacity: 0 });
 
   useEffect(() => {
     const handlePointerDown = (event) => {
@@ -16,17 +12,29 @@ export default function NewProjectMenu({ x, y, onSelect, onClose }) {
       onClose();
     };
 
-    const handleKeyDown = (event) => {
-      if (event.key === "Escape") onClose();
-    };
-
     document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
+    return () => document.removeEventListener("mousedown", handlePointerDown);
   }, [onClose]);
+
+  useEscapeKey(onClose);
+
+  // Clamp menu position to viewport
+  useEffect(() => {
+    if (!menuRef.current) return;
+    const margin = 8;
+    const rect = menuRef.current.getBoundingClientRect();
+    let nextX = x;
+    let nextY = y;
+
+    if (nextY + rect.height > window.innerHeight - margin) {
+      nextY = Math.max(margin, window.innerHeight - rect.height - margin);
+    }
+    if (nextX + rect.width > window.innerWidth - margin) {
+      nextX = Math.max(margin, nextX - rect.width - 12);
+    }
+
+    setMenuStyle({ left: nextX, top: nextY, opacity: 1 });
+  }, [x, y]);
 
   const handleInputKeyDown = (event) => {
     if (event.key === "Enter" && inputValue.trim()) {
@@ -36,7 +44,11 @@ export default function NewProjectMenu({ x, y, onSelect, onClose }) {
   };
 
   return (
-    <div ref={menuRef} className="quick-tab-menu new-project-menu" style={{ left: x, top: y }}>
+    <div
+      ref={menuRef}
+      className="quick-tab-menu new-project-menu"
+      style={menuStyle}
+    >
       <div className="new-project-input-row">
         <input
           className="new-project-path-input"
@@ -48,28 +60,6 @@ export default function NewProjectMenu({ x, y, onSelect, onClose }) {
           onKeyDown={handleInputKeyDown}
         />
       </div>
-
-      {favoriteRepoPaths.length > 0 && (
-        <>
-          <div className="new-project-divider" />
-          <div className="new-project-section-label">Starred Repos</div>
-          <div className="new-project-starred-list">
-            {favoriteRepoPaths.map((path) => (
-              <button
-                key={path}
-                className="quick-tab-item"
-                onClick={() => {
-                  onSelect(path);
-                  onClose();
-                }}
-              >
-                <span className="quick-tab-item-label">{repoNameFromPath(path)}</span>
-                <span className="quick-tab-item-hint">{path}</span>
-              </button>
-            ))}
-          </div>
-        </>
-      )}
 
       <div className="new-project-divider" />
       <button

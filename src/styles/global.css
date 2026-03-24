@@ -293,6 +293,24 @@ html, body, #root {
 .sidebar-groups {
   flex: 1;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 116, 139, 0.5) transparent;
+}
+
+.sidebar-groups::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-groups::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-groups::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.3);
+}
+
+.sidebar-groups::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.5);
 }
 
 .sidebar-group {
@@ -357,7 +375,7 @@ html, body, #root {
   font-size: 9px;
   letter-spacing: 0.06em;
   padding: 1px 4px;
-  border-radius: 999px;
+  border-radius: 2px;
   flex-shrink: 0;
 }
 
@@ -416,7 +434,7 @@ html, body, #root {
   color: var(--text-secondary);
   padding: 10px 16px;
   margin: 8px;
-  border-radius: 6px;
+  border-radius: 0;
   cursor: pointer;
   text-align: center;
   font-size: 13px;
@@ -433,7 +451,7 @@ html, body, #root {
   margin: 0 8px 8px;
   padding: 8px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 0;
   background: rgba(255, 255, 255, 0.03);
   display: flex;
   flex-direction: column;
@@ -466,7 +484,7 @@ html, body, #root {
   border: 1px solid var(--border);
   color: var(--text-secondary);
   padding: 6px 10px;
-  border-radius: 6px;
+  border-radius: 0;
   cursor: pointer;
   font-size: 12px;
   font-family: inherit;
@@ -505,7 +523,7 @@ html, body, #root {
   background: var(--bg-deep);
   border: 1px solid var(--border);
   color: var(--text-primary);
-  border-radius: 6px;
+  border-radius: 0;
   padding: 6px 8px;
   font-size: 12px;
   font-family: inherit;
@@ -585,7 +603,7 @@ html, body, #root {
 .repo-trigger,
 .docs-trigger {
   height: 30px;
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px solid rgba(148, 163, 184, 0.18);
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-secondary);
@@ -650,7 +668,7 @@ html, body, #root {
   min-width: 22px;
   height: 18px;
   padding: 0 6px;
-  border-radius: 999px;
+  border-radius: 0;
   border: 1px solid rgba(148, 163, 184, 0.2);
   background: rgba(255, 255, 255, 0.035);
   color: var(--text-muted);
@@ -760,7 +778,7 @@ html, body, #root {
   position: fixed;
   background: var(--bg-sidebar);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 0;
   padding: 6px;
   z-index: 1000;
   min-width: 220px;
@@ -785,11 +803,18 @@ html, body, #root {
   font-size: 13px;
   font-family: inherit;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: 0;
 }
 
 .quick-tab-item:hover {
   background: var(--bg-active);
+}
+
+.quick-tab-menu .quick-tab-item + .quick-tab-item,
+.quick-tab-menu .quick-tab-group + .quick-tab-item,
+.quick-tab-menu .quick-tab-item + .quick-tab-group,
+.quick-tab-menu .quick-tab-group + .quick-tab-group {
+  border-top: 1px solid var(--border);
 }
 
 .quick-tab-item-row {
@@ -842,7 +867,7 @@ html, body, #root {
   font-size: 12px;
   font-family: inherit;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: 0;
 }
 
 .quick-tab-subitem:hover {
@@ -864,14 +889,14 @@ html, body, #root {
 }
 
 .new-project-input-row {
-  padding: 4px;
+  padding: 6px;
 }
 
 .new-project-path-input {
   width: 100%;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 0;
   color: var(--text-primary);
   font-size: 13px;
   font-family: inherit;
@@ -891,22 +916,9 @@ html, body, #root {
 .new-project-divider {
   height: 1px;
   background: var(--border);
-  margin: 4px 6px;
+  margin: 2px 6px;
 }
 
-.new-project-section-label {
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  padding: 6px 12px 2px;
-  letter-spacing: 0.5px;
-}
-
-.new-project-starred-list {
-  max-height: 200px;
-  overflow-y: auto;
-}
 
 .document-tabs {
   display: flex;
@@ -924,7 +936,7 @@ html, body, #root {
   align-items: center;
   gap: 8px;
   padding: 6px 10px;
-  border-radius: 6px 6px 0 0;
+  border-radius: 0;
   color: var(--text-secondary);
   cursor: pointer;
   white-space: nowrap;
@@ -1004,7 +1016,7 @@ html, body, #root {
   position: fixed;
   background: var(--bg-sidebar);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 0;
   padding: 4px 0;
   z-index: 1000;
   min-width: 180px;
@@ -1040,6 +1052,47 @@ html, body, #root {
 .terminal-wrapper {
   position: absolute;
   inset: 0;
+}
+
+/* Empty group picker */
+.empty-group-picker {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.empty-group-picker-title {
+  color: var(--text-secondary);
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.empty-group-picker-options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 280px;
+}
+
+.empty-group-picker-options > .quick-tab-item,
+.empty-group-picker-options > .quick-tab-group > .quick-tab-item {
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--bg-sidebar);
+}
+
+.empty-group-picker-options > .quick-tab-item:hover,
+.empty-group-picker-options > .quick-tab-group > .quick-tab-item:hover {
+  background: var(--bg-active);
+}
+
+.empty-group-picker-options .quick-tab-subitem {
+  border-radius: 0;
 }
 
 .terminal-shell {
@@ -1254,6 +1307,30 @@ body.reader-resizing {
 .repo-browser-action-active {
   color: var(--text-primary);
   border-color: rgba(96, 165, 250, 0.35);
+}
+
+.repo-browser-star {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  flex-shrink: 0;
+}
+
+.repo-browser-star:hover {
+  color: var(--text-primary);
+}
+
+.repo-browser-star-active {
+  color: rgb(234, 179, 8);
+}
+
+.repo-browser-star-active:hover {
+  color: rgb(250, 204, 21);
 }
 
 .repo-browser-action:disabled,
@@ -1682,7 +1759,7 @@ body.reader-resizing {
 .document-text {
   background: #080c14;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 0;
   color: #cbd5e1;
   font-family: "IBM Plex Mono", "Cascadia Code", monospace;
   font-size: 12px;
@@ -1694,7 +1771,7 @@ body.reader-resizing {
 .document-markdown code {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(148, 163, 184, 0.1);
-  border-radius: 4px;
+  border-radius: 0;
   padding: 2px 5px;
   color: var(--text-primary);
 }
@@ -1821,7 +1898,7 @@ body.reader-resizing {
   max-height: 260px;
   overflow: auto;
   border: 1px solid rgba(148, 163, 184, 0.14);
-  border-radius: 10px;
+  border-radius: 0;
   background: rgba(255, 255, 255, 0.03);
   padding: 10px;
 }
@@ -1883,7 +1960,7 @@ body.reader-resizing {
   max-width: 100%;
   max-height: 220px;
   object-fit: contain;
-  border-radius: 8px;
+  border-radius: 0;
 }
 
 .inspector-image-list {
@@ -1894,7 +1971,7 @@ body.reader-resizing {
 
 .inspector-image-item {
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 0;
   padding: 8px;
   background: rgba(255, 255, 255, 0.03);
   cursor: pointer;
@@ -2637,7 +2714,7 @@ body.reader-resizing {
   align-items: center;
   justify-content: center;
   transition: color 0.1s;
-  border-radius: 4px;
+  border-radius: 0;
 }
 
 .sidebar-action-btn:hover {
@@ -2683,7 +2760,7 @@ body.reader-resizing {
 .settings-panel {
   background: var(--bg-sidebar);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 0;
   padding: 20px;
   min-width: 320px;
   max-width: 400px;
@@ -2748,7 +2825,7 @@ body.reader-resizing {
   border: 1px solid var(--border);
   color: var(--text-secondary);
   padding: 8px 12px;
-  border-radius: 8px;
+  border-radius: 0;
   cursor: pointer;
   font-size: 12px;
   font-family: inherit;
@@ -2801,7 +2878,7 @@ body.reader-resizing {
   border: 1px solid var(--border);
   color: var(--text-secondary);
   padding: 6px 10px;
-  border-radius: 999px;
+  border-radius: 0;
   cursor: pointer;
   font-size: 12px;
   font-family: inherit;
@@ -2868,7 +2945,7 @@ body.reader-resizing {
   font-size: 13px;
   font-family: inherit;
   padding: 4px 6px;
-  border-radius: 4px;
+  border-radius: 0;
   text-align: center;
   -moz-appearance: textfield;
 }
@@ -2895,7 +2972,7 @@ body.reader-resizing {
   border: 1px solid var(--border);
   color: var(--text-secondary);
   padding: 6px 12px;
-  border-radius: 4px;
+  border-radius: 0;
   cursor: pointer;
   font-size: 12px;
   font-family: inherit;
@@ -2911,7 +2988,7 @@ body.reader-resizing {
 .info-panel {
   background: var(--bg-sidebar);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 0;
   padding: 20px;
   width: 90vw;
   min-width: 360px;
@@ -2994,7 +3071,7 @@ body.reader-resizing {
 .info-content code {
   background: rgba(255, 255, 255, 0.06);
   padding: 1px 5px;
-  border-radius: 3px;
+  border-radius: 0;
   font-size: 12px;
   color: var(--text-primary);
 }
@@ -3003,7 +3080,7 @@ body.reader-resizing {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid var(--border);
   padding: 1px 5px;
-  border-radius: 3px;
+  border-radius: 0;
   font-size: 11px;
   font-family: inherit;
   color: var(--text-primary);
@@ -3120,7 +3197,7 @@ body.reader-resizing {
   border: 1px solid var(--border);
   color: var(--text-secondary);
   padding: 3px 10px;
-  border-radius: 3px;
+  border-radius: 0;
   cursor: pointer;
   font-size: 11px;
   font-family: inherit;
@@ -3167,7 +3244,7 @@ body.reader-resizing {
   border: 1px solid var(--border);
   color: var(--text-secondary);
   padding: 3px 12px;
-  border-radius: 3px;
+  border-radius: 0;
   cursor: pointer;
   font-size: 11px;
   font-family: inherit;

@@ -187,13 +187,11 @@ const useForgeStore = create((set, get) => ({
         lastEngagedAt: null,
         launchCommand: null,
       }));
-      const safeTabs = tabs.length > 0 ? tabs : [makeTab()];
-
       return {
         id: groupConfig.id,
         name: groupConfig.name,
-        activeTabId: ensureActiveTabId(safeTabs, groupConfig.active_tab_id),
-        tabs: safeTabs,
+        activeTabId: ensureActiveTabId(tabs, groupConfig.active_tab_id),
+        tabs,
         ...workspace,
       };
     });
@@ -296,10 +294,13 @@ const useForgeStore = create((set, get) => ({
       groups: mapGroups(state.groups, groupId, (group) => {
         const remaining = group.tabs.filter((tab) => tab.id !== tabId);
         if (remaining.length === 0) {
-          const newTab = makeTab("Terminal 1", group.rootPath ?? null);
-          return { ...group, tabs: [newTab], activeTabId: newTab.id };
+          return { ...group, tabs: [], activeTabId: null };
         }
-        const activeTabId = group.activeTabId === tabId ? remaining[0].id : group.activeTabId;
+        let activeTabId = group.activeTabId;
+        if (activeTabId === tabId) {
+          const closedIndex = group.tabs.findIndex((tab) => tab.id === tabId);
+          activeTabId = remaining[Math.min(Math.max(closedIndex - 1, 0), remaining.length - 1)].id;
+        }
         return { ...group, tabs: remaining, activeTabId };
       }),
     })),

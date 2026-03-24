@@ -2567,21 +2567,19 @@ body.reader-resizing {
   }
 }
 
-/* Micro-embers on hot waiting dots (always) and working dots (heat 4-5) */
+/* Micro-embers on hot waiting dots (always) and all working dots */
 [data-fx="on"] .status-dot.waiting-hot,
 [data-fx="on"] .sidebar-dot.waiting-hot,
-[data-fx="on"][data-heat="4"] .status-dot.working,
-[data-fx="on"][data-heat="4"] .sidebar-dot.working,
-[data-fx="on"][data-heat="5"] .status-dot.working,
-[data-fx="on"][data-heat="5"] .sidebar-dot.working {
+[data-fx="on"] .status-dot.working,
+[data-fx="on"] .sidebar-dot.working {
   position: relative;
   overflow: visible;
 }
 
 [data-fx="on"] .status-dot.waiting-hot::after,
 [data-fx="on"] .sidebar-dot.waiting-hot::after,
-[data-fx="on"][data-heat="4"] .status-dot.working::after,
-[data-fx="on"][data-heat="4"] .sidebar-dot.working::after {
+[data-fx="on"] .status-dot.working::after,
+[data-fx="on"] .sidebar-dot.working::after {
   content: "";
   position: absolute;
   top: -2px;
@@ -2594,9 +2592,9 @@ body.reader-resizing {
   animation: micro-ember-rise 1.6s ease-out infinite;
 }
 
-[data-fx="on"][data-heat="4"] .status-dot.working::after,
-[data-fx="on"][data-heat="4"] .sidebar-dot.working::after {
-  background: var(--heat-4);
+[data-fx="on"] .status-dot.working::after,
+[data-fx="on"] .sidebar-dot.working::after {
+  background: var(--accent-working);
 }
 
 [data-fx="on"][data-heat="5"] .status-dot.working::before,

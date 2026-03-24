@@ -186,7 +186,6 @@ html, body, #root {
 .sidebar {
   background: var(--bg-sidebar);
   border: 1px solid var(--border);
-  border-left: none;
   display: flex;
   flex-direction: column;
   width: 200px;

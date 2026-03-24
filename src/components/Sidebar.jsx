@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -13,6 +13,7 @@ import ForgeWordmark from "./ForgeWordmark";
 import ProjectContextMenu from "./ProjectContextMenu";
 import Settings from "./Settings";
 import InfoPanel from "./InfoPanel";
+const ThemeLab = import.meta.env.DEV ? lazy(() => import("./ThemeLab")) : null;
 import NewProjectMenu from "./NewProjectMenu";
 import WelcomeModal from "./WelcomeModal";
 
@@ -143,6 +144,7 @@ export default function Sidebar() {
   const [showSettings, setShowSettings] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [showThemeLab, setShowThemeLab] = useState(false);
   const [contextMenu, setContextMenu] = useState(null);
   const [newProjectMenu, setNewProjectMenu] = useState(null);
   const newProjectBtnRef = useRef(null);
@@ -287,7 +289,12 @@ export default function Sidebar() {
       )}
       {showWelcome && <WelcomeModal onClose={closeWelcome} />}
       {showInfo && <InfoPanel onClose={closeInfo} />}
-      {showSettings && <Settings onClose={closeSettings} />}
+      {showSettings && <Settings onClose={closeSettings} onOpenThemeLab={ThemeLab ? () => { setShowSettings(false); setShowThemeLab(true); } : undefined} />}
+      {showThemeLab && ThemeLab && (
+        <Suspense fallback={null}>
+          <ThemeLab onClose={() => setShowThemeLab(false)} />
+        </Suspense>
+      )}
       {contextMenu && (
         <ProjectContextMenu
           x={contextMenu.x}

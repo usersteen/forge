@@ -1,2 +1,7 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Rust tooling always writes LF — keep it that way to avoid phantom diffs
+Cargo.toml text eol=lf
+Cargo.lock text eol=lf
+src-tauri/Cargo.toml text eol=lf

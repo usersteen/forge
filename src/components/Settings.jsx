@@ -2,7 +2,7 @@ import useForgeStore from "../store/useForgeStore";
 import useEscapeKey from "../hooks/useEscapeKey";
 import { getThemeOptions, getThemeStatusColors } from "../utils/themes";
 
-export default function Settings({ onClose }) {
+export default function Settings({ onClose, onOpenThemeLab }) {
   useEscapeKey(onClose);
   const streakTimer = useForgeStore((s) => s.streakTimer);
   const cooldownTimer = useForgeStore((s) => s.cooldownTimer);
@@ -156,6 +156,14 @@ export default function Settings({ onClose }) {
         >
           Demo Mode
         </button>
+        {onOpenThemeLab && (
+          <button
+            className="settings-demo-btn"
+            onClick={onOpenThemeLab}
+          >
+            Theme Lab
+          </button>
+        )}
       </div>
     </div>
   );

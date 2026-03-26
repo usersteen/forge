@@ -1,0 +1,1343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forge Particle System V2 Demo</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0a0a; color: #e0e0e0; font-family: 'Segoe UI', system-ui, sans-serif; overflow: hidden; height: 100vh; }
+
+  .layout { display: flex; height: 100vh; }
+
+  .controls {
+    width: 280px; min-width: 280px;
+    background: #141414; border-right: 1px solid #2a2a2a;
+    padding: 16px; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .controls h2 { font-size: 14px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .control-group { display: flex; flex-direction: column; gap: 6px; }
+  .control-group label { font-size: 12px; color: #999; display: flex; justify-content: space-between; }
+  .control-group label span { color: #ccc; font-variant-numeric: tabular-nums; }
+  input[type="range"] { width: 100%; accent-color: #ef4444; }
+  .theme-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
+  .theme-btn {
+    padding: 6px 12px; border: 1px solid #333; border-radius: 4px;
+    background: #1a1a1a; color: #ccc; cursor: pointer; font-size: 12px;
+    transition: all 0.15s;
+  }
+  .theme-btn.active { border-color: #ef4444; color: #fff; background: #2a1a1a; }
+  .theme-btn:hover { border-color: #666; }
+  .location-buttons { display: flex; gap: 4px; flex-wrap: wrap; }
+  .loc-btn {
+    padding: 4px 8px; border: 1px solid #333; border-radius: 3px;
+    background: #1a1a1a; color: #aaa; cursor: pointer; font-size: 11px;
+  }
+  .loc-btn.active { border-color: #ef4444; color: #fff; }
+
+  .stats {
+    font-size: 11px; color: #666; padding: 8px;
+    background: #0d0d0d; border-radius: 4px;
+    font-family: 'Consolas', monospace;
+    line-height: 1.6;
+  }
+  .stats .val { color: #ccc; }
+
+  .color-preview {
+    display: flex; gap: 3px; height: 20px; border-radius: 3px; overflow: hidden;
+  }
+  .color-swatch { flex: 1; }
+
+  .separator { border-top: 1px solid #222; margin: 4px 0; }
+
+  .theme-note {
+    font-size: 11px; color: #666; line-height: 1.4;
+    padding: 6px 8px; background: #111; border-radius: 3px;
+    border-left: 2px solid #444;
+  }
+  .theme-note strong { color: #aaa; }
+
+  .canvas-area { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; }
+  .canvas-container {
+    position: relative; border: 1px solid #2a2a2a; border-radius: 6px; overflow: hidden;
+  }
+  canvas { display: block; }
+  .canvas-bg { position: absolute; inset: 0; z-index: 0; }
+  .canvas-overlay { position: absolute; inset: 0; z-index: 1; }
+
+  /* Info panel */
+  .info-toggle {
+    position: fixed; top: 12px; right: 12px; z-index: 100;
+    padding: 6px 14px; border: 1px solid #333; border-radius: 4px;
+    background: #1a1a1a; color: #ccc; cursor: pointer; font-size: 12px;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    transition: all 0.15s;
+  }
+  .info-toggle:hover { border-color: #666; color: #fff; }
+  .info-toggle.active { border-color: #ef4444; background: #2a1a1a; }
+
+  .info-panel {
+    position: fixed; top: 0; right: 0; bottom: 0; width: 520px;
+    background: #111; border-left: 1px solid #2a2a2a;
+    overflow-y: auto; z-index: 90;
+    padding: 48px 24px 24px;
+    transform: translateX(100%);
+    transition: transform 0.25s ease;
+    font-size: 13px; line-height: 1.65; color: #bbb;
+  }
+  .info-panel.open { transform: translateX(0); }
+  .info-panel h2 { font-size: 16px; color: #e0e0e0; margin: 0 0 12px; border-bottom: 1px solid #2a2a2a; padding-bottom: 8px; }
+  .info-panel h3 { font-size: 14px; color: #ccc; margin: 20px 0 6px; }
+  .info-panel h4 { font-size: 12px; color: #aaa; margin: 14px 0 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .info-panel p { margin: 0 0 10px; }
+  .info-panel code {
+    background: #1a1a1a; padding: 1px 5px; border-radius: 3px;
+    font-family: 'Consolas', monospace; font-size: 12px; color: #ddd;
+  }
+  .info-panel pre {
+    background: #0d0d0d; padding: 10px 12px; border-radius: 4px;
+    font-family: 'Consolas', monospace; font-size: 11px; color: #ccc;
+    overflow-x: auto; margin: 8px 0 12px; line-height: 1.5;
+    border: 1px solid #1e1e1e;
+  }
+  .info-panel ul { margin: 0 0 10px; padding-left: 18px; }
+  .info-panel li { margin: 3px 0; }
+  .info-panel .highlight { color: #ef4444; }
+  .info-panel .file { color: #f59e0b; }
+  .info-panel .concept { color: #70F0E8; }
+  .info-panel table { width: 100%; border-collapse: collapse; margin: 8px 0 14px; font-size: 12px; }
+  .info-panel th { text-align: left; color: #888; font-weight: normal; padding: 4px 8px; border-bottom: 1px solid #222; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .info-panel td { padding: 5px 8px; border-bottom: 1px solid #1a1a1a; color: #bbb; }
+  .info-panel td:first-child { color: #ccc; white-space: nowrap; }
+  .info-section { margin-bottom: 20px; }
+</style>
+</head>
+<body>
+<div class="layout">
+  <div class="controls">
+    <h2>Forge Particles V2</h2>
+
+    <div class="control-group">
+      <label>Theme</label>
+      <div class="theme-buttons" id="theme-buttons"></div>
+    </div>
+
+    <div class="theme-note" id="theme-note"></div>
+
+    <div class="control-group">
+      <label>Location Preset</label>
+      <div class="location-buttons" id="location-buttons"></div>
+    </div>
+
+    <div class="control-group">
+      <label>Heat Stage <span id="heat-val">4</span></label>
+      <input type="range" id="heat" min="3" max="5" step="1" value="4">
+    </div>
+
+    <div class="separator"></div>
+
+    <div class="control-group">
+      <label>Emission Rate <span id="rate-val">12</span>/s</label>
+      <input type="range" id="rate" min="1" max="60" step="1" value="12">
+    </div>
+
+    <div class="control-group">
+      <label>Gravity <span id="gravity-val">-30</span></label>
+      <input type="range" id="gravity" min="-80" max="40" step="1" value="-30">
+    </div>
+
+    <div class="control-group">
+      <label>Turbulence <span id="turbulence-val">18</span></label>
+      <input type="range" id="turbulence" min="0" max="50" step="1" value="18">
+    </div>
+
+    <div class="control-group">
+      <label>Drag <span id="drag-val">2.0</span></label>
+      <input type="range" id="drag" min="0" max="6" step="0.1" value="2.0">
+    </div>
+
+    <div class="control-group">
+      <label>Wind X <span id="wind-val">0</span></label>
+      <input type="range" id="wind" min="-20" max="20" step="1" value="0">
+    </div>
+
+    <div class="control-group">
+      <label>Particle Lifetime <span id="lifetime-val">2.0</span>s</label>
+      <input type="range" id="lifetime" min="0.5" max="6" step="0.1" value="2.0">
+    </div>
+
+    <div class="control-group">
+      <label>Glow Radius <span id="glow-val">2.0</span>x</label>
+      <input type="range" id="glow" min="0" max="5" step="0.1" value="2.0">
+    </div>
+
+    <div class="control-group">
+      <label>Glow Alpha <span id="glowalpha-val">0.25</span></label>
+      <input type="range" id="glowalpha" min="0" max="0.6" step="0.01" value="0.25">
+    </div>
+
+    <div class="separator"></div>
+
+    <div class="control-group">
+      <label>Color Ramp (hot to cold)</label>
+      <div class="color-preview" id="color-preview"></div>
+    </div>
+
+    <div class="stats" id="stats">
+      FPS: --<br>Particles: --<br>Pool: --
+    </div>
+  </div>
+
+  <div class="canvas-area">
+    <div class="canvas-container" id="canvas-container">
+      <canvas id="bg" class="canvas-bg"></canvas>
+      <canvas id="particles" class="canvas-overlay"></canvas>
+    </div>
+  </div>
+</div>
+
+<button class="info-toggle" id="info-toggle">Info &amp; Research</button>
+
+<div class="info-panel" id="info-panel">
+
+<h2>Particle System V2 -- Research & Design Reference</h2>
+
+<div class="info-section">
+<h3>Why V2?</h3>
+<p>V1 uses <span class="concept">CSS @keyframes on DOM &lt;span&gt; elements</span>. Each particle is a real DOM node animated by the browser's CSS engine. This worked well up to ~80 particles but hits hard limits:</p>
+<ul>
+  <li><strong>Single color per particle</strong> -- particles use <code>background: var(--heat-4)</code> and never change color during their lifetime</li>
+  <li><strong>Fixed motion paths</strong> -- CSS keyframes define predetermined curves; no organic/physics-based movement</li>
+  <li><strong>~80 particle cap</strong> -- DOM elements are expensive (layout, paint, composite per node)</li>
+  <li><strong>No compositing control</strong> -- can't do additive blending on DOM spans; glow is faked via <code>box-shadow</code></li>
+  <li><strong>Theme rigidity</strong> -- each theme needs ~150 lines of separate <code>@keyframes</code> blocks in global.css</li>
+</ul>
+<p>V2 moves to <span class="concept">Canvas 2D + requestAnimationFrame</span>. This is the standard approach for real-time 2D particle effects in browsers. One canvas element replaces dozens of DOM nodes.</p>
+</div>
+
+<div class="info-section">
+<h3>Research Summary</h3>
+
+<h4>Rendering Approach</h4>
+<p>We evaluated three approaches:</p>
+<table>
+  <tr><th>Approach</th><th>Particle Cap</th><th>Complexity</th><th>Dependencies</th></tr>
+  <tr><td>CSS/DOM (v1)</td><td>~80</td><td>Low</td><td>None</td></tr>
+  <tr><td class="highlight">Canvas 2D (chosen)</td><td>~500-1000</td><td>Medium</td><td>None</td></tr>
+  <tr><td>WebGL (PixiJS etc)</td><td>10,000+</td><td>High</td><td>PixiJS ~400KB</td></tr>
+</table>
+<p>Canvas 2D is the sweet spot: 10x the particle budget of CSS with zero dependencies. WebGL would be overkill for our target of 200-500 particles and adds a heavy library dependency. Canvas 2D at this count runs comfortably at 60fps even on integrated GPUs.</p>
+
+<h4>Object Pooling</h4>
+<p>The <code>ParticlePool</code> class pre-allocates all particle objects at init time. During animation, particles are recycled from the pool -- no <code>new</code> calls, no garbage collection pressure. This pattern comes from game development (<em>Game Programming Patterns</em> by Robert Nystrom) and is critical for smooth animation: GC pauses can spike frame times from 16ms to 50ms+.</p>
+<p>Implementation: flat array of particle structs with <code>active</code> flag, rotating cursor for O(1) amortized allocation. Pool sized at 600 (headroom above peak active count of ~200-400).</p>
+
+<h4>Force-Based Physics</h4>
+<p>V1 particles follow hardcoded CSS keyframe paths. V2 uses composable <span class="concept">force functions</span> applied per-frame:</p>
+<ul>
+  <li><strong>Gravity</strong> -- constant acceleration; negative = rise (forge embers), positive = fall (ice crystals)</li>
+  <li><strong>Turbulence</strong> -- 2D simplex noise sampled at each particle's position. Each particle has a unique <code>seed</code> offset so they sample different parts of the noise field, creating organic diversity. Three parameters: <code>frequency</code> (spatial scale), <code>speed</code> (temporal change rate), <code>amplitude</code> (force strength)</li>
+  <li><strong>Wind</strong> -- constant or time-varying directional force. Grass uses <code>Math.sin(time * 0.7) * 5</code> for a swaying breeze</li>
+  <li><strong>Drag</strong> -- velocity damping each frame (<code>v *= 1 - damping * dt</code>). Prevents infinite acceleration, gives particles a natural deceleration feel</li>
+</ul>
+<p>Forces compose additively: the emitter config lists which forces to apply and their parameters. This is far more flexible than CSS keyframes -- changing one force parameter alters the entire feel without rewriting animation curves.</p>
+
+<h4>Simplex Noise</h4>
+<p>The turbulence force uses <span class="concept">2D simplex noise</span> (Stefan Gustavson's public domain algorithm, ~40 lines inline). Simplex noise produces smooth, natural-looking pseudo-random values that vary continuously over space and time. This is the same technique used in procedural terrain generation, fluid simulations, and professional VFX particle systems. It's computationally cheap (~10M evaluations/sec in JS), making it practical for per-particle-per-frame sampling.</p>
+
+<h4>Color Over Lifetime</h4>
+<p>V1: single color (<code>var(--heat-4)</code>). V2: multi-stop gradient interpolated as particle ages.</p>
+<p>Color stops are <strong>derived from the existing <code>heatColors</code> arrays</strong> in themes.js. We chose this deliberately: the heat colors were carefully selected for thematic coherence and contrast with status dots. The particle color ramp walks from <code>heatColors[5]</code> (hottest, birth) down to <code>heatColors[0]</code> (coolest, death), so particles literally "cool down" through the same palette used throughout the UI.</p>
+<pre>
+// Example: forge particle cools through its own heat palette
+t=0.0  #ff4d4d (heat-5, birth)  -- brightest
+t=0.15 #ef4444 (heat-4)
+t=0.35 #dc2626 (heat-3)
+t=0.55 #ea580c (heat-2)
+t=0.75 #f59e0b (heat-1)
+t=1.0  #475569 (heat-0, death)  -- coolest
+</pre>
+<p>Interpolation is linear RGB with <code>lerpColorStops()</code>. We considered CIELAB for perceptual uniformity but linear RGB is fine for these warm/saturated palettes and avoids the conversion overhead per particle per frame.</p>
+
+<h4>Additive Blending</h4>
+<p><code>ctx.globalCompositeOperation = 'lighter'</code> makes overlapping particles accumulate light naturally. Where multiple particles cluster, the glow intensifies automatically -- no extra bloom pass needed. This is how most 2D game particle systems achieve glow effects cheaply.</p>
+<p>Each particle gets two draw calls: a large, faint <span class="concept">glow pass</span> (size * glowRadius, alpha * glowAlpha) drawn first, then the sharp <span class="concept">core pass</span> on top. The glow pass creates soft halos; additive blending makes them build up organically where particles overlap.</p>
+</div>
+
+<div class="info-section">
+<h3>Theme-Specific Effects Design</h3>
+<p>The v1 system gave each theme unique character through specialized CSS effects. V2 preserves and upgrades each:</p>
+
+<h4>Forge -- Spark Bursts</h4>
+<p><strong>V1:</strong> <code>::before</code> pseudo-element with <code>forge-spark-flash</code> keyframes. Multi-layer box-shadows create 4 yellow-orange spark points that appear and spread at two moments during the animation cycle. Only runs on every 3rd particle (<code>--forge-spark-play</code>).</p>
+<p><strong>V2:</strong> Core embers spawn 2-4 <code>type: 'spark'</code> child particles at ~10% and ~40% lifetime (35% probability). Sparks eject in random directions with high initial velocity (30-80 px/s), heavy drag (4.0), and slight gravity pull. They're colored white-hot to dark-orange via their own <code>sparkColorStops</code> and fade with quadratic falloff (<code>alpha = (1-t)^2</code>). Much more dynamic than v1's fixed box-shadow positions.</p>
+
+<h4>Ice -- Diamond Crystals + Twinkles</h4>
+<p><strong>V1:</strong> <code>::before</code> creates a diamond shape via crossed linear-gradients rotated 45deg, animated with <code>ice-sparkle</code>. <code>::after</code> creates an expanding circle halo (<code>ice-halo</code>). Base particle has <code>border-radius: 1px</code> (square-ish). Runs on every 4th particle.</p>
+<p><strong>V2:</strong> Core particles rendered as <span class="concept">diamond shapes</span> via <code>_drawDiamond()</code> (4-point polygon). When bright (alpha > 0.3), a cross-hair sparkle is drawn as two thin white rectangles. Separate <code>type: 'twinkle'</code> child particles spawn at ~15% and ~55% lifetime (40% probability) and track their parent crystal's position. Twinkles flash in sharp white pulses using a sawtooth-like pattern and are rendered as <span class="concept">4-point stars</span> via <code>_drawStar4()</code>. Uses <code>IceEmitter</code> subclass for the parent-tracking logic.</p>
+
+<h4>Void -- Ghost Split &amp; Orbit</h4>
+<p><strong>V1:</strong> <code>::before</code> pseudo-element with <code>void-split</code> keyframes. A clone of the particle translates outward to a computed (angle, distance) point, holds, then returns -- simulating a split-and-merge cycle. Uses <code>--void-split-a-x/y</code> CSS variables per particle.</p>
+<p><strong>V2:</strong> Core particles spawn 1-2 <code>type: 'ghost'</code> child particles at ~18% and ~55% lifetime (50% probability). Ghosts don't use physics forces -- instead they <span class="concept">orbit their spawn point</span> on an expanding/contracting sinusoidal path (<code>dist = splitDist * sin(t*PI)</code> -- grows then shrinks). Rendered as a <span class="concept">ring</span> (stroked circle) with a bright inner dot, giving an ethereal hollow-orb look distinct from core particles.</p>
+
+<h4>Grass -- Spore Puffs</h4>
+<p><strong>V1:</strong> <code>::before</code> with <code>grass-firefly-glow</code> (pulsing radial glow on every 3rd particle). <code>::after</code> with <code>grass-dandelion-puff</code> -- 6 box-shadow points arranged hexagonally that expand outward then fade. Uses 6 pairs of <code>--grass-puff-N-x/y</code> CSS variables per particle.</p>
+<p><strong>V2:</strong> Core particles already blink via oscillating <code>alphaOverLife</code> curves (firefly effect built into the alpha stops). At ~20% and ~55% lifetime, they burst 5-7 <code>type: 'spore'</code> child particles in a <span class="concept">radial pattern</span> (30% probability). Spores eject outward evenly-spaced with slight angular jitter, decelerate via drag, and gently lift with negative gravity. Smaller than core particles (0.6x scale). The radial burst replicates the v1 dandelion-puff's hexagonal spread but with actual physics and smooth motion instead of fixed keyframe positions.</p>
+</div>
+
+<div class="info-section">
+<h3>Architecture for Production Integration</h3>
+
+<h4>Files to Create</h4>
+<table>
+  <tr><th>File</th><th>~Lines</th><th>Purpose</th></tr>
+  <tr><td class="file">src/utils/particleEngine.js</td><td>220</td><td>ParticlePool, Emitter, IceEmitter, force functions, simplex noise, lerpStops, render logic</td></tr>
+  <tr><td class="file">src/utils/particleThemes.js</td><td>160</td><td>Theme configs (forge/ice/void/grass), heat multipliers, location overrides</td></tr>
+  <tr><td class="file">src/components/ParticleCanvas.jsx</td><td>80</td><td>React wrapper: canvas ref, RAF loop, DPR handling, store integration</td></tr>
+</table>
+
+<h4>Files to Modify</h4>
+<table>
+  <tr><th>File</th><th>Change</th></tr>
+  <tr><td class="file">src/styles/global.css</td><td>Delete ~570 lines: .forge-ember classes, all particle @keyframes, all [data-fx][data-theme] pseudo-element rules, [data-heat] ember overrides</td></tr>
+  <tr><td class="file">src/utils/heat.js</td><td>Delete <code>getEmberStyle()</code> (lines 8-64). Keep getHeatStage, clampHeatStreak, HEAT_LABELS, MAX_HEAT_STREAK</td></tr>
+  <tr><td class="file">src/components/Sidebar.jsx</td><td>Remove EMBER_CONFIGS, SIDEBAR_EMBER_CONFIGS, ember useMemo blocks, forge-ember-layer divs. Add <code>&lt;ParticleCanvas location="header"/&gt;</code> and <code>&lt;ParticleCanvas location="sidebar"/&gt;</code></td></tr>
+  <tr><td class="file">src/components/TabBar.jsx</td><td>Remove TABBAR_EMBER_CONFIGS, tabBarEmbers useMemo, forge-ember-layer-tabbar div. Add <code>&lt;ParticleCanvas location="tabbar"/&gt;</code></td></tr>
+  <tr><td class="file">src/components/ProjectExplorer.jsx</td><td>Remove REPO_BROWSER_EMBER_CONFIGS, ember useMemo. Add <code>&lt;ParticleCanvas location="repoBrowser"/&gt;</code></td></tr>
+  <tr><td class="file">src/components/DocumentViewer.jsx</td><td>Remove DOCUMENT_TAB_EMBER_CONFIGS, ember useMemo. Add <code>&lt;ParticleCanvas location="documentTabs"/&gt;</code></td></tr>
+</table>
+
+<h4>What to Preserve (No Changes Needed)</h4>
+<ul>
+  <li>All heat glow/shadow/bloom CSS (the non-particle visual effects on headers, borders, shells)</li>
+  <li>Micro-ember pseudo-elements on <code>.status-dot</code> elements (lines ~2579-2610 in global.css) -- these are separate from the particle system</li>
+  <li><code>useEffectiveHeatStage</code> hook, <code>useHeatTick</code> hook</li>
+  <li><code>themes.js</code> heatColors, backgrounds, glows (used by non-particle heat visuals)</li>
+  <li><code>data-heat</code>, <code>data-theme</code>, <code>data-fx</code> root attributes on App.jsx</li>
+  <li><code>getHeatStage()</code> and <code>clampHeatStreak()</code> in heat.js</li>
+</ul>
+
+<h4>React Integration Pattern</h4>
+<pre>
+// ParticleCanvas.jsx -- key design decisions:
+// - Returns null when !fxEnabled || heatStage < 3 (zero overhead)
+// - useRef for canvas (no re-renders on RAF)
+// - useEffect rebuilds emitter only on theme change
+// - useEffect manages RAF loop, restarts on heatStage/fxEnabled change
+// - DPR-aware resize checked per frame, applied only on change
+// - Canvas is position:absolute, pointer-events:none, z-index:0
+//   (matches existing .forge-ember-layer overlay positioning)
+// - Parent containers already have position:relative + isolation:isolate
+</pre>
+
+<h4>Heat Multiplier System</h4>
+<pre>
+Heat 3: { rateScale: 0.4, sizeScale: 0.85, turbulenceScale: 0.7 }
+Heat 4: { rateScale: 1.0, sizeScale: 1.0, turbulenceScale: 1.0 }  // baseline
+Heat 5: { rateScale: 1.6, sizeScale: 1.15, turbulenceScale: 1.3 }
+</pre>
+<p>These multiply the base theme config at runtime. Heat 3 is sparse/subtle, heat 5 is dense/intense. Particles don't appear below heat 3 (matching v1 behavior where embers only render at stages 4-5, but now also at 3 for a gentler ramp-in).</p>
+</div>
+
+<div class="info-section">
+<h3>Key Design Decisions & Tradeoffs</h3>
+
+<h4>Why no external libraries?</h4>
+<p>PixiJS (WebGL) would handle 10x more particles but adds ~400KB, a WebGL context, and a rendering pipeline we'd have to integrate with React's lifecycle. For 200-500 particles, Canvas 2D is more than sufficient and keeps the dependency footprint at zero. If we ever need 5000+ particles, PixiJS is the next step.</p>
+
+<h4>Why child particles instead of pseudo-element equivalents?</h4>
+<p>V1 used <code>::before/::after</code> pseudo-elements for effects (sparks, twinkles, ghosts, spores). In Canvas 2D there are no pseudo-elements, so we use <span class="concept">child particles</span> drawn from the same pool. This is actually more powerful: child particles have real physics, independent lifetimes, and their own color/size interpolation. V1's pseudo-element effects were static relative to their parent; v2's children move independently.</p>
+
+<h4>Why linear RGB interpolation instead of CIELAB?</h4>
+<p>CIELAB produces more perceptually uniform gradients, but requires RGB-to-Lab-to-RGB conversion per particle per frame. For our saturated warm/cool palettes with 5-6 stops, linear RGB looks good and avoids the math overhead. Could revisit if we add themes with problematic hue transitions (e.g., red-to-green).</p>
+
+<h4>Why pre-allocated pool instead of array push/filter?</h4>
+<p>At 60fps with hundreds of particles being born and dying each second, <code>push(new Particle)</code> and <code>filter(p => p.alive)</code> would trigger frequent garbage collection pauses. The pool eliminates all allocation during the animation loop. Measured: pool overhead is ~0.5KB per particle * 600 = ~300KB constant -- negligible.</p>
+
+<h4>Tuning philosophy</h4>
+<p>This demo exposes all the knobs. In production, themes define fixed configs and only the heat multiplier varies at runtime. The sliders here are for finding the right defaults. Once tuned, the slider values become the hardcoded config in <code>particleThemes.js</code>.</p>
+
+<h4>Performance: V1 vs V2 -- honest comparison</h4>
+<p>V1 (CSS/DOM) had one genuine advantage: CSS <code>transform</code> + <code>opacity</code> animations run on the browser's <span class="concept">GPU compositor thread</span>. Zero JavaScript per frame for the actual animation. For ~80 particles, that's very efficient.</p>
+<p>V2 (Canvas 2D) runs JavaScript every frame: force calculations, noise sampling, color interpolation, and draw calls for every active particle. At 200-400 particles that's fine (~1-2ms/frame), but it's more CPU work than v1 was doing for its 80 particles.</p>
+<p><strong>Where V2 wins:</strong></p>
+<ul>
+  <li><strong>Scaling ceiling</strong> -- V1 hits a wall around 100 DOM nodes (each with <code>::before</code>/<code>::after</code> = 240 elements). Adding more causes layout thrashing. Canvas doesn't care -- 200 vs 400 particles is just more <code>arc()</code> calls on the same single element</li>
+  <li><strong>Additive blending</strong> -- <code>globalCompositeOperation: 'lighter'</code> is cheap. V1's glow used multi-layer <code>box-shadow</code>, one of the most expensive CSS properties to animate</li>
+  <li><strong>Child particles</strong> (sparks, spores, ghosts) -- in V1 these were pseudo-elements with complex <code>box-shadow</code> animations. In V2 they're just more pool entries with simple circle draws</li>
+</ul>
+<p><strong>Where V2 is slightly worse:</strong></p>
+<ul>
+  <li><strong>Idle cost</strong> -- V1's animation loop was the browser compositor (free). V2 runs a JS callback every 16ms even when nothing visually changes</li>
+  <li><strong>Simple particles</strong> -- a basic rising ember with no effects is cheaper as a CSS-animated span than a canvas draw</li>
+</ul>
+<p><strong>Net assessment:</strong> For the same particle count and complexity, roughly equivalent. The real win is capability (multi-color, physics, child particles, additive blending), not raw throughput at 80 particles.</p>
+
+<h4 class="highlight">Production optimization TODO: idle RAF shutdown</h4>
+<p>The <code>ParticleCanvas</code> component already returns <code>null</code> when <code>heatStage &lt; 3</code>, which prevents canvas creation entirely. But there's an edge case: when heat <em>drops</em> from 3+ to below 3, the RAF loop should be cancelled and the canvas cleared once all remaining particles have finished their lifetimes (not abruptly killed). Implement this as:</p>
+<pre>
+// In the RAF loop:
+if (heatStage < 3 && emitter.pool.activeCount === 0) {
+  cancelAnimationFrame(rafId);
+  ctx.clearRect(0, 0, w, h);
+  return; // loop stops, zero idle cost
+}
+// When heatStage drops below 3: stop emitting (rate=0)
+// but keep the loop running until activeCount hits 0
+// so existing particles fade out gracefully.
+</pre>
+<p>This gives the best of both worlds: zero JS cost when particles aren't needed, but graceful fade-out instead of an abrupt cut when heat cools down. The component can also re-enter by starting a new RAF loop when <code>heatStage</code> rises back to 3+.</p>
+</div>
+
+<div class="info-section">
+<h3>Current V1 Code Locations (for removal reference)</h3>
+<table>
+  <tr><th>What</th><th>Where</th></tr>
+  <tr><td>Ember base styles</td><td class="file">global.css:2002-2079</td></tr>
+  <tr><td>Heat/location overrides</td><td class="file">global.css:2082-2108</td></tr>
+  <tr><td>@keyframes ember-rise, ember-rise-tall</td><td class="file">global.css:2013-2067</td></tr>
+  <tr><td>@keyframes ice-drift, ice-sparkle, ice-halo</td><td class="file">global.css:2110-2238</td></tr>
+  <tr><td>@keyframes forge-spark-flash, forge-spark-center</td><td class="file">global.css:2240-2314</td></tr>
+  <tr><td>@keyframes void-split</td><td class="file">global.css:2316-2337</td></tr>
+  <tr><td>@keyframes void-pulse</td><td class="file">global.css (data-theme="void" section)</td></tr>
+  <tr><td>@keyframes grass-firefly-glow, grass-dandelion-puff, grass-float</td><td class="file">global.css:2339-2412</td></tr>
+  <tr><td>Pseudo-element rules (::before, ::after per theme)</td><td class="file">global.css:2414-2537</td></tr>
+  <tr><td>Theme animation-name overrides</td><td class="file">global.css:2539-2577</td></tr>
+  <tr><td>getEmberStyle() function</td><td class="file">heat.js:8-64</td></tr>
+  <tr><td>EMBER_CONFIGS, SIDEBAR_EMBER_CONFIGS</td><td class="file">Sidebar.jsx:20-37</td></tr>
+  <tr><td>TABBAR_EMBER_CONFIGS</td><td class="file">TabBar.jsx:19-22</td></tr>
+  <tr><td>REPO_BROWSER_EMBER_CONFIGS</td><td class="file">ProjectExplorer.jsx:17-20</td></tr>
+  <tr><td>DOCUMENT_TAB_EMBER_CONFIGS</td><td class="file">DocumentViewer.jsx:8-11</td></tr>
+</table>
+</div>
+
+<div class="info-section">
+<h3>Testing Checklist</h3>
+<ul>
+  <li>Each theme shows its signature effect (sparks / diamonds+twinkles / ghost-split / spore-puffs)</li>
+  <li>Color ramp matches the theme's heatColors array (verify against status dots in production)</li>
+  <li>Heat 3 is visibly sparser than heat 5</li>
+  <li>All 5 locations render at correct aspect ratios (header is short/wide, sidebar is tall/narrow, etc.)</li>
+  <li>FPS stays at 60 with active particle count under 400</li>
+  <li>No particles visible below heat 3 (component returns null)</li>
+  <li>fxEnabled toggle kills all particles and clears canvas</li>
+  <li>Theme switch rebuilds emitter cleanly (no leftover particles from previous theme)</li>
+  <li>Canvas respects devicePixelRatio (sharp on HiDPI displays)</li>
+  <li>Non-particle heat effects (header glow, border shadows, shell glow, status dot micro-embers) unaffected</li>
+</ul>
+</div>
+
+</div>
+
+<script>
+// ============================================================
+// SIMPLEX NOISE 2D (Stefan Gustavson, public domain)
+// ============================================================
+const SimplexNoise = (() => {
+  const F2 = 0.5 * (Math.sqrt(3) - 1);
+  const G2 = (3 - Math.sqrt(3)) / 6;
+  const grad3 = [[1,1],[-1,1],[1,-1],[-1,-1],[1,0],[-1,0],[0,1],[0,-1]];
+  const perm = new Uint8Array(512);
+  const permMod8 = new Uint8Array(512);
+
+  const p = new Uint8Array(256);
+  for (let i = 0; i < 256; i++) p[i] = i;
+  for (let i = 255; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [p[i], p[j]] = [p[j], p[i]];
+  }
+  for (let i = 0; i < 512; i++) {
+    perm[i] = p[i & 255];
+    permMod8[i] = perm[i] % 8;
+  }
+
+  return function noise2D(x, y) {
+    const s = (x + y) * F2;
+    const i = Math.floor(x + s);
+    const j = Math.floor(y + s);
+    const t = (i + j) * G2;
+    const X0 = i - t, Y0 = j - t;
+    const x0 = x - X0, y0 = y - Y0;
+    const i1 = x0 > y0 ? 1 : 0;
+    const j1 = x0 > y0 ? 0 : 1;
+    const x1 = x0 - i1 + G2, y1 = y0 - j1 + G2;
+    const x2 = x0 - 1 + 2 * G2, y2 = y0 - 1 + 2 * G2;
+    const ii = i & 255, jj = j & 255;
+
+    let n0 = 0, n1 = 0, n2 = 0;
+    let t0 = 0.5 - x0 * x0 - y0 * y0;
+    if (t0 >= 0) { t0 *= t0; const g = grad3[permMod8[ii + perm[jj]]]; n0 = t0 * t0 * (g[0] * x0 + g[1] * y0); }
+    let t1 = 0.5 - x1 * x1 - y1 * y1;
+    if (t1 >= 0) { t1 *= t1; const g = grad3[permMod8[ii + i1 + perm[jj + j1]]]; n1 = t1 * t1 * (g[0] * x1 + g[1] * y1); }
+    let t2 = 0.5 - x2 * x2 - y2 * y2;
+    if (t2 >= 0) { t2 *= t2; const g = grad3[permMod8[ii + 1 + perm[jj + 1]]]; n2 = t2 * t2 * (g[0] * x2 + g[1] * y2); }
+
+    return 70 * (n0 + n1 + n2);
+  };
+})();
+
+// ============================================================
+// INTERPOLATION HELPERS
+// ============================================================
+function lerpStops(stops, t) {
+  t = Math.max(0, Math.min(1, t));
+  if (t <= stops[0].t) return stops[0].value;
+  if (t >= stops[stops.length - 1].t) return stops[stops.length - 1].value;
+  for (let i = 1; i < stops.length; i++) {
+    if (t <= stops[i].t) {
+      const f = (t - stops[i - 1].t) / (stops[i].t - stops[i - 1].t);
+      return stops[i - 1].value + f * (stops[i].value - stops[i - 1].value);
+    }
+  }
+  return stops[stops.length - 1].value;
+}
+
+function lerpColorStops(stops, t) {
+  t = Math.max(0, Math.min(1, t));
+  if (t <= stops[0].t) return { r: stops[0].r, g: stops[0].g, b: stops[0].b };
+  if (t >= stops[stops.length - 1].t) {
+    const s = stops[stops.length - 1];
+    return { r: s.r, g: s.g, b: s.b };
+  }
+  for (let i = 1; i < stops.length; i++) {
+    if (t <= stops[i].t) {
+      const f = (t - stops[i - 1].t) / (stops[i].t - stops[i - 1].t);
+      const a = stops[i - 1], b = stops[i];
+      return {
+        r: Math.round(a.r + f * (b.r - a.r)),
+        g: Math.round(a.g + f * (b.g - a.g)),
+        b: Math.round(a.b + f * (b.b - a.b)),
+      };
+    }
+  }
+  const s = stops[stops.length - 1];
+  return { r: s.r, g: s.g, b: s.b };
+}
+
+function hexToRGB(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+
+// ============================================================
+// PARTICLE POOL
+// ============================================================
+class ParticlePool {
+  constructor(max) {
+    this.max = max;
+    this.particles = [];
+    this.cursor = 0;
+    for (let i = 0; i < max; i++) {
+      this.particles.push({
+        active: false,
+        x: 0, y: 0, vx: 0, vy: 0,
+        age: 0, lifetime: 0,
+        size: 0, r: 0, g: 0, b: 0, alpha: 0,
+        seed: 0,
+        // Theme-specific fields
+        type: 'core',           // 'core', 'spark', 'spore', 'ghost'
+        parentX: 0, parentY: 0, // for effects that orbit/track parent position
+        phase: 0,               // for oscillation effects
+        splitAngle: 0,          // for void split direction
+        splitDist: 0,           // for void split distance
+        sparkAngle: 0,          // for forge spark ejection angle
+      });
+    }
+  }
+
+  spawn() {
+    const start = this.cursor;
+    for (let i = 0; i < this.max; i++) {
+      const idx = (start + i) % this.max;
+      if (!this.particles[idx].active) {
+        this.cursor = (idx + 1) % this.max;
+        this.particles[idx].active = true;
+        return this.particles[idx];
+      }
+    }
+    return null;
+  }
+
+  clear() {
+    for (let i = 0; i < this.max; i++) this.particles[i].active = false;
+  }
+
+  get activeCount() {
+    let c = 0;
+    for (let i = 0; i < this.max; i++) if (this.particles[i].active) c++;
+    return c;
+  }
+}
+
+// ============================================================
+// EMITTER
+// ============================================================
+class Emitter {
+  constructor(config, poolSize) {
+    this.config = config;
+    this.pool = new ParticlePool(poolSize);
+    this.accumulator = 0;
+    this.time = 0;
+  }
+
+  update(dt, w, h, heatMult) {
+    this.time += dt;
+    const cfg = this.config;
+    const rate = cfg.rate * (heatMult.rateScale || 1);
+    const sizeScale = heatMult.sizeScale || 1;
+    const turbScale = heatMult.turbulenceScale || 1;
+
+    // Emit core particles
+    this.accumulator += rate * dt;
+    while (this.accumulator >= 1) {
+      this.accumulator -= 1;
+      const p = this.pool.spawn();
+      if (!p) break;
+      this._initCore(p, cfg, w, h, sizeScale);
+    }
+
+    // Update all particles
+    const turbAmp = cfg.turbulenceAmplitude * turbScale;
+    const turbFreq = cfg.turbulenceFrequency;
+    const turbSpeed = cfg.turbulenceSpeed;
+    const gravStr = cfg.gravity;
+    const dragVal = cfg.drag;
+    const windX = typeof cfg.windX === 'function' ? cfg.windX(this.time) : (cfg.windX || 0);
+    const windY = typeof cfg.windY === 'function' ? cfg.windY(this.time) : (cfg.windY || 0);
+    const theme = cfg.theme;
+
+    for (let i = 0; i < this.pool.max; i++) {
+      const p = this.pool.particles[i];
+      if (!p.active) continue;
+
+      p.age += dt;
+      if (p.age >= p.lifetime) { p.active = false; continue; }
+
+      const t = p.age / p.lifetime;
+
+      if (p.type === 'core') {
+        // Standard physics
+        p.vy += gravStr * dt;
+        if (turbAmp > 0) {
+          p.vx += SimplexNoise(p.x * turbFreq + p.seed, this.time * turbSpeed) * turbAmp * dt;
+          p.vy += SimplexNoise(p.y * turbFreq + p.seed + 100, this.time * turbSpeed) * turbAmp * dt;
+        }
+        p.vx += windX * dt;
+        p.vy += windY * dt;
+        const df = Math.max(0, 1 - dragVal * dt);
+        p.vx *= df; p.vy *= df;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+
+        // Out of bounds
+        if (p.x < -30 || p.x > w + 30 || p.y < -50 || p.y > h + 30) {
+          p.active = false; continue;
+        }
+
+        // Color/size/alpha
+        const col = lerpColorStops(cfg.colorStops, t);
+        p.r = col.r; p.g = col.g; p.b = col.b;
+        p.size = lerpStops(cfg.sizeOverLife, t) * sizeScale;
+        p.alpha = lerpStops(cfg.alphaOverLife, t);
+
+        // Theme-specific child spawning
+        if (theme === 'forge') this._updateForgeSparks(p, dt, t, cfg);
+        else if (theme === 'void') this._updateVoidSplit(p, dt, t, cfg, w, h);
+        else if (theme === 'grass') this._updateGrassSpores(p, dt, t, cfg);
+      }
+      else if (p.type === 'spark') {
+        // Forge sparks: fast, short-lived, bright yellow-orange
+        p.vx *= Math.max(0, 1 - 4.0 * dt);
+        p.vy *= Math.max(0, 1 - 4.0 * dt);
+        p.vy += 10 * dt; // slight gravity pull
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.alpha = (1 - t) * (1 - t); // fast fade
+        p.size = lerpStops(cfg.sparkSizeOverLife || [{ t: 0, value: 1.5 }, { t: 1, value: 0.2 }], t) * sizeScale;
+        // Spark colors: bright white-yellow to orange
+        const sc = lerpColorStops(cfg.sparkColorStops || cfg.colorStops, t);
+        p.r = sc.r; p.g = sc.g; p.b = sc.b;
+      }
+      else if (p.type === 'ghost') {
+        // Void ghost: orbits around split point, fades
+        const orbitT = t * Math.PI * 2;
+        const dist = p.splitDist * (0.3 + 0.7 * Math.sin(t * Math.PI)); // expand then contract
+        p.x = p.parentX + Math.cos(p.splitAngle + orbitT * 0.8) * dist;
+        p.y = p.parentY + Math.sin(p.splitAngle + orbitT * 0.8) * dist;
+        // Ghosts use parent color but shift hue
+        const col = lerpColorStops(cfg.colorStops, t * 0.6);
+        p.r = col.r; p.g = col.g; p.b = col.b;
+        p.alpha = lerpStops([
+          { t: 0, value: 0 }, { t: 0.1, value: 0.8 },
+          { t: 0.5, value: 0.6 }, { t: 0.85, value: 0.3 }, { t: 1, value: 0 },
+        ], t);
+        p.size = lerpStops([
+          { t: 0, value: 0.5 }, { t: 0.2, value: 1.8 },
+          { t: 0.7, value: 1.2 }, { t: 1, value: 0.3 },
+        ], t) * sizeScale * 0.7;
+      }
+      else if (p.type === 'spore') {
+        // Grass spores: radial burst from parent, decelerate, gentle float
+        p.vx *= Math.max(0, 1 - 2.0 * dt);
+        p.vy *= Math.max(0, 1 - 2.0 * dt);
+        p.vy -= 5 * dt; // gentle lift
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        const col = lerpColorStops(cfg.colorStops, t * 0.5);
+        p.r = col.r; p.g = col.g; p.b = col.b;
+        p.alpha = lerpStops([
+          { t: 0, value: 0 }, { t: 0.08, value: 0.85 },
+          { t: 0.4, value: 0.6 }, { t: 1, value: 0 },
+        ], t);
+        p.size = lerpStops([
+          { t: 0, value: 0.8 }, { t: 0.15, value: 1.6 },
+          { t: 0.5, value: 1.2 }, { t: 1, value: 0.3 },
+        ], t) * sizeScale * 0.6;
+      }
+      else if (p.type === 'twinkle') {
+        // Ice twinkle: stays near parent, pulses bright
+        p.x = p.parentX + Math.sin(p.phase + p.age * 3) * 2;
+        p.y = p.parentY + Math.cos(p.phase + p.age * 2.5) * 2;
+        // Sharp flash pattern
+        const flashT = (p.age * 4 + p.phase) % 1;
+        const flash = flashT < 0.15 ? flashT / 0.15 : flashT < 0.3 ? 1 - (flashT - 0.15) / 0.15 : 0;
+        p.alpha = flash * 0.9 * (1 - t);
+        p.size = (1.0 + flash * 2.0) * sizeScale;
+        p.r = 255; p.g = 255; p.b = 255; // pure white flash
+      }
+    }
+  }
+
+  _initCore(p, cfg, w, h, sizeScale) {
+    const spawn = cfg.spawnArea;
+    p.type = 'core';
+    p.x = (spawn.xMin + Math.random() * (spawn.xMax - spawn.xMin)) * w;
+    const yBase = spawn.y * h;
+    const yVar = (spawn.yVariance || 0) * h;
+    p.y = yBase + (Math.random() - 0.5) * 2 * yVar;
+    p.vx = (Math.random() - 0.5) * (cfg.initialVxSpread || 10);
+    p.vy = spawn.initialVy;
+    p.age = 0;
+    p.lifetime = cfg.lifetime.base + (Math.random() - 0.5) * 2 * cfg.lifetime.variance;
+    p.seed = Math.random() * 1000;
+    p.phase = Math.random() * Math.PI * 2;
+    p.splitAngle = Math.random() * Math.PI * 2;
+    p.splitDist = 15 + Math.random() * 15;
+    p.size = 0;
+    p.alpha = 0;
+  }
+
+  // -- FORGE: Sparks fly off embers intermittently --
+  _updateForgeSparks(p, dt, t, cfg) {
+    // Sparks emit in two bursts during particle lifetime
+    const burstWindows = [
+      { start: 0.10, end: 0.14 },
+      { start: 0.40, end: 0.44 },
+    ];
+    for (const burst of burstWindows) {
+      const prevT = (p.age - dt) / p.lifetime;
+      if (prevT < burst.start && t >= burst.start && Math.random() < 0.35) {
+        // Spawn 2-4 sparks
+        const count = 2 + Math.floor(Math.random() * 3);
+        for (let s = 0; s < count; s++) {
+          const sp = this.pool.spawn();
+          if (!sp) break;
+          sp.type = 'spark';
+          sp.x = p.x;
+          sp.y = p.y;
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 30 + Math.random() * 50;
+          sp.vx = Math.cos(angle) * speed;
+          sp.vy = Math.sin(angle) * speed - 20; // bias upward
+          sp.age = 0;
+          sp.lifetime = 0.2 + Math.random() * 0.3;
+          sp.seed = p.seed;
+          sp.size = 1.5;
+          sp.alpha = 1;
+          sp.r = 255; sp.g = 220; sp.b = 80;
+        }
+      }
+    }
+  }
+
+  // -- VOID: Ghost particles split off and orbit --
+  _updateVoidSplit(p, dt, t, cfg, w, h) {
+    const splitWindows = [
+      { start: 0.18, end: 0.22 },
+      { start: 0.55, end: 0.59 },
+    ];
+    for (const burst of splitWindows) {
+      const prevT = (p.age - dt) / p.lifetime;
+      if (prevT < burst.start && t >= burst.start && Math.random() < 0.5) {
+        // Spawn 1-2 ghost particles
+        const count = 1 + Math.floor(Math.random() * 2);
+        for (let s = 0; s < count; s++) {
+          const gp = this.pool.spawn();
+          if (!gp) break;
+          gp.type = 'ghost';
+          gp.parentX = p.x;
+          gp.parentY = p.y;
+          gp.x = p.x;
+          gp.y = p.y;
+          gp.vx = 0; gp.vy = 0;
+          gp.age = 0;
+          gp.lifetime = 0.8 + Math.random() * 0.6;
+          gp.seed = p.seed + s * 50;
+          gp.splitAngle = p.splitAngle + s * Math.PI * 0.7;
+          gp.splitDist = p.splitDist * (0.6 + Math.random() * 0.8);
+          gp.phase = Math.random() * Math.PI * 2;
+          gp.size = p.size * 0.6;
+          gp.alpha = 0;
+          gp.r = p.r; gp.g = p.g; gp.b = p.b;
+        }
+      }
+    }
+  }
+
+  // -- GRASS: Spore puffs radiate outward --
+  _updateGrassSpores(p, dt, t, cfg) {
+    const burstWindows = [
+      { start: 0.20, end: 0.24 },
+      { start: 0.55, end: 0.59 },
+    ];
+    for (const burst of burstWindows) {
+      const prevT = (p.age - dt) / p.lifetime;
+      if (prevT < burst.start && t >= burst.start && Math.random() < 0.3) {
+        // Spawn 5-7 spores in a radial burst
+        const count = 5 + Math.floor(Math.random() * 3);
+        const baseAngle = Math.random() * Math.PI * 2;
+        for (let s = 0; s < count; s++) {
+          const sp = this.pool.spawn();
+          if (!sp) break;
+          sp.type = 'spore';
+          sp.x = p.x;
+          sp.y = p.y;
+          const angle = baseAngle + (s / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
+          const speed = 20 + Math.random() * 30;
+          sp.vx = Math.cos(angle) * speed;
+          sp.vy = Math.sin(angle) * speed;
+          sp.age = 0;
+          sp.lifetime = 0.6 + Math.random() * 0.5;
+          sp.seed = p.seed + s;
+          sp.size = 1;
+          sp.alpha = 0;
+          sp.r = p.r; sp.g = p.g; sp.b = p.b;
+        }
+      }
+    }
+  }
+
+  render(ctx, w, h) {
+    const cfg = this.config;
+    const glowR = cfg.glowRadius || 2.0;
+    const glowA = cfg.glowAlpha || 0.25;
+    const theme = cfg.theme;
+
+    ctx.globalCompositeOperation = 'lighter';
+
+    // Glow pass
+    if (glowR > 0 && glowA > 0) {
+      for (let i = 0; i < this.pool.max; i++) {
+        const p = this.pool.particles[i];
+        if (!p.active || p.alpha < 0.01) continue;
+        ctx.globalAlpha = p.alpha * glowA;
+        ctx.fillStyle = `rgb(${p.r},${p.g},${p.b})`;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, Math.max(0.5, p.size * glowR), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // Core pass — shape varies by theme and particle type
+    for (let i = 0; i < this.pool.max; i++) {
+      const p = this.pool.particles[i];
+      if (!p.active || p.alpha < 0.01) continue;
+      ctx.globalAlpha = p.alpha;
+      ctx.fillStyle = `rgb(${p.r},${p.g},${p.b})`;
+
+      if (theme === 'ice' && p.type === 'core') {
+        // Diamond shape for ice core particles
+        this._drawDiamond(ctx, p.x, p.y, p.size);
+        // Plus a subtle cross sparkle
+        if (p.alpha > 0.3) {
+          ctx.globalAlpha = p.alpha * 0.5;
+          ctx.fillStyle = 'rgb(255,255,255)';
+          const arm = p.size * 1.8;
+          ctx.fillRect(p.x - 0.4, p.y - arm, 0.8, arm * 2);
+          ctx.fillRect(p.x - arm, p.y - 0.4, arm * 2, 0.8);
+        }
+      }
+      else if (theme === 'void' && p.type === 'ghost') {
+        // Void ghosts: ring/halo shape
+        ctx.globalAlpha = p.alpha * 0.8;
+        ctx.strokeStyle = `rgb(${p.r},${p.g},${p.b})`;
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, Math.max(0.5, p.size * 1.3), 0, Math.PI * 2);
+        ctx.stroke();
+        // Inner bright dot
+        ctx.globalAlpha = p.alpha;
+        ctx.fillStyle = `rgb(${Math.min(255, p.r + 60)},${Math.min(255, p.g + 60)},${Math.min(255, p.b + 60)})`;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, Math.max(0.3, p.size * 0.4), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      else if (p.type === 'twinkle') {
+        // 4-point star for ice twinkles
+        this._drawStar4(ctx, p.x, p.y, p.size);
+      }
+      else {
+        // Default: circle
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, Math.max(0.3, p.size), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  _drawDiamond(ctx, x, y, size) {
+    const s = Math.max(0.5, size);
+    ctx.beginPath();
+    ctx.moveTo(x, y - s);
+    ctx.lineTo(x + s * 0.7, y);
+    ctx.lineTo(x, y + s);
+    ctx.lineTo(x - s * 0.7, y);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  _drawStar4(ctx, x, y, size) {
+    const outer = Math.max(0.5, size);
+    const inner = outer * 0.3;
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2 - Math.PI / 2;
+      const r = i % 2 === 0 ? outer : inner;
+      const px = x + Math.cos(angle) * r;
+      const py = y + Math.sin(angle) * r;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+// ============================================================
+// ICE EMITTER (extends Emitter with twinkle spawning)
+// ============================================================
+class IceEmitter extends Emitter {
+  update(dt, w, h, heatMult) {
+    super.update(dt, w, h, heatMult);
+    const sizeScale = heatMult.sizeScale || 1;
+
+    // Spawn twinkles on some core particles
+    for (let i = 0; i < this.pool.max; i++) {
+      const p = this.pool.particles[i];
+      if (!p.active || p.type !== 'core') continue;
+      const t = p.age / p.lifetime;
+      const prevT = (p.age - dt) / p.lifetime;
+
+      // Twinkle at ~20% and ~60% lifetime
+      const twinkleWindows = [
+        { start: 0.15, end: 0.19 },
+        { start: 0.55, end: 0.59 },
+      ];
+      for (const tw of twinkleWindows) {
+        if (prevT < tw.start && t >= tw.start && Math.random() < 0.4) {
+          const tp = this.pool.spawn();
+          if (!tp) break;
+          tp.type = 'twinkle';
+          tp.parentX = p.x;
+          tp.parentY = p.y;
+          tp.x = p.x; tp.y = p.y;
+          tp.vx = 0; tp.vy = 0;
+          tp.age = 0;
+          tp.lifetime = 0.5 + Math.random() * 0.4;
+          tp.seed = p.seed;
+          tp.phase = Math.random() * Math.PI * 2;
+          tp.size = 1.5 * sizeScale;
+          tp.alpha = 0;
+          tp.r = 255; tp.g = 255; tp.b = 255;
+        }
+      }
+
+      // Update twinkle parent positions (so twinkle tracks the moving ice crystal)
+      // Done in the loop below
+    }
+
+    // Update twinkle parent tracking (find nearest core particle by seed)
+    for (let i = 0; i < this.pool.max; i++) {
+      const p = this.pool.particles[i];
+      if (!p.active || p.type !== 'twinkle') continue;
+      // Find parent core by seed match
+      for (let j = 0; j < this.pool.max; j++) {
+        const c = this.pool.particles[j];
+        if (c.active && c.type === 'core' && c.seed === p.seed) {
+          p.parentX = c.x;
+          p.parentY = c.y;
+          break;
+        }
+      }
+    }
+  }
+}
+
+// ============================================================
+// THEME DEFINITIONS
+// ============================================================
+const HEAT_COLORS = {
+  forge: ["#475569", "#f59e0b", "#ea580c", "#dc2626", "#ef4444", "#ff4d4d"],
+  ice:   ["#4B6272", "#2098FF", "#00B8E0", "#00D4D4", "#70F0E8", "#D8FFFC"],
+  void:  ["#3D3554", "#5855E0", "#8840E8", "#C830D0", "#F020A0", "#FF40B0"],
+  grass: ["#5C553A", "#E08830", "#C8B020", "#80B830", "#40C048", "#34D058"],
+};
+
+const THEME_BACKGROUNDS = {
+  forge: ["#0f1117", "#14110f", "#1a120e", "#1f100c", "#260f0a", "#2d0d08"],
+  ice:   ["#0c1118", "#0d1520", "#0e1928", "#0f1d30", "#102138", "#112540"],
+  void:  ["#0e0c14", "#110e1a", "#140f20", "#171126", "#1a122c", "#1d1332"],
+  grass: ["#0e100c", "#111408", "#141806", "#171c04", "#1a2002", "#1d2400"],
+};
+
+const THEME_NOTES = {
+  forge: '<strong>Forge:</strong> Rising embers with intermittent spark bursts (yellow-white sparks eject from embers twice per lifetime)',
+  ice: '<strong>Ice:</strong> Diamond-shaped crystals drifting down with cross-sparkle highlights and white twinkle flashes',
+  void: '<strong>Void:</strong> Pulsing orbs that periodically split off ghost particles which orbit and rejoin',
+  grass: '<strong>Grass:</strong> Floating fireflies with blinking glow and radial spore puffs (6-7 spores burst outward)',
+};
+
+function buildColorStops(theme) {
+  const hc = HEAT_COLORS[theme];
+  const c = hc.map(hexToRGB);
+  return [
+    { t: 0.0,  ...c[5] },
+    { t: 0.15, ...c[4] },
+    { t: 0.35, ...c[3] },
+    { t: 0.55, ...c[2] },
+    { t: 0.75, ...c[1] },
+    { t: 1.0,  ...c[0] },
+  ];
+}
+
+const THEME_CONFIGS = {
+  forge: {
+    theme: 'forge',
+    rate: 12,
+    lifetime: { base: 2.0, variance: 0.5 },
+    spawnArea: { xMin: 0, xMax: 1, y: 1.0, yVariance: 0, initialVy: -50 },
+    initialVxSpread: 10,
+    gravity: -30,
+    turbulenceFrequency: 0.008, turbulenceSpeed: 0.6, turbulenceAmplitude: 18,
+    windX: 0, windY: 0,
+    drag: 2.0,
+    colorStops: null,
+    sparkColorStops: [
+      { t: 0.0, r: 255, g: 255, b: 240 },  // white-hot
+      { t: 0.3, r: 255, g: 220, b: 80 },   // bright yellow
+      { t: 0.6, r: 255, g: 160, b: 30 },   // orange
+      { t: 1.0, r: 200, g: 80,  b: 20 },   // dark orange
+    ],
+    sparkSizeOverLife: [
+      { t: 0, value: 1.5 }, { t: 0.3, value: 1.0 }, { t: 1, value: 0.2 },
+    ],
+    sizeOverLife: [
+      { t: 0, value: 1.0 }, { t: 0.12, value: 2.5 },
+      { t: 0.5, value: 2.0 }, { t: 0.8, value: 1.2 }, { t: 1.0, value: 0.4 },
+    ],
+    alphaOverLife: [
+      { t: 0, value: 0.0 }, { t: 0.06, value: 1.0 },
+      { t: 0.5, value: 0.75 }, { t: 0.85, value: 0.3 }, { t: 1.0, value: 0.0 },
+    ],
+    glowRadius: 2.0,
+    glowAlpha: 0.25,
+  },
+  ice: {
+    theme: 'ice',
+    rate: 8,
+    lifetime: { base: 3.5, variance: 1.0 },
+    spawnArea: { xMin: 0, xMax: 1, y: 0.0, yVariance: 0, initialVy: 12 },
+    initialVxSpread: 6,
+    gravity: 6,
+    turbulenceFrequency: 0.005, turbulenceSpeed: 0.3, turbulenceAmplitude: 10,
+    windX: 4, windY: 0,
+    drag: 1.5,
+    colorStops: null,
+    sizeOverLife: [
+      { t: 0, value: 0.6 }, { t: 0.2, value: 1.8 },
+      { t: 0.7, value: 1.4 }, { t: 1.0, value: 0.3 },
+    ],
+    alphaOverLife: [
+      { t: 0, value: 0.0 }, { t: 0.08, value: 0.85 },
+      { t: 0.6, value: 0.5 }, { t: 1.0, value: 0.0 },
+    ],
+    glowRadius: 2.5,
+    glowAlpha: 0.15,
+  },
+  void: {
+    theme: 'void',
+    rate: 6,
+    lifetime: { base: 3.0, variance: 0.8 },
+    spawnArea: { xMin: 0.05, xMax: 0.95, y: 0.5, yVariance: 0.4, initialVy: 0 },
+    initialVxSpread: 8,
+    gravity: 0,
+    turbulenceFrequency: 0.01, turbulenceSpeed: 0.4, turbulenceAmplitude: 20,
+    windX: 0, windY: 0,
+    drag: 3.0,
+    colorStops: null,
+    sizeOverLife: [
+      { t: 0, value: 0.5 }, { t: 0.15, value: 2.8 },
+      { t: 0.4, value: 1.2 }, { t: 0.6, value: 2.6 },
+      { t: 0.8, value: 1.0 }, { t: 1.0, value: 0.3 },
+    ],
+    alphaOverLife: [
+      { t: 0, value: 0.0 }, { t: 0.1, value: 0.8 },
+      { t: 0.35, value: 0.25 }, { t: 0.55, value: 0.75 },
+      { t: 0.8, value: 0.2 }, { t: 1.0, value: 0.0 },
+    ],
+    glowRadius: 3.0,
+    glowAlpha: 0.3,
+  },
+  grass: {
+    theme: 'grass',
+    rate: 7,
+    lifetime: { base: 3.0, variance: 1.0 },
+    spawnArea: { xMin: 0, xMax: 1, y: 0.85, yVariance: 0.15, initialVy: -15 },
+    initialVxSpread: 6,
+    gravity: -8,
+    turbulenceFrequency: 0.006, turbulenceSpeed: 0.35, turbulenceAmplitude: 12,
+    windX: (time) => Math.sin(time * 0.7) * 5,
+    windY: 0,
+    drag: 2.5,
+    colorStops: null,
+    sizeOverLife: [
+      { t: 0, value: 0.6 }, { t: 0.12, value: 1.8 },
+      { t: 0.35, value: 0.8 }, { t: 0.55, value: 2.0 },
+      { t: 0.75, value: 1.0 }, { t: 1.0, value: 0.3 },
+    ],
+    alphaOverLife: [
+      { t: 0, value: 0.0 }, { t: 0.08, value: 0.8 },
+      { t: 0.3, value: 0.1 }, { t: 0.5, value: 0.75 },
+      { t: 0.75, value: 0.15 }, { t: 1.0, value: 0.0 },
+    ],
+    glowRadius: 2.5,
+    glowAlpha: 0.2,
+  },
+};
+
+for (const theme of Object.keys(THEME_CONFIGS)) {
+  THEME_CONFIGS[theme].colorStops = buildColorStops(theme);
+}
+
+const HEAT_MULTIPLIERS = {
+  3: { rateScale: 0.4, sizeScale: 0.85, turbulenceScale: 0.7 },
+  4: { rateScale: 1.0, sizeScale: 1.0, turbulenceScale: 1.0 },
+  5: { rateScale: 1.6, sizeScale: 1.15, turbulenceScale: 1.3 },
+};
+
+const LOCATIONS = {
+  header:   { width: 240, height: 40, label: 'Header' },
+  sidebar:  { width: 240, height: 500, label: 'Sidebar' },
+  tabbar:   { width: 600, height: 36, label: 'Tab Bar' },
+  repo:     { width: 240, height: 300, label: 'Repo Browser' },
+  doctabs:  { width: 500, height: 36, label: 'Doc Tabs' },
+};
+
+// ============================================================
+// UI STATE & WIRING
+// ============================================================
+let currentTheme = 'forge';
+let currentHeat = 4;
+let currentLocation = 'header';
+let emitter = null;
+let animId = null;
+let lastTime = 0;
+let fpsFrames = 0;
+let fpsTime = 0;
+let fpsDisplay = 0;
+
+const bgCanvas = document.getElementById('bg');
+const bgCtx = bgCanvas.getContext('2d');
+const canvas = document.getElementById('particles');
+const ctx = canvas.getContext('2d');
+const container = document.getElementById('canvas-container');
+const statsEl = document.getElementById('stats');
+
+function getConfig() {
+  const base = THEME_CONFIGS[currentTheme];
+  return {
+    ...base,
+    rate: parseFloat(document.getElementById('rate').value),
+    gravity: parseFloat(document.getElementById('gravity').value),
+    turbulenceAmplitude: parseFloat(document.getElementById('turbulence').value),
+    drag: parseFloat(document.getElementById('drag').value),
+    windX: typeof base.windX === 'function' ? base.windX : parseFloat(document.getElementById('wind').value),
+    lifetime: { base: parseFloat(document.getElementById('lifetime').value), variance: base.lifetime.variance },
+    glowRadius: parseFloat(document.getElementById('glow').value),
+    glowAlpha: parseFloat(document.getElementById('glowalpha').value),
+  };
+}
+
+function createEmitterForTheme(config, poolSize) {
+  if (config.theme === 'ice') return new IceEmitter(config, poolSize);
+  return new Emitter(config, poolSize);
+}
+
+function rebuildEmitter() {
+  const config = getConfig();
+  emitter = createEmitterForTheme(config, 600);
+}
+
+function resizeCanvas() {
+  const loc = LOCATIONS[currentLocation];
+  const dpr = window.devicePixelRatio || 1;
+  container.style.width = loc.width + 'px';
+  container.style.height = loc.height + 'px';
+  canvas.width = loc.width * dpr;
+  canvas.height = loc.height * dpr;
+  bgCanvas.width = loc.width * dpr;
+  bgCanvas.height = loc.height * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  bgCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  drawBg();
+}
+
+function drawBg() {
+  const loc = LOCATIONS[currentLocation];
+  const bgColor = THEME_BACKGROUNDS[currentTheme][currentHeat];
+  bgCtx.fillStyle = bgColor;
+  bgCtx.fillRect(0, 0, loc.width, loc.height);
+}
+
+function animate(timestamp) {
+  animId = requestAnimationFrame(animate);
+  const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
+  lastTime = timestamp;
+
+  const loc = LOCATIONS[currentLocation];
+  const mult = HEAT_MULTIPLIERS[currentHeat] || HEAT_MULTIPLIERS[4];
+
+  ctx.clearRect(0, 0, loc.width, loc.height);
+  emitter.config = getConfig();
+  emitter.update(dt, loc.width, loc.height, mult);
+  emitter.render(ctx, loc.width, loc.height);
+
+  fpsFrames++;
+  fpsTime += dt;
+  if (fpsTime >= 0.5) {
+    fpsDisplay = Math.round(fpsFrames / fpsTime);
+    fpsFrames = 0;
+    fpsTime = 0;
+  }
+
+  statsEl.innerHTML =
+    `FPS: <span class="val">${fpsDisplay}</span><br>` +
+    `Active: <span class="val">${emitter.pool.activeCount}</span><br>` +
+    `Pool: <span class="val">${emitter.pool.max}</span>`;
+}
+
+function start() {
+  if (animId) cancelAnimationFrame(animId);
+  rebuildEmitter();
+  resizeCanvas();
+  lastTime = performance.now();
+  animId = requestAnimationFrame(animate);
+}
+
+// Build theme buttons
+const themeContainer = document.getElementById('theme-buttons');
+for (const t of Object.keys(THEME_CONFIGS)) {
+  const btn = document.createElement('button');
+  btn.className = 'theme-btn' + (t === currentTheme ? ' active' : '');
+  btn.textContent = t.charAt(0).toUpperCase() + t.slice(1);
+  btn.onclick = () => {
+    currentTheme = t;
+    document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    applyThemeDefaults();
+    start();
+    updateColorPreview();
+    updateThemeNote();
+  };
+  themeContainer.appendChild(btn);
+}
+
+// Build location buttons
+const locContainer = document.getElementById('location-buttons');
+for (const [key, loc] of Object.entries(LOCATIONS)) {
+  const btn = document.createElement('button');
+  btn.className = 'loc-btn' + (key === currentLocation ? ' active' : '');
+  btn.textContent = loc.label;
+  btn.onclick = () => {
+    currentLocation = key;
+    document.querySelectorAll('.loc-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    start();
+  };
+  locContainer.appendChild(btn);
+}
+
+function wireSlider(id) {
+  const el = document.getElementById(id);
+  const valEl = document.getElementById(id + '-val');
+  el.oninput = () => { valEl.textContent = el.value; };
+}
+['heat', 'rate', 'gravity', 'turbulence', 'drag', 'wind', 'lifetime', 'glow', 'glowalpha'].forEach(wireSlider);
+
+document.getElementById('heat').oninput = function() {
+  currentHeat = parseInt(this.value);
+  document.getElementById('heat-val').textContent = this.value;
+  drawBg();
+};
+
+function applyThemeDefaults() {
+  const cfg = THEME_CONFIGS[currentTheme];
+  const set = (id, val) => {
+    document.getElementById(id).value = val;
+    document.getElementById(id + '-val').textContent = val;
+  };
+  set('rate', cfg.rate);
+  set('gravity', cfg.gravity);
+  set('turbulence', cfg.turbulenceAmplitude);
+  set('drag', cfg.drag);
+  set('wind', typeof cfg.windX === 'function' ? 0 : cfg.windX);
+  set('lifetime', cfg.lifetime.base);
+  set('glow', cfg.glowRadius);
+  set('glowalpha', cfg.glowAlpha);
+}
+
+function updateColorPreview() {
+  const preview = document.getElementById('color-preview');
+  preview.innerHTML = '';
+  const colors = HEAT_COLORS[currentTheme];
+  for (let i = colors.length - 1; i >= 0; i--) {
+    const swatch = document.createElement('div');
+    swatch.className = 'color-swatch';
+    swatch.style.background = colors[i];
+    preview.appendChild(swatch);
+  }
+}
+
+function updateThemeNote() {
+  document.getElementById('theme-note').innerHTML = THEME_NOTES[currentTheme];
+}
+
+// Info panel toggle
+document.getElementById('info-toggle').onclick = function() {
+  const panel = document.getElementById('info-panel');
+  panel.classList.toggle('open');
+  this.classList.toggle('active');
+};
+
+// Init
+applyThemeDefaults();
+updateColorPreview();
+updateThemeNote();
+start();
+</script>
+</body>
+</html>

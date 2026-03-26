@@ -496,7 +496,7 @@ const THEMES = {
     ],
   },
   ice: {
-    label: "Ice",
+    label: "Frost",
     accentActive: "#5ccaf4",
     statusStops: {
       waiting: 1,
@@ -530,7 +530,7 @@ const THEMES = {
     ],
   },
   grass: {
-    label: "Grass",
+    label: "Spore",
     accentActive: "#6bcf63",
     statusStops: {
       waiting: 1,
@@ -551,7 +551,7 @@ const THEMES = {
 const THEME_VARIANTS = {
   ice: {
     v1: {
-      label: "Ice v1",
+      label: "Frost v1",
       heatColors: ["#53667d", "#4d82b8", "#1fd6ff", "#74ecff", "#c4f7ff", "#f2feff"],
       statusStops: { waiting: 2, working: 5 },
     },
@@ -565,7 +565,7 @@ const THEME_VARIANTS = {
   },
   grass: {
     v1: {
-      label: "Grass v1",
+      label: "Spore v1",
       heatColors: ["#4d563f", "#667b29", "#4baa3c", "#78d63a", "#b7ef45", "#ecff87"],
       statusStops: { waiting: 3, working: 5 },
     },

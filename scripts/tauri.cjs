@@ -1,5 +1,8 @@
 const net = require("net");
 const { spawn } = require("child_process");
+const fs = require("fs");
+const path = require("path");
+const os = require("os");
 
 const TAURI_COMMAND = "npx";
 const DEFAULT_PORT = 5199;
@@ -42,13 +45,15 @@ function spawnCommand(args, options = {}) {
 async function runTauriDev(args) {
   const port = await findOpenPort(DEFAULT_PORT, MAX_PORT);
   const devUrl = `http://localhost:${port}`;
-  const configOverride = JSON.stringify({
+  const configObj = {
     identifier: "com.forge.terminal.dev",
     build: {
       beforeDevCommand: "",
       devUrl,
     },
-  });
+  };
+  const configFile = path.join(os.tmpdir(), "forge-tauri-dev-config.json");
+  fs.writeFileSync(configFile, JSON.stringify(configObj));
 
   console.log(`[forge] starting Vite on ${devUrl}`);
 
@@ -69,7 +74,7 @@ async function runTauriDev(args) {
     }
   });
 
-  const tauri = spawnCommand(["tauri", "dev", "--config", configOverride, ...args]);
+  const tauri = spawnCommand(["tauri", "dev", "--config", configFile, ...args]);
 
   const shutdown = (signal) => {
     if (!tauri.killed) {

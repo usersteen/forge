@@ -1,7 +1,7 @@
 const net = require("net");
 const { spawn } = require("child_process");
 
-const TAURI_COMMAND = process.platform === "win32" ? "npx.cmd" : "npx";
+const TAURI_COMMAND = "npx";
 const DEFAULT_PORT = 5199;
 const MAX_PORT = 5299;
 
@@ -34,7 +34,7 @@ function spawnCommand(args, options = {}) {
   return spawn(TAURI_COMMAND, args, {
     cwd: process.cwd(),
     stdio: "inherit",
-    shell: false,
+    shell: true,
     ...options,
   });
 }

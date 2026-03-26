@@ -47,6 +47,120 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "Forge ${{ github.ref_name }}"
-          releaseBody: "See the assets below to download and install for your platform."
+          releaseBody: "Building..."
           releaseDraft: false
           prerelease: ${{ contains(github.ref_name, '-') }}
+
+  update-release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version and previous tag
+        id: vars
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          PREV_TAG=$(git tag --sort=-v:refname | grep '^v' | sed -n '2p')
+          echo "prev_tag=${PREV_TAG:-}" >> "$GITHUB_OUTPUT"
+
+      - name: Get release assets
+        id: assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Wait briefly for assets to finalize
+          sleep 10
+
+          ASSETS=$(gh release view "$GITHUB_REF_NAME" --json assets --jq '.assets[] | "\(.name) \(.url)"')
+
+          WIN_NAME=""
+          WIN_URL=""
+          MAC_NAME=""
+          MAC_URL=""
+
+          while read -r name url; do
+            case "$name" in
+              *.exe|*x64-setup*|*.msi)
+                WIN_NAME="$name"
+                WIN_URL="$url"
+                ;;
+              *.dmg)
+                MAC_NAME="$name"
+                MAC_URL="$url"
+                ;;
+            esac
+          done <<< "$ASSETS"
+
+          echo "win_name=$WIN_NAME" >> "$GITHUB_OUTPUT"
+          echo "win_url=$WIN_URL" >> "$GITHUB_OUTPUT"
+          echo "mac_name=$MAC_NAME" >> "$GITHUB_OUTPUT"
+          echo "mac_url=$MAC_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Build changelog
+        id: changelog
+        run: |
+          # Use RELEASE_NOTES.md if it exists, otherwise generate from commits
+          if [ -f RELEASE_NOTES.md ]; then
+            cp RELEASE_NOTES.md /tmp/changelog.txt
+          else
+            PREV_TAG="${{ steps.vars.outputs.prev_tag }}"
+            if [ -n "$PREV_TAG" ]; then
+              git log --pretty=format:"- %s" "${PREV_TAG}..HEAD" -- . ':!.github' | grep -v 'Co-Authored-By' | head -20 > /tmp/changelog.txt
+            else
+              echo "- Initial release" > /tmp/changelog.txt
+            fi
+          fi
+
+      - name: Update release body
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.vars.outputs.version }}"
+          PREV_TAG="${{ steps.vars.outputs.prev_tag }}"
+          WIN_NAME="${{ steps.assets.outputs.win_name }}"
+          WIN_URL="${{ steps.assets.outputs.win_url }}"
+          MAC_NAME="${{ steps.assets.outputs.mac_name }}"
+          MAC_URL="${{ steps.assets.outputs.mac_url }}"
+
+          CHANGELOG=$(cat /tmp/changelog.txt)
+
+          # Build download section
+          DOWNLOADS=""
+          if [ -n "$WIN_NAME" ]; then
+            DOWNLOADS="$DOWNLOADS
+          - **Windows:** [$WIN_NAME]($WIN_URL)"
+          fi
+          if [ -n "$MAC_NAME" ]; then
+            DOWNLOADS="$DOWNLOADS
+          - **macOS:** [$MAC_NAME]($MAC_URL)"
+          fi
+
+          # Build comparison link
+          COMPARE=""
+          if [ -n "$PREV_TAG" ]; then
+            COMPARE="
+          **Full Changelog:** https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${{ github.ref_name }}"
+          fi
+
+          BODY="## What's New
+
+          $CHANGELOG
+
+          ## Download
+          $DOWNLOADS
+
+          $COMPARE"
+
+          # Strip leading whitespace from heredoc indentation
+          BODY=$(echo "$BODY" | sed 's/^          //')
+
+          gh release edit "${{ github.ref_name }}" --notes "$BODY"

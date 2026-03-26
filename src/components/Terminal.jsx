@@ -31,7 +31,7 @@ const SERVER_HOST_PORT_PATTERN = /\b(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]|:
 const SERVER_PORT_HINT_PATTERN =
   /\b(?:local|localhost|listening|ready|started|available|port|network|app|server)\b[^\n\r:]*[: ]+\s*(\d{2,5})\b/i;
 
-function playNotificationSound() {
+function playNotificationSound(volume = 0.3) {
   if (!_audioCtx) _audioCtx = new AudioContext();
   const ctx = _audioCtx;
   const osc = ctx.createOscillator();
@@ -40,7 +40,7 @@ function playNotificationSound() {
   gain.connect(ctx.destination);
   osc.frequency.value = 880;
   osc.type = "sine";
-  gain.gain.setValueAtTime(0.3, ctx.currentTime);
+  gain.gain.setValueAtTime(volume, ctx.currentTime);
   gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
   osc.start(ctx.currentTime);
   osc.stop(ctx.currentTime + 0.3);
@@ -303,12 +303,16 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
 
     const maybeNotifyWaiting = (store, tab) => {
       if (tab.type === "server") return;
+      const volume = store.soundVolume;
+      if (volume === 0) return;
+
       const activeGroup = store.groups.find((group) => group.id === store.activeGroupId);
       const isCurrentlyActive = activeGroup?.activeTabId === tabId;
-      if (isCurrentlyActive) return;
+      const scale = (isCurrentlyActive && document.hasFocus()) ? 0.4 : 1.0;
+      const finalVolume = (volume / 100) * scale;
 
-      playNotificationSound();
-      if (Notification.permission === "granted") {
+      playNotificationSound(finalVolume);
+      if (!isCurrentlyActive && Notification.permission === "granted") {
         new Notification("Forge", { body: "A terminal needs your attention" });
       }
     };
@@ -942,7 +946,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       if (target instanceof HTMLElement) {
         if (target.isContentEditable) return;
         const tag = target.tagName?.toLowerCase();
-        if (tag === "input" || tag === "select") return;
+        if (tag === "input" || tag === "textarea" || tag === "select") return;
         // Allow xterm's own textarea
         if (tag === "textarea" && containerRef.current?.contains(target)) return;
       }

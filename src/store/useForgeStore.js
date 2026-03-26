@@ -137,6 +137,7 @@ const useForgeStore = create((set, get) => ({
   favoriteRepoPaths: [],
   theme: DEFAULT_THEME,
   fxEnabled: true,
+  soundVolume: 80,
   showWelcomeOnLaunch: true,
 
   workspaceByGroup: {},
@@ -213,6 +214,7 @@ const useForgeStore = create((set, get) => ({
       favoriteRepoPaths: normalizeFavoriteRepoPaths(config.settings?.favorite_repo_paths),
       theme: normalizeTheme(config.settings?.theme),
       fxEnabled: config.settings?.fx_enabled ?? true,
+      soundVolume: config.settings?.sound_volume ?? 80,
       showWelcomeOnLaunch: config.settings?.show_welcome_on_launch ?? true,
       streakTimer: config.settings?.streak_timer ?? 10000,
       cooldownTimer: config.settings?.cooldown_timer ?? 30000,
@@ -891,6 +893,7 @@ const useForgeStore = create((set, get) => ({
   setCooldownTimer: (ms) => set({ cooldownTimer: ms }),
   setTheme: (theme) => set({ theme: normalizeTheme(theme) }),
   setFxEnabled: (fxEnabled) => set({ fxEnabled: Boolean(fxEnabled) }),
+  setSoundVolume: (v) => set({ soundVolume: Math.max(0, Math.min(100, Number(v) || 0)) }),
   setShowWelcomeOnLaunch: (showWelcomeOnLaunch) =>
     set({ showWelcomeOnLaunch: Boolean(showWelcomeOnLaunch) }),
 
@@ -936,6 +939,7 @@ export function storeToConfig(state, windowGeometry) {
       favorite_repo_paths: state.favoriteRepoPaths,
       theme: normalizeTheme(state.theme),
       fx_enabled: state.fxEnabled,
+      sound_volume: state.soundVolume,
       show_welcome_on_launch: state.showWelcomeOnLaunch,
     },
   };

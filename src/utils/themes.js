@@ -499,10 +499,10 @@ const THEMES = {
     label: "Ice",
     accentActive: "#5ccaf4",
     statusStops: {
-      waiting: 2,
+      waiting: 1,
       working: 5,
     },
-    heatColors: ["#53667d", "#4d82b8", "#1fd6ff", "#74ecff", "#c4f7ff", "#f2feff"],
+    heatColors: ["#4B6272", "#2098FF", "#00B8E0", "#00D4D4", "#70F0E8", "#D8FFFC"],
     backgrounds: [
       { bgDeep: "#08111a", bgSidebar: "#0b1621", bgActive: "#112030", border: "#1e3143" },
       { bgDeep: "#08121c", bgSidebar: "#0c1824", bgActive: "#122333", border: "#21384a" },
@@ -516,10 +516,10 @@ const THEMES = {
     label: "Void",
     accentActive: "#8c6bff",
     statusStops: {
-      waiting: 3,
+      waiting: 1,
       working: 5,
     },
-    heatColors: ["#534d63", "#46508a", "#9365ff", "#c257ff", "#ff4fe0", "#ff9ae8"],
+    heatColors: ["#3D3554", "#5855E0", "#8840E8", "#C830D0", "#F020A0", "#FF40B0"],
     backgrounds: [
       { bgDeep: "#08070c", bgSidebar: "#0b0911", bgActive: "#12101a", border: "#201b2b" },
       { bgDeep: "#09080e", bgSidebar: "#0d0a13", bgActive: "#15121e", border: "#272033" },
@@ -533,10 +533,10 @@ const THEMES = {
     label: "Grass",
     accentActive: "#6bcf63",
     statusStops: {
-      waiting: 3,
+      waiting: 1,
       working: 5,
     },
-    heatColors: ["#4d563f", "#667b29", "#4baa3c", "#78d63a", "#b7ef45", "#ecff87"],
+    heatColors: ["#5C553A", "#E08830", "#C8B020", "#80B830", "#40C048", "#34D058"],
     backgrounds: [
       { bgDeep: "#08100b", bgSidebar: "#0b150e", bgActive: "#111f15", border: "#1f3022" },
       { bgDeep: "#09120c", bgSidebar: "#0c180f", bgActive: "#132316", border: "#223724" },
@@ -545,6 +545,30 @@ const THEMES = {
       { bgDeep: "#0c180f", bgSidebar: "#122416", bgActive: "#1d351d", border: "#356036" },
       { bgDeep: "#0d1b11", bgSidebar: "#152a18", bgActive: "#223d21", border: "#3e7740" },
     ],
+  },
+};
+
+const THEME_VARIANTS = {
+  ice: {
+    v1: {
+      label: "Ice v1",
+      heatColors: ["#53667d", "#4d82b8", "#1fd6ff", "#74ecff", "#c4f7ff", "#f2feff"],
+      statusStops: { waiting: 2, working: 5 },
+    },
+  },
+  void: {
+    v1: {
+      label: "Void v1",
+      heatColors: ["#534d63", "#46508a", "#9365ff", "#c257ff", "#ff4fe0", "#ff9ae8"],
+      statusStops: { waiting: 3, working: 5 },
+    },
+  },
+  grass: {
+    v1: {
+      label: "Grass v1",
+      heatColors: ["#4d563f", "#667b29", "#4baa3c", "#78d63a", "#b7ef45", "#ecff87"],
+      statusStops: { waiting: 3, working: 5 },
+    },
   },
 };
 
@@ -652,4 +676,4 @@ export function getThemeTokens(theme, heatStage) {
   };
 }
 
-export { DEFAULT_THEME, THEMES };
+export { DEFAULT_THEME, THEMES, THEME_VARIANTS };

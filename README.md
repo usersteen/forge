@@ -1,125 +1,67 @@
 # Forge
 
-Forge is a desktop control room for multiple AI coding terminals.
+**Attention management for parallel AI coding agents.**
 
-It is built for workflows where you have several Claude Code or Codex-style terminal sessions running across different projects and need one place to monitor status, switch context, and pull in repo files without losing terminal state.
+Run 5, 10, 20 Claude Code or Codex terminals at once. Forge tells you which one needs you right now — with live status detection, audio cues, and a heat streak that rewards your response time with escalating visual feedback.
 
-## Status
-
-Forge is an early public preview.
-
-- Windows + macOS
-- built with Tauri + React
-- focused on terminal-first multi-agent workflows
-- currently being shared with a small batch of testers
-
-This repo is public so people can understand the project and track releases, but it should not be read as a polished open-source package yet.
+Windows + macOS. Early preview.
 
 ## Install
 
-The intended install path for most people is:
+[Download the latest release](https://github.com/dillionverma/forge-v2/releases) — `.exe` for Windows, `.dmg` for macOS.
 
-1. Open the repo's `Releases` page on GitHub.
-2. Download the latest installer for your platform (Windows `.exe` or macOS `.dmg`).
-3. Install Forge like a normal desktop app.
+## Features
 
-If you are just trying Forge, use the installer release instead of building from source.
+**Live status detection** — Forge reads each terminal's state in real time. Working, waiting, idle — always visible.
 
-## Who This Is For
+**Heat streak** — Respond fast and the UI comes alive. Color shifts, glowing borders, rising embers. Six stages from Cold to Meltdown. Fully configurable.
 
-Forge is for people who:
+**Project groups** — Organize terminals by repo or workstream. Context-switch without losing state.
 
-- run multiple Claude Code or Codex sessions in terminals
-- want project grouping and quick status visibility
-- want lightweight repo context without turning the app into a full IDE
+**Server tabs** — Mark long-running processes (dev servers, watchers) separately from agent terminals. Forge tracks their status independently.
 
-## What Forge Does
+**Repo context + markdown editor** — Bind a repo, browse files, and edit markdown side-by-side with your terminal.
 
-- runs real PTY-backed terminal tabs inside a desktop app
-- organizes work into project groups
-- detects working / waiting terminal states for Claude Code and Codex-style flows
-- persists project, tab, and window state across restarts
-- lets you bind a local repository and browse lightweight file context inside the app
-- supports side-by-side terminal and document reading
+**Themes** — Multiple built-in themes, each with heat-aware color progressions.
 
-## First Run
+**Audio + visual alerts** — Sound and notification cues the moment an agent needs input.
 
-The current core loop is:
+**Session state** — Tabs, groups, layout, and window position persist across restarts.
 
-1. Create or select a project group.
-2. Bind that group to a local repository.
-3. Open or resume a terminal tab.
-4. Start your coding agent in that terminal.
-5. Use Forge to monitor which terminal is active, waiting, or idle.
+## Quick Start
 
-## Current Limitations
+1. Create a project group and bind it to a local repo.
+2. Open a terminal tab and start your coding agent.
+3. Forge handles the rest — status, alerts, and session state across all your terminals.
 
-- repo browsing is intentionally lightweight, not a full IDE
-- first-run onboarding is still being refined
-- broader release hardening is still in progress
-- this is a preview build, so rough edges are expected
+## Limitations
+
+- Lightweight repo browsing, not a full IDE
+- Onboarding still being refined
+- Preview build — rough edges expected
 
 ## Build From Source
 
-### Prerequisites
-
-- Node.js
-- Rust
-- **Windows:** Visual Studio C++ build tools
-- **macOS:** Xcode Command Line Tools
-
-### Install dependencies
+Requires Node.js, Rust, and platform build tools (MSVC on Windows, Xcode CLT on macOS).
 
 ```bash
 npm install
+
+# dev
+dev.bat        # Windows
+./dev.sh       # macOS
+
+# release
+release.bat    # Windows
+./release.sh   # macOS
 ```
 
-### Run in dev mode
+## Tech
 
-```bash
-# Windows
-dev.bat
+Tauri v2 · React · Vite · xterm.js · Zustand · PTY via `portable-pty`
 
-# macOS
-./dev.sh
-```
-
-### Build a release package
-
-```bash
-# Windows
-release.bat
-
-# macOS
-./release.sh
-```
-
-Release artifacts are written under:
-
-- **Windows:** `~/.forge-build/target/release/bundle/nsis/` and `.../msi/`
-- **macOS:** `~/.forge-build/target/release/bundle/dmg/` and `.../macos/`
-
-## Tech Stack
-
-- Tauri v2
-- React
-- Vite
-- xterm.js
-- Zustand
-- PTY via `portable-pty` (ConPTY on Windows)
-
-## Notes
-
-- shell is detected per platform (PowerShell on Windows, `$SHELL` or `/bin/zsh` on macOS)
-- persisted config is stored at `~/.forge/config.json`
-- Forge is being shared as a public preview before any broader open-source push
+Config lives at `~/.forge/config.json`. Shell is detected per platform (PowerShell on Windows, `$SHELL` or `/bin/zsh` on macOS).
 
 ## Feedback
 
-Early feedback is most useful in these areas:
-
-- install friction
-- first-run clarity
-- repo binding problems
-- terminal reliability
-- session recovery after restart
+Testing the preview? The most useful feedback right now: install friction, first-run clarity, terminal reliability, and session recovery. Open an issue or reach out directly.

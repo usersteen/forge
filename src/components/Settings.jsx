@@ -8,10 +8,12 @@ export default function Settings({ onClose, onOpenThemeLab }) {
   const cooldownTimer = useForgeStore((s) => s.cooldownTimer);
   const theme = useForgeStore((s) => s.theme);
   const fxEnabled = useForgeStore((s) => s.fxEnabled);
+  const soundVolume = useForgeStore((s) => s.soundVolume);
   const setStreakTimer = useForgeStore((s) => s.setStreakTimer);
   const setCooldownTimer = useForgeStore((s) => s.setCooldownTimer);
   const setTheme = useForgeStore((s) => s.setTheme);
   const setFxEnabled = useForgeStore((s) => s.setFxEnabled);
+  const setSoundVolume = useForgeStore((s) => s.setSoundVolume);
   const tabRecencyMinutes = useForgeStore((s) => s.tabRecencyMinutes);
   const setTabRecencyMinutes = useForgeStore((s) => s.setTabRecencyMinutes);
   const setDemoHeatStage = useForgeStore((s) => s.setDemoHeatStage);
@@ -85,6 +87,21 @@ export default function Settings({ onClose, onOpenThemeLab }) {
             </button>
           </div>
           <span className="settings-hint">FX controls particles and glow without changing colors or heat behavior.</span>
+        </div>
+        <div className="settings-row">
+          <label>Sound Volume</label>
+          <div className="settings-time-row">
+            <input
+              type="range"
+              className="settings-slider"
+              min={0}
+              max={100}
+              value={soundVolume}
+              onChange={(e) => setSoundVolume(Number(e.target.value))}
+            />
+            <span className="settings-time-label">{soundVolume === 0 ? "Muted" : `${soundVolume}%`}</span>
+          </div>
+          <span className="settings-hint">Notification sound when a tab starts waiting. Quieter for the active tab when Forge is focused.</span>
         </div>
         <div className="settings-divider" />
         <div className="settings-row">

@@ -23,35 +23,43 @@ export function getEmberStyle(i, theme = "forge") {
   }
 
   if (theme === "void") {
+    const splitAngle = ((i * 47) % 360) * (Math.PI / 180);
+    const splitDist = 20 + ((i * 3) % 14);
     return {
-      "--size": sizeBase * 0.95,
+      "--size": sizeBase * 1.05,
       "--sway": `${swayBase * 1.05 * (i % 2 === 0 ? 1 : -1)}px`,
       "--void-drift": `${(12 + ((i * 7) % 18)) * (i % 3 === 0 ? -1 : 1)}px`,
       "--void-sink": `${18 + ((i * 5) % 18)}px`,
+      "--void-split-a-x": `${Math.round(Math.cos(splitAngle) * splitDist)}px`,
+      "--void-split-a-y": `${Math.round(Math.sin(splitAngle) * splitDist)}px`,
     };
   }
 
   if (theme === "grass") {
-    const burstDirection = i % 2 === 0 ? 1 : -1;
+    const puffOffset = ((i * 37) % 360) * (Math.PI / 180);
+    const puffDist = 14 + ((i * 3) % 8);
+    const puffVars = {};
+    for (let j = 0; j < 6; j++) {
+      const angle = puffOffset + (j * Math.PI) / 3;
+      puffVars[`--grass-puff-${j}-x`] = `${Math.round(Math.cos(angle) * puffDist)}px`;
+      puffVars[`--grass-puff-${j}-y`] = `${Math.round(Math.sin(angle) * puffDist)}px`;
+    }
     return {
       "--size": sizeBase * 0.95,
-      "--sway": `${swayBase * 1.7 * (i % 2 === 0 ? 1 : -1)}px`,
-      "--grass-drift": `${(18 + ((i * 5) % 22)) * (i % 2 === 0 ? 1 : -1)}px`,
+      "--sway": `${swayBase * 0.6 * (i % 2 === 0 ? 1 : -1)}px`,
+      "--grass-drift": `${(8 + ((i * 5) % 10)) * (i % 2 === 0 ? 1 : -1)}px`,
       "--grass-special-play": i % 5 === 2 ? "running" : "paused",
-      "--grass-burst-a-x": `${(8 + ((i * 3) % 10)) * burstDirection}px`,
-      "--grass-burst-a-y": `${-(10 + ((i * 5) % 10))}px`,
-      "--grass-burst-b-x": `${(11 + ((i * 4) % 12)) * -burstDirection}px`,
-      "--grass-burst-b-y": `${-(16 + ((i * 6) % 14))}px`,
-      "--grass-burst-c-x": `${(14 + ((i * 5) % 10)) * (i % 3 === 0 ? -1 : 1)}px`,
-      "--grass-burst-c-y": `${-(4 + ((i * 2) % 6))}px`,
+      "--grass-glow-play": i % 3 === 0 ? "running" : "paused",
+      ...puffVars,
     };
   }
 
   return {
     "--size": sizeBase,
     "--sway": `${swayBase * (i % 2 === 0 ? 1 : -1)}px`,
-    "--forge-spark-play": i % 5 === 0 ? "running" : "paused",
+    "--forge-spark-play": i % 3 === 0 ? "running" : "paused",
     "--forge-spark-angle": `${(i % 2 === 0 ? 1 : -1) * (10 + ((i * 7) % 16))}deg`,
+    "--forge-spark-spread": `${8 + ((i * 5) % 9)}px`,
   };
 }
 

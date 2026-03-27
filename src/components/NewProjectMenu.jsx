@@ -1,10 +1,19 @@
 import { useEffect, useRef, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import useEscapeKey from "../hooks/useEscapeKey";
+import useForgeStore from "../store/useForgeStore";
 
 export default function NewProjectMenu({ x, y, onSelect, onClose }) {
   const menuRef = useRef(null);
   const [inputValue, setInputValue] = useState("");
   const [menuStyle, setMenuStyle] = useState({ left: x, top: y, opacity: 0 });
+  const [repos, setRepos] = useState([]);
+  const reposRootPath = useForgeStore((s) => s.reposRootPath);
+
+  useEffect(() => {
+    if (!reposRootPath) return;
+    invoke("list_repos", { rootPath: reposRootPath }).then(setRepos).catch(() => setRepos([]));
+  }, [reposRootPath]);
 
   useEffect(() => {
     const handlePointerDown = (event) => {
@@ -34,13 +43,25 @@ export default function NewProjectMenu({ x, y, onSelect, onClose }) {
     }
 
     setMenuStyle({ left: nextX, top: nextY, opacity: 1 });
-  }, [x, y]);
+  }, [x, y, repos]);
 
   const handleInputKeyDown = (event) => {
     if (event.key === "Enter" && inputValue.trim()) {
       onSelect(inputValue.trim());
       onClose();
     }
+  };
+
+  const filterValue = inputValue.trim().toLowerCase();
+  const filteredRepos = filterValue
+    ? repos.filter((name) => name.toLowerCase().includes(filterValue))
+    : repos;
+
+  const selectRepo = (name) => {
+    const separator = reposRootPath.includes("/") ? "/" : "\\";
+    const fullPath = reposRootPath.replace(/[\\/]+$/, "") + separator + name;
+    onSelect(fullPath);
+    onClose();
   };
 
   return (
@@ -53,13 +74,30 @@ export default function NewProjectMenu({ x, y, onSelect, onClose }) {
         <input
           className="new-project-path-input"
           type="text"
-          placeholder="Paste a repo path..."
+          placeholder={repos.length > 0 ? "Filter repos or paste a path..." : "Paste a repo path..."}
           autoFocus
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleInputKeyDown}
         />
       </div>
+
+      {filteredRepos.length > 0 && (
+        <>
+          <div className="new-project-divider" />
+          <div className="new-project-repo-list">
+            {filteredRepos.map((name) => (
+              <button
+                key={name}
+                className="quick-tab-item"
+                onClick={() => selectRepo(name)}
+              >
+                <span className="quick-tab-item-label">{name}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
 
       <div className="new-project-divider" />
       <button

@@ -6,7 +6,10 @@ export default function WelcomeModal({ onClose }) {
   useEscapeKey(onClose);
   const showWelcomeOnLaunch = useForgeStore((state) => state.showWelcomeOnLaunch);
   const setShowWelcomeOnLaunch = useForgeStore((state) => state.setShowWelcomeOnLaunch);
+  const reposRootPath = useForgeStore((state) => state.reposRootPath);
+  const setReposRootPath = useForgeStore((state) => state.setReposRootPath);
   const [hideOnLaunch, setHideOnLaunch] = useState(!showWelcomeOnLaunch);
+  const [localPath, setLocalPath] = useState(reposRootPath || "");
 
   const handleHideChange = (event) => {
     const nextHideOnLaunch = event.target.checked;
@@ -14,12 +17,19 @@ export default function WelcomeModal({ onClose }) {
     setShowWelcomeOnLaunch(!nextHideOnLaunch);
   };
 
+  const handleClose = () => {
+    if (localPath.trim()) {
+      setReposRootPath(localPath.trim());
+    }
+    onClose();
+  };
+
   return (
-    <div className="settings-overlay" onClick={onClose}>
+    <div className="settings-overlay" onClick={handleClose}>
       <div className="settings-panel welcome-modal" onClick={(event) => event.stopPropagation()}>
         <div className="settings-header">
           <span>Welcome to Forge</span>
-          <button type="button" className="settings-close" onClick={onClose}>
+          <button type="button" className="settings-close" onClick={handleClose}>
             x
           </button>
         </div>
@@ -31,8 +41,22 @@ export default function WelcomeModal({ onClose }) {
           Check out <strong>Info</strong> and <strong>Settings</strong> in the bottom-left of the interface.
         </p>
 
+        <div className="welcome-repos-row">
+          <label className="welcome-repos-label">Repos Folder</label>
+          <input
+            className="new-project-path-input"
+            type="text"
+            placeholder="e.g. C:\Users\you\GitHub"
+            value={localPath}
+            onChange={(e) => setLocalPath(e.target.value)}
+          />
+          <span className="welcome-repos-hint">
+            Parent folder where your repos live. Makes it quick to pick a repo when starting a new project.
+          </span>
+        </div>
+
         <div className="welcome-actions">
-          <button type="button" className="welcome-action welcome-action-primary" onClick={onClose}>
+          <button type="button" className="welcome-action welcome-action-primary" onClick={handleClose}>
             Start Using Forge
           </button>
         </div>

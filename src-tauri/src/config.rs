@@ -101,6 +101,8 @@ pub struct SettingsConfig {
     pub fx_enabled: bool,
     #[serde(default = "default_true")]
     pub show_welcome_on_launch: bool,
+    #[serde(default)]
+    pub repos_root_path: Option<String>,
 }
 
 fn default_streak_timer() -> u64 {
@@ -123,6 +125,7 @@ impl Default for SettingsConfig {
             theme: default_theme(),
             fx_enabled: true,
             show_welcome_on_launch: true,
+            repos_root_path: None,
         }
     }
 }
@@ -165,6 +168,27 @@ pub fn load_config() -> Result<ForgeConfig, String> {
     let data = fs::read_to_string(&path).map_err(|e| e.to_string())?;
     let config: ForgeConfig = serde_json::from_str(&data).map_err(|e| e.to_string())?;
     Ok(config)
+}
+
+#[tauri::command]
+pub fn list_repos(root_path: String) -> Result<Vec<String>, String> {
+    let path = std::path::Path::new(&root_path);
+    if !path.is_dir() {
+        return Ok(Vec::new());
+    }
+    let mut repos: Vec<String> = Vec::new();
+    let entries = fs::read_dir(path).map_err(|e| e.to_string())?;
+    for entry in entries.flatten() {
+        let entry_path = entry.path();
+        if entry_path.is_dir() {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if !name.starts_with('.') {
+                repos.push(name);
+            }
+        }
+    }
+    repos.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+    Ok(repos)
 }
 
 #[tauri::command]

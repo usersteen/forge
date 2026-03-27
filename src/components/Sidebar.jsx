@@ -191,8 +191,8 @@ export default function Sidebar() {
   }, [fxEnabled, heatStage, theme]);
 
   useEffect(() => {
-    if (!configLoaded || !showWelcomeOnLaunch) return;
-    setShowWelcome(true);
+    if (!configLoaded) return;
+    if (import.meta.env.DEV || showWelcomeOnLaunch) setShowWelcome(true);
   }, [configLoaded, showWelcomeOnLaunch]);
 
   useEffect(() => {

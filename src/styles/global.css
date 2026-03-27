@@ -918,6 +918,30 @@ html, body, #root {
   margin: 2px 6px;
 }
 
+.new-project-repo-list {
+  max-height: 240px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 116, 139, 0.5) transparent;
+}
+
+.new-project-repo-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.new-project-repo-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.new-project-repo-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.new-project-repo-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
 
 .document-tabs {
   display: flex;
@@ -2822,6 +2846,34 @@ body.reader-resizing {
   color: var(--text-primary);
 }
 
+.settings-tab-bar {
+  display: flex;
+  gap: 0;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-family: inherit;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: color 0.12s ease, border-color 0.12s ease;
+}
+
+.settings-tab:hover {
+  color: var(--text-secondary);
+}
+
+.settings-tab-active {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent-active);
+}
+
 .settings-description {
   color: var(--text-muted);
   font-size: 12px;
@@ -2841,6 +2893,25 @@ body.reader-resizing {
   font-size: 13px;
   line-height: 1.5;
   margin-top: 12px;
+}
+
+.welcome-repos-row {
+  margin-top: 16px;
+}
+
+.welcome-repos-label {
+  display: block;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.welcome-repos-hint {
+  display: block;
+  color: var(--text-muted);
+  font-size: 11px;
+  margin-top: 4px;
+  line-height: 1.4;
 }
 
 .welcome-actions {

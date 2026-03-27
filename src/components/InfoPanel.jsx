@@ -17,30 +17,25 @@ export default function InfoPanel({ onClose }) {
         </div>
         <div className="info-content">
           <p className="info-intro">
-            A terminal organizer for managing multiple sessions, grouped by project.
-            Forge detects Claude Code and Codex status automatically with no special setup.
+            A terminal manager for running multiple Claude Code and Codex sessions, organized by project.
+            Status detection works automatically — no setup needed.
           </p>
-
-          <h2>Getting Started</h2>
-          <ul>
-            <li>Each <strong>project group</strong> in the left sidebar holds its own set of terminal tabs</li>
-            <li>Each <strong>tab</strong> in the top bar is a full terminal session</li>
-            <li>Create a <strong>project group</strong> in the sidebar, then open terminal tabs inside it</li>
-          </ul>
 
           <h2>Projects and Tabs</h2>
           <ul>
-            <li><strong>Rename</strong> by double-clicking, or right-clicking and choosing Rename</li>
-            <li><strong>Reorder</strong> by dragging groups or tabs into place</li>
-            <li><strong>Delete</strong> with the x button on a group or tab</li>
+            <li><strong>Projects</strong> live in the sidebar. Each project holds its own set of terminal tabs.</li>
+            <li><strong>Tabs</strong> run across the top bar. Each tab is its own terminal session.</li>
+            <li><strong>Rename</strong> by double-clicking a project or tab, or right-click and choose Rename</li>
+            <li><strong>Reorder</strong> by dragging projects or tabs into place</li>
+            <li><strong>Close</strong> with the x button</li>
           </ul>
 
           <h2>Server Tabs</h2>
           <ul>
-            <li><strong>Right-click</strong> any tab and choose "Set as Server Terminal" to tag it as a server process</li>
-            <li>Server tabs show a blue dot instead of status colors</li>
-            <li>Great for dev servers, watchers, or anything that runs continuously</li>
-            <li>Right-click again to switch it back to a Claude Code or Codex terminal</li>
+            <li><strong>Right-click</strong> any tab and choose "Set as Server Terminal" to mark it as a long-running process</li>
+            <li>Server tabs show a blue dot instead of AI status colors</li>
+            <li>Useful for dev servers, watchers, or any process that stays running</li>
+            <li>Right-click and choose "Set as AI Terminal" to switch it back</li>
           </ul>
 
           <h2>Status Indicators</h2>
@@ -52,25 +47,22 @@ export default function InfoPanel({ onClose }) {
             <li><span className="info-dot server-running"></span> <strong>Blue</strong> = server (marked as a long-running process)</li>
           </ul>
           <p>
-            The sidebar shows mini dots for all tabs in each group at a glance.
-            You will get a notification and sound when a background tab starts waiting.
+            The sidebar shows a dot summary for each project so you can scan status at a glance.
+            Background tabs trigger a notification and sound when they start waiting.
           </p>
           <p>
-            Working and waiting colors shift with the active theme. The theme chips in Settings preview those status
-            colors so you can see the difference before switching.
-          </p>
-          <p>
-            AI tabs also show a small badge in the tab bar so you can tell Claude Code and Codex apart at a glance.
+            Status colors follow the active theme. The theme chips in Settings preview each
+            theme's colors before you switch.
           </p>
 
           <h2>The Forge Heat System</h2>
           <ul>
-            <li>Respond to waiting AI tabs quickly and the forge heats up through stages 1-5</li>
-            <li>Keep a streak going to reach higher stages as the logo glows and the UI comes alive</li>
-            <li>Stop responding and the forge cools back down</li>
-            <li>The active theme changes the heat ramp swatches shown below</li>
-            <li>Tune streak and cooldown timers in Settings</li>
-            <li>Try <strong>Demo Mode</strong> in Settings to preview all heat stages</li>
+            <li>Respond to waiting tabs quickly to build heat across six stages</li>
+            <li>Keep responding fast to maintain your streak — the UI glows hotter as you climb</li>
+            <li>Stop responding and the forge cools back down over time</li>
+            <li>Heat colors follow the active theme — the swatches below show the current ramp</li>
+            <li>Adjust streak and cooldown timing in Settings &gt; Heat</li>
+            <li>Try <strong>Demo Mode</strong> in Settings to preview all stages</li>
           </ul>
           <div className="info-heat-preview">
             {heatColors.map((color, i) => (
@@ -100,9 +92,9 @@ export default function InfoPanel({ onClose }) {
 
           <h2>Tips</h2>
           <ul>
-            <li>Your layout, tab names, and window position are saved automatically</li>
-            <li>Each tab starts in its last working directory, even after restarting Forge</li>
-            <li>Config is stored at <code>~/.forge/config.json</code></li>
+            <li>Layout, tab names, and window position save automatically</li>
+            <li>Each tab restarts in its last working directory</li>
+            <li>All config is stored at <code>~/.forge/config.json</code></li>
           </ul>
 
           <div className="info-version">Forge v{__APP_VERSION__}</div>

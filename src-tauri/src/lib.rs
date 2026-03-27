@@ -21,6 +21,7 @@ pub fn run() {
             pty::save_clipboard_image,
             config::load_config,
             config::save_config,
+            config::list_repos,
             workspace::pick_workspace_folder,
             workspace::scan_workspace,
             workspace::read_workspace_file,

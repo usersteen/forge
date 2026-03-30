@@ -1,15 +1,15 @@
 :root {
-  --bg-deep: #080c14;
-  --bg-sidebar: #0a0f1a;
-  --bg-active: #111b2e;
-  --border: #1e293b;
+  --bg-deep: #090909;
+  --bg-sidebar: #0d0d0d;
+  --bg-active: #141312;
+  --border: #262220;
   --text-primary: #e2e8f0;
   --text-secondary: #94a3b8;
   --text-muted: #64748b;
   --accent-idle: #64748b;
   --accent-idle-rgb: 100, 116, 139;
-  --accent-active: #60a5fa;
-  --accent-active-rgb: 96, 165, 250;
+  --accent-active: #6a6462;
+  --accent-active-rgb: 106, 100, 98;
   --accent-working: #ef4444;
   --accent-working-rgb: 239, 68, 68;
   --accent-waiting: #f59e0b;
@@ -488,8 +488,8 @@ html, body, #root {
 }
 
 .sidebar-group-badge {
-  border: 1px solid rgba(96, 165, 250, 0.4);
-  background: rgba(96, 165, 250, 0.12);
+  border: 1px solid rgba(var(--accent-active-rgb), 0.4);
+  background: rgba(var(--accent-active-rgb), 0.12);
   color: var(--accent-active);
   font-size: 9px;
   letter-spacing: 0.06em;
@@ -2907,24 +2907,24 @@ body.reader-resizing {
 
 /* Global heat theme overrides */
 [data-heat="0"] {
-  --bg-deep: #080c14;
-  --bg-sidebar: #0a0f1a;
-  --bg-active: #111b2e;
-  --border: #1e293b;
+  --bg-deep: #090909;
+  --bg-sidebar: #0d0d0d;
+  --bg-active: #141312;
+  --border: #262220;
 }
 
 [data-heat="1"] {
-  --bg-deep: #0a0c12;
-  --bg-sidebar: #0d1018;
-  --bg-active: #151a28;
-  --border: #25293a;
+  --bg-deep: #0a0909;
+  --bg-sidebar: #0f0d0c;
+  --bg-active: #171412;
+  --border: #2d2522;
 }
 
 [data-heat="2"] {
-  --bg-deep: #0c0b10;
-  --bg-sidebar: #100e16;
-  --bg-active: #1a1520;
-  --border: #2e2535;
+  --bg-deep: #0c0a09;
+  --bg-sidebar: #110d0c;
+  --bg-active: #1b1513;
+  --border: #322623;
 }
 
 [data-heat="3"] {

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 
 /**
- * Triggers a CSS "flash-waiting" animation when flashKey increments.
+ * Triggers a CSS "flash-waiting" arrival cue when flashKey increments.
  * Returns { elementRef, handleAnimationEnd } to attach to the target element.
  */
 export default function useFlashAnimation(flashKey) {
@@ -20,7 +20,8 @@ export default function useFlashAnimation(flashKey) {
   }, [flashKey]);
 
   const handleAnimationEnd = useCallback((e) => {
-    if (e.animationName === "waiting-flash") {
+    if (e.target !== e.currentTarget) return;
+    if (e.animationName.startsWith("waiting-flash-")) {
       e.currentTarget.classList.remove("flash-waiting");
     }
   }, []);

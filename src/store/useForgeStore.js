@@ -334,29 +334,56 @@ const useForgeStore = create((set, get) => ({
       ),
     })),
 
-  setTabStatus: (tabId, status, title) =>
+  setTabStatus: (tabId, status, title, options = {}) =>
     set((state) => ({
       groups: state.groups.map((group) => {
         const tabIndex = group.tabs.findIndex((tab) => tab.id === tabId);
         if (tabIndex === -1) return group;
         const oldTab = group.tabs[tabIndex];
         const newWaiting = oldTab.status !== "waiting" && status === "waiting";
+        const triggerWaitingAttention = options.triggerWaitingAttention ?? true;
+        const shouldFlashWaiting = newWaiting && triggerWaitingAttention;
         const waitingSince = status === "waiting" ? (oldTab.waitingSince ?? Date.now()) : null;
         const lastEngagedAt =
           status === "working" && oldTab.status === "waiting" ? Date.now() : oldTab.lastEngagedAt;
         const updatedTab = {
           ...oldTab, status, statusTitle: title, waitingSince, lastEngagedAt,
-          waitingFlashKey: newWaiting ? (oldTab.waitingFlashKey ?? 0) + 1 : (oldTab.waitingFlashKey ?? 0),
+          waitingFlashKey: shouldFlashWaiting ? (oldTab.waitingFlashKey ?? 0) + 1 : (oldTab.waitingFlashKey ?? 0),
         };
         const tabs = group.tabs.slice();
         tabs[tabIndex] = updatedTab;
         return {
           ...group,
-          waitingFlashKey: newWaiting ? (group.waitingFlashKey ?? 0) + 1 : (group.waitingFlashKey ?? 0),
+          waitingFlashKey: shouldFlashWaiting ? (group.waitingFlashKey ?? 0) + 1 : (group.waitingFlashKey ?? 0),
           tabs,
         };
       }),
     })),
+
+  triggerWaitingAttention: (tabId) =>
+    set((state) => {
+      const hasTab = state.groups.some((g) =>
+        g.tabs.some((t) => t.id === tabId && t.status === "waiting")
+      );
+      if (!hasTab) return state;
+      return {
+        groups: state.groups.map((group) => {
+          const tabIndex = group.tabs.findIndex((tab) => tab.id === tabId);
+          if (tabIndex === -1) return group;
+          const oldTab = group.tabs[tabIndex];
+          const tabs = group.tabs.slice();
+          tabs[tabIndex] = {
+            ...oldTab,
+            waitingFlashKey: (oldTab.waitingFlashKey ?? 0) + 1,
+          };
+          return {
+            ...group,
+            waitingFlashKey: (group.waitingFlashKey ?? 0) + 1,
+            tabs,
+          };
+        }),
+      };
+    }),
 
   setTabAutoName: (tabId, name) =>
     set((state) => ({

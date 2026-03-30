@@ -1,11 +1,13 @@
 use base64::Engine;
 use portable_pty::{native_pty_system, CommandBuilder, MasterPty, PtySize};
+use serde::Serialize;
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, State};
 
 pub struct PtySession {
+    session_id: String,
     writer: Box<dyn Write + Send>,
     master: Box<dyn MasterPty + Send>,
     child: Box<dyn portable_pty::Child + Send>,
@@ -17,11 +19,32 @@ pub struct PtyState {
     pub sessions: Sessions,
 }
 
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PtyOutputEvent {
+    session_id: String,
+    data: String,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PtyExitEvent {
+    session_id: String,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PtyErrorEvent {
+    session_id: String,
+    error: String,
+}
+
 #[tauri::command]
 pub fn spawn_pty(
     app: AppHandle,
     state: State<'_, PtyState>,
     tab_id: String,
+    session_id: String,
     rows: u16,
     cols: u16,
     cwd: Option<String>,
@@ -47,8 +70,6 @@ pub fn spawn_pty(
         c.arg("-l");
         c
     };
-    // Ensure the PTY advertises full color support so CLI tools
-    // (like Claude Code) render their themed/colored UI.
     cmd.env("TERM", "xterm-256color");
     cmd.env("COLORTERM", "truecolor");
 
@@ -63,34 +84,41 @@ pub fn spawn_pty(
     let mut reader = pair.master.try_clone_reader().map_err(|e| e.to_string())?;
 
     let session = PtySession {
+        session_id: session_id.clone(),
         writer,
         master: pair.master,
         child,
     };
 
-    state
+    let replaced_session = state
         .sessions
         .lock()
         .map_err(|e| e.to_string())?
         .insert(tab_id.clone(), session);
+    if let Some(mut old_session) = replaced_session {
+        let _ = old_session.child.kill();
+    }
 
     let event_name = format!("pty-output-{}", tab_id);
     let exit_event_name = format!("pty-exit-{}", tab_id);
     let error_event_name = format!("pty-error-{}", tab_id);
     let sessions = Arc::clone(&state.sessions);
     let cleanup_tab_id = tab_id.clone();
+    let cleanup_session_id = session_id.clone();
     std::thread::spawn(move || {
         let mut buf = [0u8; 4096];
-        // Carry-over buffer for incomplete UTF-8 sequences split across reads.
         let mut carry = Vec::new();
         loop {
-            // If we have leftover bytes from a previous read, place them at the
-            // start of the buffer so the next read appends after them.
             let offset = carry.len();
             if offset >= buf.len() {
-                // Carry is impossibly large — flush lossy and reset.
                 let data = String::from_utf8_lossy(&carry).to_string();
-                let _ = app.emit(&event_name, data);
+                let _ = app.emit(
+                    &event_name,
+                    PtyOutputEvent {
+                        session_id: session_id.clone(),
+                        data,
+                    },
+                );
                 carry.clear();
                 continue;
             }
@@ -100,45 +128,72 @@ pub fn spawn_pty(
             }
             match reader.read(&mut buf[offset..]) {
                 Ok(0) => {
-                    // Flush any remaining carry bytes before signaling exit.
                     if offset > 0 {
                         let data = String::from_utf8_lossy(&buf[..offset]).to_string();
-                        let _ = app.emit(&event_name, data);
+                        let _ = app.emit(
+                            &event_name,
+                            PtyOutputEvent {
+                                session_id: session_id.clone(),
+                                data,
+                            },
+                        );
                     }
-                    let _ = app.emit(&exit_event_name, "pty-ended");
+                    let _ = app.emit(
+                        &exit_event_name,
+                        PtyExitEvent {
+                            session_id: session_id.clone(),
+                        },
+                    );
                     break;
                 }
                 Ok(n) => {
                     let total = offset + n;
-                    // Find the longest valid UTF-8 prefix. Any trailing bytes
-                    // that form an incomplete character are saved for the next
-                    // read so we never corrupt multi-byte sequences.
                     match std::str::from_utf8(&buf[..total]) {
                         Ok(valid) => {
-                            let _ = app.emit(&event_name, valid.to_string());
+                            let _ = app.emit(
+                                &event_name,
+                                PtyOutputEvent {
+                                    session_id: session_id.clone(),
+                                    data: valid.to_string(),
+                                },
+                            );
                         }
                         Err(e) => {
                             let valid_up_to = e.valid_up_to();
                             if valid_up_to > 0 {
-                                // Safety: from_utf8 confirmed these bytes are valid UTF-8.
-                                let valid = unsafe {
-                                    std::str::from_utf8_unchecked(&buf[..valid_up_to])
-                                };
-                                let _ = app.emit(&event_name, valid.to_string());
+                                let valid = unsafe { std::str::from_utf8_unchecked(&buf[..valid_up_to]) };
+                                let _ = app.emit(
+                                    &event_name,
+                                    PtyOutputEvent {
+                                        session_id: session_id.clone(),
+                                        data: valid.to_string(),
+                                    },
+                                );
                             }
-                            // Save the trailing incomplete bytes for the next iteration.
                             carry.extend_from_slice(&buf[valid_up_to..total]);
                         }
                     }
                 }
                 Err(err) => {
-                    let _ = app.emit(&error_event_name, err.to_string());
+                    let _ = app.emit(
+                        &error_event_name,
+                        PtyErrorEvent {
+                            session_id: session_id.clone(),
+                            error: err.to_string(),
+                        },
+                    );
                     break;
                 }
             }
         }
         if let Ok(mut sessions) = sessions.lock() {
-            sessions.remove(&cleanup_tab_id);
+            let should_remove = sessions
+                .get(&cleanup_tab_id)
+                .map(|session| session.session_id == cleanup_session_id)
+                .unwrap_or(false);
+            if should_remove {
+                sessions.remove(&cleanup_tab_id);
+            }
         }
     });
 
@@ -146,11 +201,19 @@ pub fn spawn_pty(
 }
 
 #[tauri::command]
-pub fn write_pty(state: State<'_, PtyState>, tab_id: String, data: String) -> Result<(), String> {
+pub fn write_pty(
+    state: State<'_, PtyState>,
+    tab_id: String,
+    session_id: String,
+    data: String,
+) -> Result<(), String> {
     let mut sessions = state.sessions.lock().map_err(|e| e.to_string())?;
     let session = sessions
         .get_mut(&tab_id)
         .ok_or_else(|| format!("no session for tab {}", tab_id))?;
+    if session.session_id != session_id {
+        return Err(format!("stale session for tab {}", tab_id));
+    }
     session
         .writer
         .write_all(data.as_bytes())
@@ -163,6 +226,7 @@ pub fn write_pty(state: State<'_, PtyState>, tab_id: String, data: String) -> Re
 pub fn resize_pty(
     state: State<'_, PtyState>,
     tab_id: String,
+    session_id: String,
     rows: u16,
     cols: u16,
 ) -> Result<(), String> {
@@ -170,6 +234,9 @@ pub fn resize_pty(
     let session = sessions
         .get(&tab_id)
         .ok_or_else(|| format!("no session for tab {}", tab_id))?;
+    if session.session_id != session_id {
+        return Err(format!("stale session for tab {}", tab_id));
+    }
     session
         .master
         .resize(PtySize {
@@ -183,16 +250,18 @@ pub fn resize_pty(
 }
 
 #[tauri::command]
-pub fn kill_pty(state: State<'_, PtyState>, tab_id: String) -> Result<(), String> {
+pub fn kill_pty(state: State<'_, PtyState>, tab_id: String, session_id: String) -> Result<(), String> {
     let mut sessions = state.sessions.lock().map_err(|e| e.to_string())?;
     if let Some(mut session) = sessions.remove(&tab_id) {
-        let _ = session.child.kill();
+        if session.session_id == session_id {
+            let _ = session.child.kill();
+        } else {
+            sessions.insert(tab_id, session);
+        }
     }
     Ok(())
 }
 
-/// Save a base64-encoded image to a temp file and return the path.
-/// Used for pasting clipboard images into Claude Code / Codex.
 #[tauri::command]
 pub fn save_clipboard_image(data_base64: String, mime: String) -> Result<String, String> {
     let bytes = base64::engine::general_purpose::STANDARD

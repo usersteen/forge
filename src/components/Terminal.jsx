@@ -25,6 +25,8 @@ const CODEX_WORKING_FOOTER_PATTERN = /\besc to interrupt\b/i;
 const CODEX_WAITING_FOOTER_PATTERNS = [/\bpress enter to confirm\b/i, /\besc to go back\b/i];
 const CODEX_WAITING_OPTION_PATTERN = /^\s*\d+\.\s+/m;
 const CODEX_REPLY_TO_WORKING_MS = 10000;
+const CODEX_WAITING_CONFIRM_MS = 900;
+const CODEX_WAITING_ATTENTION_COOLDOWN_MS = 4000;
 const HUMAN_INPUT_PAUSE_MS = 5000;
 const TERMINAL_NOTICE_MS = 6000;
 const TERMINAL_RECOVERY_MESSAGE = "Open a new terminal tab and rerun the command you were using.";
@@ -170,15 +172,21 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
     at: 0,
   });
   const recentCodexReplyAtRef = useRef(0);
+  const codexWaitingAttentionRef = useRef({
+    pendingTimer: null,
+    lastAnnouncedAt: 0,
+  });
   const codexTitleStatusRef = useRef({
     supported: false,
     lastSeenAt: 0,
   });
 
   useEffect(() => {
+    const sessionId = crypto.randomUUID();
     let isTearingDown = false;
     let humanInputPauseTimeout;
     let humanInputPauseActive = false;
+    let debugScenarioTimers = [];
 
     const logCodexDebug = (event, details = {}) => {
       const snapshot = getTabSnapshot(useForgeStore.getState(), tabId);
@@ -207,7 +215,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       clearLaunchTimer();
       useForgeStore.getState().clearTabLaunchCommand(tabId);
       handleSubmittedCommand(initialLaunchCommand);
-      invoke("write_pty", { tabId, data: `${initialLaunchCommand}\r` }).catch((error) => {
+      invoke("write_pty", { tabId, sessionId, data: `${initialLaunchCommand}\r` }).catch((error) => {
         if (isTearingDown) return;
         console.error("Failed to send launch command to PTY:", error);
         handlePtyDisconnect(
@@ -337,6 +345,8 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       const snapshot = getTabSnapshot(useForgeStore.getState(), tabId);
       if (!snapshot || snapshot.tab.type === "server") return;
 
+      clearPendingCodexWaitingAttention();
+
       if (!humanInputPauseActive) {
         humanInputPauseActive = true;
         useForgeStore.getState().startHeatPause(`typing:${tabId}`);
@@ -349,6 +359,27 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
         humanInputPauseActive = false;
         useForgeStore.getState().stopHeatPause(`typing:${tabId}`);
       }, HUMAN_INPUT_PAUSE_MS);
+    };
+
+    const clearPendingCodexWaitingAttention = () => {
+      const pendingTimer = codexWaitingAttentionRef.current.pendingTimer;
+      if (!pendingTimer) return;
+      clearTimeout(pendingTimer);
+      codexWaitingAttentionRef.current.pendingTimer = null;
+    };
+
+    const clearDebugScenarioTimers = () => {
+      debugScenarioTimers.forEach((timer) => clearTimeout(timer));
+      debugScenarioTimers = [];
+    };
+
+    const scheduleDebugStep = (delayMs, action) => {
+      const timer = setTimeout(() => {
+        debugScenarioTimers = debugScenarioTimers.filter((entry) => entry !== timer);
+        if (isTearingDown) return;
+        action();
+      }, delayMs);
+      debugScenarioTimers.push(timer);
     };
 
     const maybeNotifyWaiting = (store, tab) => {
@@ -365,6 +396,52 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       if (!isCurrentlyActive && Notification.permission === "granted") {
         new Notification("Forge", { body: "A terminal needs your attention" });
       }
+    };
+
+    const maybeAnnounceWaitingAttention = (store, tab, options = {}) => {
+      const { enforceCooldown = false } = options;
+      if (tab.type === "server") return false;
+
+      if (enforceCooldown) {
+        const now = Date.now();
+        const msSinceLastAnnouncement = now - codexWaitingAttentionRef.current.lastAnnouncedAt;
+        const hasReplySinceLastAnnouncement =
+          recentCodexReplyAtRef.current > codexWaitingAttentionRef.current.lastAnnouncedAt;
+        if (msSinceLastAnnouncement < CODEX_WAITING_ATTENTION_COOLDOWN_MS && !hasReplySinceLastAnnouncement) {
+          logCodexDebug("waiting-attention-suppressed", {
+            cooldownMs: CODEX_WAITING_ATTENTION_COOLDOWN_MS,
+            msSinceLastAnnouncement,
+            hasReplySinceLastAnnouncement,
+            statusTitle: tab.statusTitle,
+          });
+          return false;
+        }
+        codexWaitingAttentionRef.current.lastAnnouncedAt = now;
+      }
+
+      store.triggerWaitingAttention(tabId);
+      maybeNotifyWaiting(store, tab);
+      return true;
+    };
+
+    const scheduleCodexWaitingAttention = () => {
+      clearPendingCodexWaitingAttention();
+      codexWaitingAttentionRef.current.pendingTimer = setTimeout(() => {
+        codexWaitingAttentionRef.current.pendingTimer = null;
+        const store = useForgeStore.getState();
+        const snapshot = getTabSnapshot(store, tabId);
+        if (!snapshot) return;
+        if (detectorRef.current.provider !== "codex") return;
+        if (snapshot.tab.status !== "waiting") {
+          logCodexDebug("waiting-attention-cancelled", {
+            tabStatus: snapshot.tab.status,
+            statusTitle: snapshot.tab.statusTitle,
+          });
+          return;
+        }
+
+        maybeAnnounceWaitingAttention(store, snapshot.tab, { enforceCooldown: true });
+      }, CODEX_WAITING_CONFIRM_MS);
     };
 
     const syncServerSuggestion = (plainText = "") => {
@@ -407,13 +484,27 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       prevStatusRef.current = status;
       console.log(`[Forge] status: ${prevStatus} -> ${status}`);
 
+      if (status !== "waiting") {
+        clearPendingCodexWaitingAttention();
+      }
+
       if (countResponse && prevStatus === "waiting" && status === "working" && tab.type !== "server") {
         store.recordResponse(tabId);
       }
 
-      store.setTabStatus(tabId, status, nextTitle);
+      const shouldAnnounceWaiting = notifyWaiting && status === "waiting" && prevStatus !== "waiting";
+      const shouldDelayCodexWaitingAnnouncement =
+        detectorRef.current.provider === "codex" && shouldAnnounceWaiting;
 
-      if (notifyWaiting && status === "waiting" && prevStatus !== "waiting") {
+      store.setTabStatus(tabId, status, nextTitle, {
+        triggerWaitingAttention: shouldAnnounceWaiting && !shouldDelayCodexWaitingAnnouncement,
+      });
+
+      if (shouldAnnounceWaiting) {
+        if (shouldDelayCodexWaitingAnnouncement) {
+          scheduleCodexWaitingAttention();
+          return;
+        }
         maybeNotifyWaiting(store, tab);
       }
     };
@@ -623,6 +714,8 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
     const handleSubmittedCommand = (command) => {
       if (!command) return;
 
+      clearPendingCodexWaitingAttention();
+
       const detector = detectorRef.current;
       const codexLaunchMode = getCodexLaunchMode(command);
       if (codexLaunchMode) {
@@ -638,6 +731,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
         codexDebugRef.current.recentText = "";
         codexDebugRef.current.lastBellByteAt = null;
         codexDebugRef.current.lastBellEventAt = null;
+        codexWaitingAttentionRef.current.lastAnnouncedAt = 0;
         logCodexDebug("command-submitted", {
           command,
           launchMode: codexLaunchMode,
@@ -691,6 +785,108 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       scheduleCodexIdleCheck();
     };
 
+    const ensureDebugCodexProvider = () => {
+      detectorRef.current.provider = "codex";
+      useForgeStore.getState().setTabProvider(tabId, "codex");
+    };
+
+    const simulateCodexStatus = (status, title = "", options = {}) => {
+      ensureDebugCodexProvider();
+      detectorRef.current.awaitingUser = status === "waiting";
+      if (status === "waiting") {
+        recentCodexReplyAtRef.current = 0;
+      }
+      applyDetectedStatus(
+        status,
+        title || (status === "waiting" ? "Codex needs attention" : "Codex working"),
+        options
+      );
+    };
+
+    const simulateCodexReply = (command = "debug reply") => {
+      ensureDebugCodexProvider();
+      detectorRef.current.awaitingUser = false;
+      recentCodexReplyAtRef.current = Date.now();
+      rememberRecentCodexInput(command);
+      applyDetectedStatus("working", summarizeStatusText(command, "Debug reply"), { notifyWaiting: false });
+    };
+
+    const runCodexDebugScenario = (scenario = "hiccup") => {
+      clearDebugScenarioTimers();
+      clearPendingCodexWaitingAttention();
+
+      if (scenario === "hiccup") {
+        simulateCodexStatus("working", "Debug: command running", { notifyWaiting: false });
+        scheduleDebugStep(80, () => simulateCodexStatus("waiting", "Debug: spinner hiccup"));
+        scheduleDebugStep(380, () => simulateCodexStatus("working", "Debug: command resumed", { notifyWaiting: false }));
+        return { ok: true, scenario };
+      }
+
+      if (scenario === "real-waiting") {
+        simulateCodexStatus("working", "Debug: command running", { notifyWaiting: false });
+        scheduleDebugStep(80, () => simulateCodexStatus("waiting", "Debug: needs input"));
+        return { ok: true, scenario };
+      }
+
+      if (scenario === "repeat-churn") {
+        simulateCodexStatus("working", "Debug: command running", { notifyWaiting: false });
+        scheduleDebugStep(80, () => simulateCodexStatus("waiting", "Debug: first wait"));
+        scheduleDebugStep(1700, () => simulateCodexStatus("working", "Debug: resumed", { notifyWaiting: false }));
+        scheduleDebugStep(1850, () => simulateCodexStatus("waiting", "Debug: false re-wait"));
+        scheduleDebugStep(2250, () => simulateCodexStatus("working", "Debug: resumed again", { notifyWaiting: false }));
+        scheduleDebugStep(2400, () => simulateCodexStatus("waiting", "Debug: still waiting"));
+        return { ok: true, scenario };
+      }
+
+      if (scenario === "reply-then-waiting") {
+        simulateCodexStatus("waiting", "Debug: initial wait", { notifyWaiting: false });
+        scheduleDebugStep(100, () => simulateCodexReply("debug follow-up"));
+        scheduleDebugStep(260, () => simulateCodexStatus("waiting", "Debug: new wait after reply"));
+        return { ok: true, scenario };
+      }
+
+      return { ok: false, error: `Unknown scenario: ${scenario}` };
+    };
+
+    if (import.meta.env.DEV && typeof window !== "undefined") {
+      const debugWindow = window;
+      const forgeDebug = debugWindow.forgeDebug || (debugWindow.forgeDebug = {});
+      const terminals = forgeDebug.terminals || (forgeDebug.terminals = {});
+
+      terminals[tabId] = {
+        getInfo: () => {
+          const snapshot = getTabSnapshot(useForgeStore.getState(), tabId);
+          return {
+            tabId,
+            name: snapshot?.tab.name || "",
+            status: snapshot?.tab.status || prevStatusRef.current,
+            provider: snapshot?.tab.provider || detectorRef.current.provider,
+            active: Boolean(snapshot && snapshot.group.activeTabId === tabId && useForgeStore.getState().activeGroupId === snapshot.group.id),
+          };
+        },
+        simulateCodexStatus,
+        simulateCodexReply,
+        runScenario: runCodexDebugScenario,
+      };
+
+      forgeDebug.listTerminals = () =>
+        Object.values(forgeDebug.terminals || {}).map((terminal) => terminal.getInfo());
+
+      forgeDebug.getActiveTerminal = () =>
+        forgeDebug.listTerminals().find((terminal) => terminal.active) || null;
+
+      forgeDebug.simulateCodex = (scenario = "hiccup", targetTabId = null) => {
+        const activeTerminal = forgeDebug.getActiveTerminal();
+        const terminal =
+          (targetTabId && forgeDebug.terminals?.[targetTabId]) ||
+          (activeTerminal && forgeDebug.terminals?.[activeTerminal.tabId]);
+        if (!terminal) {
+          return { ok: false, error: "No active Forge terminal found." };
+        }
+        return terminal.runScenario(scenario);
+      };
+    }
+
     const term = new XTerm({
       cursorBlink: true,
       fontFamily: "'IBM Plex Mono', 'Cascadia Code', 'Consolas', monospace",
@@ -738,13 +934,15 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
     }
 
     const unlistenOutput = listen(`pty-output-${tabId}`, (event) => {
+      if (event.payload?.sessionId !== sessionId) return;
       clearPersistentNotice();
-      term.write(event.payload);
+      term.write(event.payload.data);
       triggerInitialLaunch();
-      syncServerSuggestion(extractPlainText(event.payload));
-      handleCodexOutput(event.payload);
+      syncServerSuggestion(extractPlainText(event.payload.data));
+      handleCodexOutput(event.payload.data);
     });
-    const unlistenExit = listen(`pty-exit-${tabId}`, () => {
+    const unlistenExit = listen(`pty-exit-${tabId}`, (event) => {
+      if (event.payload?.sessionId !== sessionId) return;
       if (isTearingDown) return;
       handlePtyDisconnect(
         "Terminal session ended",
@@ -753,17 +951,19 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       );
     });
     const unlistenError = listen(`pty-error-${tabId}`, (event) => {
+      if (event.payload?.sessionId !== sessionId) return;
       if (isTearingDown) return;
       handlePtyDisconnect(
         "Terminal session lost",
         `Forge lost the connection to this shell. ${TERMINAL_RECOVERY_MESSAGE}`,
-        event.payload ? String(event.payload) : cwd ? `Working directory: ${cwd}` : ""
+        event.payload?.error ? String(event.payload.error) : cwd ? `Working directory: ${cwd}` : ""
       );
     });
     const bellListener = term.onBell(handleBell);
 
-    invoke("spawn_pty", { tabId, rows: term.rows, cols: term.cols, cwd: cwd || null })
+    invoke("spawn_pty", { tabId, sessionId, rows: term.rows, cols: term.cols, cwd: cwd || null })
       .then(() => {
+        if (isTearingDown) return;
         ptyReady.current = true;
         clearNotice();
         const initialLaunchCommand = initialLaunchCommandRef.current;
@@ -791,7 +991,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       }
 
       if (ptyReady.current) {
-        invoke("write_pty", { tabId, data }).catch((error) => {
+        invoke("write_pty", { tabId, sessionId, data }).catch((error) => {
           if (isTearingDown) return;
           console.error("Failed to write to PTY:", error);
           handlePtyDisconnect(
@@ -838,7 +1038,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       if (e.ctrlKey && e.key === "Enter") {
         if (ptyReady.current) {
           noteHumanInput();
-          invoke("write_pty", { tabId, data: "\n" }).catch((error) => {
+          invoke("write_pty", { tabId, sessionId, data: "\n" }).catch((error) => {
             if (isTearingDown) return;
             console.error("Failed to send Ctrl+Enter to PTY:", error);
             handlePtyDisconnect(
@@ -859,7 +1059,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
     });
 
     term.onResize(({ cols, rows }) => {
-      invoke("resize_pty", { tabId, rows, cols }).catch((error) => {
+      invoke("resize_pty", { tabId, sessionId, rows, cols }).catch((error) => {
         if (isTearingDown || !ptyReady.current) return;
         console.error("Failed to resize PTY:", error);
         handlePtyDisconnect(
@@ -951,7 +1151,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
                   if (!ptyReady.current) return;
                   noteHumanInput();
                   const bracketed = `\x1b[200~${filePath}\x1b[201~`;
-                  invoke("write_pty", { tabId, data: bracketed }).catch((error) => {
+                  invoke("write_pty", { tabId, sessionId, data: bracketed }).catch((error) => {
                     if (isTearingDown) return;
                     console.error("Failed to paste image path into PTY:", error);
                   });
@@ -971,7 +1171,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       if (text) {
         noteHumanInput();
         const bracketed = `\x1b[200~${text}\x1b[201~`;
-        invoke("write_pty", { tabId, data: bracketed }).catch((error) => {
+        invoke("write_pty", { tabId, sessionId, data: bracketed }).catch((error) => {
           if (isTearingDown) return;
           console.error("Failed to paste into PTY:", error);
           handlePtyDisconnect(
@@ -988,6 +1188,8 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       isTearingDown = true;
       bellListener.dispose();
       clearCodexIdleTimeout();
+      clearPendingCodexWaitingAttention();
+      clearDebugScenarioTimers();
       clearLaunchTimer();
       stopHumanInputPause();
       clearNoticeTimer();
@@ -999,7 +1201,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       unlistenError.then((unlisten) => unlisten());
       webglContextLossListener?.dispose?.();
       webglAddon?.dispose?.();
-      invoke("kill_pty", { tabId });
+      invoke("kill_pty", { tabId, sessionId });
       term.dispose();
       fitAddonRef.current = null;
       termRef.current = null;
@@ -1011,6 +1213,13 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
         lastBellByteAt: null,
         lastBellEventAt: null,
       };
+      codexWaitingAttentionRef.current = {
+        pendingTimer: null,
+        lastAnnouncedAt: 0,
+      };
+      if (import.meta.env.DEV && typeof window !== "undefined" && window.forgeDebug?.terminals) {
+        delete window.forgeDebug.terminals[tabId];
+      }
       detectorRef.current = { provider: "unknown", awaitingUser: false };
       recentCodexInputRef.current = { summary: "", at: 0 };
       recentCodexReplyAtRef.current = 0;

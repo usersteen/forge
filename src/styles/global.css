@@ -88,7 +88,7 @@ html, body, #root {
   border-radius: 50%;
   flex-shrink: 0;
   background: var(--accent-idle);
-  transition: background-color 0.35s ease, box-shadow 0.35s ease;
+  transition: background-color 0.35s ease, box-shadow 0.35s ease, transform 0.35s ease;
 }
 
 .status-dot.working {
@@ -100,7 +100,7 @@ html, body, #root {
 }
 
 .sidebar-dot {
-  transition: background-color 0.35s ease, box-shadow 0.35s ease;
+  transition: background-color 0.35s ease, box-shadow 0.35s ease, transform 0.35s ease;
 }
 
 .status-dot.waiting {
@@ -182,18 +182,123 @@ html, body, #root {
   }
 }
 
-/* Waiting flash — 2-cycle transient pulse on status transition */
-@keyframes waiting-flash {
-  0%   { background-color: transparent; }
-  25%  { background-color: rgba(var(--accent-waiting-rgb), 0.25); }
-  50%  { background-color: transparent; }
-  75%  { background-color: rgba(var(--accent-waiting-rgb), 0.25); }
-  100% { background-color: transparent; }
+/* Waiting arrival cue - a restrained edge pulse instead of a full-surface flash */
+@keyframes waiting-flash-tab {
+  0% {
+    opacity: 0;
+    transform: scaleX(0.45);
+    box-shadow: 0 0 0 rgba(var(--accent-waiting-rgb), 0);
+  }
+  18% {
+    opacity: 0.95;
+    transform: scaleX(1);
+    box-shadow: 0 0 14px rgba(var(--accent-waiting-rgb), 0.34);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleX(1);
+    box-shadow: 0 0 2px rgba(var(--accent-waiting-rgb), 0);
+  }
 }
 
-.sidebar-group.flash-waiting,
-.tab.flash-waiting {
-  animation: waiting-flash 0.8s ease-out;
+@keyframes waiting-flash-sidebar {
+  0% {
+    opacity: 0;
+    transform: scaleY(0.42);
+    box-shadow: 0 0 0 rgba(var(--accent-waiting-rgb), 0);
+  }
+  18% {
+    opacity: 0.95;
+    transform: scaleY(1);
+    box-shadow: 0 0 14px rgba(var(--accent-waiting-rgb), 0.32);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleY(1);
+    box-shadow: 0 0 2px rgba(var(--accent-waiting-rgb), 0);
+  }
+}
+
+@keyframes waiting-flash-dot {
+  0% {
+    transform: scale(1);
+    box-shadow: none;
+  }
+  22% {
+    transform: scale(1.32);
+    box-shadow:
+      0 0 0 4px rgba(var(--accent-waiting-rgb), 0.14),
+      0 0 12px rgba(var(--accent-waiting-rgb), 0.26);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: none;
+  }
+}
+
+@keyframes waiting-flash-fill {
+  0% {
+    box-shadow: inset 0 0 0 0 rgba(var(--accent-waiting-rgb), 0);
+  }
+  24% {
+    box-shadow: inset 0 0 0 999px rgba(var(--accent-waiting-rgb), 0.14);
+  }
+  58% {
+    box-shadow: inset 0 0 0 999px rgba(var(--accent-waiting-rgb), 0.1);
+  }
+  100% {
+    box-shadow: inset 0 0 0 0 rgba(var(--accent-waiting-rgb), 0);
+  }
+}
+
+.tab.flash-waiting,
+.sidebar-group.flash-waiting {
+  animation: waiting-flash-fill 1.95s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.tab.flash-waiting::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: -3px;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(var(--accent-waiting-rgb), 0.78) 16%,
+    rgba(var(--accent-waiting-rgb), 0.92) 50%,
+    rgba(var(--accent-waiting-rgb), 0.78) 84%,
+    transparent 100%
+  );
+  transform-origin: center;
+  pointer-events: none;
+  animation: waiting-flash-tab 1.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sidebar-group.flash-waiting::after {
+  content: "";
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  right: 0;
+  width: 3px;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(var(--accent-waiting-rgb), 0.78) 18%,
+    rgba(var(--accent-waiting-rgb), 0.92) 50%,
+    rgba(var(--accent-waiting-rgb), 0.78) 82%,
+    transparent 100%
+  );
+  transform-origin: center;
+  pointer-events: none;
+  animation: waiting-flash-sidebar 1.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.tab.flash-waiting .status-dot.waiting,
+.sidebar-group.flash-waiting .sidebar-dot.waiting {
+  animation: waiting-flash-dot 1.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Sidebar */
@@ -330,10 +435,11 @@ html, body, #root {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  position: relative;
   padding: 10px 16px;
   cursor: pointer;
   border-right: 3px solid transparent;
-  transition: background 0.1s;
+  transition: background 0.1s, border-right-color 0.18s ease;
   touch-action: none;
 }
 
@@ -664,12 +770,13 @@ html, body, #root {
   display: flex;
   align-items: center;
   gap: 8px;
+  position: relative;
   padding: 0 12px;
   cursor: pointer;
   border-bottom: 3px solid transparent;
   white-space: nowrap;
   color: var(--text-secondary);
-  transition: background 0.1s, color 0.1s;
+  transition: background 0.1s, color 0.1s, border-bottom-color 0.18s ease;
   min-width: 0;
   touch-action: none;
 }

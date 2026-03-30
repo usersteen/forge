@@ -1,14 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 import useForgeStore from "../store/useForgeStore";
-import useEffectiveHeatStage from "../hooks/useEffectiveHeatStage";
-import { getEmberStyle } from "../utils/heat";
+import ParticleCanvas from "./ParticleCanvas";
 import { renderMarkdown } from "../utils/markdown";
 
-const DOCUMENT_TAB_EMBER_CONFIGS = {
-  4: [8, 22, 36, 50, 64, 78, 92],
-  5: [4, 11, 18, 25, 32, 39, 46, 53, 60, 67, 74, 81, 88, 95],
-};
 
 function formatBytes(value) {
   if (value == null) return null;
@@ -49,12 +44,8 @@ export default function DocumentViewer() {
   const setActiveDocument = useForgeStore((state) => state.setActiveDocument);
   const closeDocument = useForgeStore((state) => state.closeDocument);
   const setDocumentState = useForgeStore((state) => state.setDocumentState);
-  const theme = useForgeStore((state) => state.theme);
-  const fxEnabled = useForgeStore((state) => state.fxEnabled);
-
   const activeGroup = groups.find((group) => group.id === activeGroupId);
   const documentStateMap = documentStateByGroup[activeGroupId] || {};
-  const heatStage = useEffectiveHeatStage();
   const activeDocument = activeGroup?.openDocuments.find(
     (document) => document.path === activeGroup.activeDocumentPath
   );
@@ -138,18 +129,6 @@ export default function DocumentViewer() {
   const isReloading = Boolean(activeDocument && reloadingByPath[activeDocument.path]);
   const saveError = activeDocument ? saveErrorsByPath[activeDocument.path] : "";
   const isDirty = Boolean(isMarkdown && activeDocument && editorValue !== activeContent);
-  const documentTabEmbers = useMemo(() => {
-    if (!fxEnabled) return null;
-    const positions = DOCUMENT_TAB_EMBER_CONFIGS[heatStage];
-    if (!positions) return null;
-    return positions.map((left, i) => (
-      <span
-        key={`dt-${i}`}
-        className="forge-ember-wide document-viewer-ember"
-        style={{ left: `${left}%`, animationDelay: `${(i * 0.3) % 2}s`, ...getEmberStyle(i, theme) }}
-      />
-    ));
-  }, [fxEnabled, heatStage, theme]);
 
   const dirtyPaths = useMemo(() => {
     const result = new Set();
@@ -354,7 +333,7 @@ export default function DocumentViewer() {
     >
       <div className="document-viewer-header">
         <div className="document-viewer-tab-bar">
-          {documentTabEmbers ? <div className="forge-ember-layer forge-ember-layer-document-tabs">{documentTabEmbers}</div> : null}
+          <ParticleCanvas location="documentTabs" />
           <div className="document-viewer-tabs">
             {activeGroup.openDocuments.map((document) => (
               <div

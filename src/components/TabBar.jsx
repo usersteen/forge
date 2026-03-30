@@ -5,21 +5,17 @@ import { CSS } from "@dnd-kit/utilities";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import useForgeStore from "../store/useForgeStore";
 import useInlineRename from "../hooks/useInlineRename";
-import useEffectiveHeatStage from "../hooks/useEffectiveHeatStage";
+import useFlashAnimation from "../hooks/useFlashAnimation";
 import useRecencyTick from "../hooks/useRecencyTick";
 import NewTabMenu from "./NewTabMenu";
 import ProjectExplorer from "./ProjectExplorer";
 import TabContextMenu from "./TabContextMenu";
-import { getEmberStyle } from "../utils/heat";
+import ParticleCanvas from "./ParticleCanvas";
 
 
 const appWindow = getCurrentWindow();
 const IS_MACOS = navigator.platform.startsWith("Mac");
 
-const TABBAR_EMBER_CONFIGS = {
-  4: [6, 18, 30, 42, 54, 66, 78, 90],
-  5: [3, 10, 17, 24, 31, 38, 45, 52, 59, 66, 73, 80, 87, 94],
-};
 
 function getStatusDotClass(tab, isRecent) {
   if (tab.type === "server") {
@@ -52,8 +48,9 @@ function getRenameSeed(tab) {
 
 function SortableTab({ tab, isActive, isRecent, onSelect, onDoubleClick, onContextMenu, editingId, inputProps, onClose }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: tab.id });
+  const { elementRef: tabRef, handleAnimationEnd } = useFlashAnimation(tab.waitingFlashKey);
   const style = {
-    transform: transform ? CSS.Transform.toString({ ...transform, y: 0, scaleY: 1 }) : undefined,
+    transform: transform ? CSS.Transform.toString({ ...transform, y: 0, scaleX: 1, scaleY: 1 }) : undefined,
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
@@ -63,7 +60,7 @@ function SortableTab({ tab, isActive, isRecent, onSelect, onDoubleClick, onConte
 
   return (
     <div
-      ref={setNodeRef}
+      ref={(node) => { setNodeRef(node); tabRef.current = node; }}
       style={style}
       {...attributes}
       {...listeners}
@@ -71,6 +68,7 @@ function SortableTab({ tab, isActive, isRecent, onSelect, onDoubleClick, onConte
       onClick={onSelect}
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
+      onAnimationEnd={handleAnimationEnd}
     >
       <span className={getStatusDotClass(tab, isRecent)} />
       {providerBadge ? (
@@ -107,8 +105,8 @@ export default function TabBar({ onRefreshWorkspace }) {
   const reorderTabs = useForgeStore((s) => s.reorderTabs);
   const updateTabTerminal = useForgeStore((s) => s.updateTabTerminal);
   const theme = useForgeStore((s) => s.theme);
-  const fxEnabled = useForgeStore((s) => s.fxEnabled);
-
+  const tourActive = useForgeStore((s) => s.tourActive);
+  const tourExpandedPanel = useForgeStore((s) => s.tourExpandedPanel);
   const tabRecencyMinutes = useForgeStore((s) => s.tabRecencyMinutes);
 
   const [contextMenu, setContextMenu] = useState(null);
@@ -153,21 +151,6 @@ export default function TabBar({ onRefreshWorkspace }) {
     reorderTabs(activeGroupId, newIds);
   };
 
-  const heatStage = useEffectiveHeatStage();
-
-  const tabBarEmbers = useMemo(() => {
-    if (!fxEnabled) return null;
-    const positions = TABBAR_EMBER_CONFIGS[heatStage];
-    if (!positions) return null;
-    return positions.map((left, i) => (
-      <span
-        key={`tb-${i}`}
-        className="forge-ember-wide"
-        style={{ left: `${left}%`, animationDelay: `${(i * 0.3) % 2}s`, ...getEmberStyle(i, theme) }}
-      />
-    ));
-  }, [fxEnabled, heatStage, theme]);
-
   const repoLabel = useMemo(() => {
     if (!activeGroup?.rootPath) return "Set Repo Path";
     const segments = activeGroup.rootPath.split("/");
@@ -175,7 +158,7 @@ export default function TabBar({ onRefreshWorkspace }) {
   }, [activeGroup?.rootPath]);
 
   useEffect(() => {
-    if (!repoOpen) return;
+    if (!repoOpen || tourActive) return;
 
     const handlePointerDown = (event) => {
       if (repoPanelRef.current?.contains(event.target)) return;
@@ -194,18 +177,37 @@ export default function TabBar({ onRefreshWorkspace }) {
       window.removeEventListener("pointerdown", handlePointerDown);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [repoOpen]);
+  }, [repoOpen, tourActive]);
+
+  // Sync tour-driven panel expansion
+  useEffect(() => {
+    if (!tourActive) {
+      setNewTabMenu(null);
+      setRepoOpen(false);
+      return;
+    }
+    if (tourExpandedPanel === "new-tab-menu" && addButtonRef.current) {
+      const rect = addButtonRef.current.getBoundingClientRect();
+      setNewTabMenu({ x: rect.left, y: rect.bottom + 6 });
+    } else {
+      setNewTabMenu(null);
+    }
+    setRepoOpen(tourExpandedPanel === "project-explorer");
+  }, [tourActive, tourExpandedPanel]);
 
   useEffect(() => {
     setContextMenu(null);
     setNewTabMenu(null);
   }, [activeGroupId]);
 
+  const NOOP = useCallback(() => {}, []);
+
   if (!activeGroup) return null;
 
   return (
     <div
       className="tab-bar"
+      data-tour="tab-bar"
       onMouseDown={(event) => {
         if (event.target.closest(".tab-bar-leading, .tab, .tab-add, .window-control, button, input")) {
           return;
@@ -213,10 +215,11 @@ export default function TabBar({ onRefreshWorkspace }) {
         appWindow.startDragging();
       }}
     >
-      {tabBarEmbers ? <div className="forge-ember-layer forge-ember-layer-tabbar">{tabBarEmbers}</div> : null}
+      <ParticleCanvas location="tabbar" />
       <div className="tab-bar-leading" ref={repoPanelRef}>
         <button
           className={`repo-trigger ${repoOpen ? "repo-trigger-active" : ""}`}
+          data-tour="repo-trigger"
           onPointerDown={(event) => event.stopPropagation()}
           onClick={() => setRepoOpen((value) => !value)}
         >
@@ -224,13 +227,14 @@ export default function TabBar({ onRefreshWorkspace }) {
         </button>
         <ProjectExplorer
           open={repoOpen}
-          onClose={() => setRepoOpen(false)}
+          onClose={tourActive ? NOOP : () => setRepoOpen(false)}
           onRefresh={onRefreshWorkspace}
+          tourElevated={tourActive}
         />
       </div>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={activeGroup.tabs.map((t) => t.id)} strategy={horizontalListSortingStrategy}>
-          <div className="tab-list">
+          <div className="tab-list" data-tour="tab-list">
             {activeGroup.tabs.map((tab) => (
               <SortableTab
                 key={tab.id}
@@ -259,6 +263,7 @@ export default function TabBar({ onRefreshWorkspace }) {
             <button
               ref={addButtonRef}
               className="tab-add"
+              data-tour="tab-add"
               aria-label="Open new tab menu"
               aria-haspopup="menu"
               aria-expanded={Boolean(newTabMenu)}
@@ -323,8 +328,9 @@ export default function TabBar({ onRefreshWorkspace }) {
           x={newTabMenu.x}
           y={newTabMenu.y}
           rootPath={activeGroup.rootPath}
-          onSelect={(tabOptions) => addTab(activeGroupId, tabOptions)}
-          onClose={() => setNewTabMenu(null)}
+          tourElevated={tourActive}
+          onSelect={tourActive ? NOOP : (tabOptions) => addTab(activeGroupId, tabOptions)}
+          onClose={tourActive ? NOOP : () => setNewTabMenu(null)}
         />
       )}
     </div>

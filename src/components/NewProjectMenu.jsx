@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import useEscapeKey from "../hooks/useEscapeKey";
 import useForgeStore from "../store/useForgeStore";
 
-export default function NewProjectMenu({ x, y, onSelect, onClose }) {
+export default function NewProjectMenu({ x, y, onSelect, onClose, tourElevated }) {
   const menuRef = useRef(null);
   const [inputValue, setInputValue] = useState("");
   const [menuStyle, setMenuStyle] = useState({ left: x, top: y, opacity: 0 });
@@ -67,7 +67,7 @@ export default function NewProjectMenu({ x, y, onSelect, onClose }) {
   return (
     <div
       ref={menuRef}
-      className="quick-tab-menu new-project-menu"
+      className={`quick-tab-menu new-project-menu${tourElevated ? " tour-elevated-menu" : ""}`}
       style={menuStyle}
     >
       <div className="new-project-input-row">

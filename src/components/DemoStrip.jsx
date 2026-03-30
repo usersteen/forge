@@ -11,7 +11,8 @@ export default function DemoStrip() {
   const exitDemoMode = useForgeStore((s) => s.exitDemoMode);
   const themeOptions = getThemeOptions();
 
-  if (demoHeatStage === null) return null;
+  const tourActive = useForgeStore((s) => s.tourActive);
+  if (demoHeatStage === null || tourActive) return null;
 
   return (
     <div className="demo-strip">

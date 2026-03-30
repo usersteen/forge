@@ -3,7 +3,7 @@ import useEscapeKey from "../hooks/useEscapeKey";
 import { HEAT_LABELS } from "../utils/heat";
 import { getThemeHeatColors } from "../utils/themes";
 
-export default function InfoPanel({ onClose }) {
+export default function InfoPanel({ onClose, onStartTour }) {
   useEscapeKey(onClose);
   const theme = useForgeStore((s) => s.theme);
   const heatColors = getThemeHeatColors(theme);
@@ -20,6 +20,16 @@ export default function InfoPanel({ onClose }) {
             A terminal manager for running multiple Claude Code and Codex sessions, organized by project.
             Status detection works automatically — no setup needed.
           </p>
+
+          {onStartTour && (
+            <button
+              type="button"
+              className="info-tour-link"
+              onClick={() => { onClose(); onStartTour(); }}
+            >
+              Take the guided tour
+            </button>
+          )}
 
           <h2>Projects and Tabs</h2>
           <ul>

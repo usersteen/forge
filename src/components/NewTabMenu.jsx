@@ -3,7 +3,7 @@ import { NEW_TAB_OPTIONS } from "../data/newTabOptions";
 import useEscapeKey from "../hooks/useEscapeKey";
 import useServerSuggestion from "../hooks/useServerSuggestion";
 
-export default function NewTabMenu({ x, y, rootPath, onSelect, onClose }) {
+export default function NewTabMenu({ x, y, rootPath, onSelect, onClose, tourElevated }) {
   const menuRef = useRef(null);
   const { serverSuggestion, serverExpanded, hasSubmenu, serverHint, toggleServerExpanded } =
     useServerSuggestion(rootPath);
@@ -34,7 +34,7 @@ export default function NewTabMenu({ x, y, rootPath, onSelect, onClose }) {
   };
 
   return (
-    <div ref={menuRef} className="quick-tab-menu" style={{ left: x, top: y }}>
+    <div ref={menuRef} className={`quick-tab-menu${tourElevated ? " tour-elevated-menu" : ""}`} style={{ left: x, top: y }}>
       {NEW_TAB_OPTIONS.map((option) =>
         option.id === "server" ? (
           <div key={option.id} className="quick-tab-group">

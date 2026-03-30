@@ -156,6 +156,13 @@ const useForgeStore = create((set, get) => ({
   // Demo mode (ephemeral, not persisted)
   demoHeatStage: null,
 
+  // Guided tour (ephemeral, not persisted)
+  tourActive: false,
+  tourStep: 0,
+  tourExpandedPanel: null,
+  tourSavedState: null,
+  tourOriginalTheme: null,
+
   initFresh: () => {
     const group = makeGroup();
     set({
@@ -176,25 +183,13 @@ const useForgeStore = create((set, get) => ({
     const schemaVersion = Number(config.schema_version) || 0;
     const groups = (config.groups || []).map((groupConfig) => {
       const workspace = withWorkspaceDefaults(groupConfig);
-      const tabs = (groupConfig.tabs || []).map((tabConfig) => ({
-        id: tabConfig.id,
-        name: tabConfig.name,
-        cwd: tabConfig.cwd || null,
-        status: "idle",
-        statusTitle: "",
-        type: normalizeTabType(tabConfig.tab_type),
-        provider: normalizeLoadedTabProvider(tabConfig, schemaVersion),
-        manuallyRenamed: tabConfig.manually_renamed || false,
-        suggestedServerName: "",
-        waitingSince: null,
-        lastEngagedAt: null,
-        launchCommand: null,
-      }));
+      // Don't restore terminal tabs — PTY sessions are killed on close,
+      // so restored tabs are just dead shells. Start each group clean.
       return {
         id: groupConfig.id,
         name: groupConfig.name,
-        activeTabId: ensureActiveTabId(tabs, groupConfig.active_tab_id),
-        tabs,
+        activeTabId: null,
+        tabs: [],
         ...workspace,
       };
     });
@@ -233,7 +228,9 @@ const useForgeStore = create((set, get) => ({
     const group = makeGroup(derivedName);
     if (rootPath) {
       group.rootPath = rootPath;
-      group.tabs[0].cwd = rootPath;
+      // Start with no tabs so the user can pick from the quick menu
+      group.tabs = [];
+      group.activeTabId = null;
     }
     set((state) => ({
       groups: [...state.groups, group],
@@ -339,20 +336,26 @@ const useForgeStore = create((set, get) => ({
 
   setTabStatus: (tabId, status, title) =>
     set((state) => ({
-      groups: state.groups.map((group) =>
-        group.tabs.some((tab) => tab.id === tabId)
-          ? {
-              ...group,
-              tabs: group.tabs.map((tab) => {
-                if (tab.id !== tabId) return tab;
-                const waitingSince = status === "waiting" ? (tab.waitingSince ?? Date.now()) : null;
-                const lastEngagedAt =
-                  status === "working" && tab.status === "waiting" ? Date.now() : tab.lastEngagedAt;
-                return { ...tab, status, statusTitle: title, waitingSince, lastEngagedAt };
-              }),
-            }
-          : group
-      ),
+      groups: state.groups.map((group) => {
+        const tabIndex = group.tabs.findIndex((tab) => tab.id === tabId);
+        if (tabIndex === -1) return group;
+        const oldTab = group.tabs[tabIndex];
+        const newWaiting = oldTab.status !== "waiting" && status === "waiting";
+        const waitingSince = status === "waiting" ? (oldTab.waitingSince ?? Date.now()) : null;
+        const lastEngagedAt =
+          status === "working" && oldTab.status === "waiting" ? Date.now() : oldTab.lastEngagedAt;
+        const updatedTab = {
+          ...oldTab, status, statusTitle: title, waitingSince, lastEngagedAt,
+          waitingFlashKey: newWaiting ? (oldTab.waitingFlashKey ?? 0) + 1 : (oldTab.waitingFlashKey ?? 0),
+        };
+        const tabs = group.tabs.slice();
+        tabs[tabIndex] = updatedTab;
+        return {
+          ...group,
+          waitingFlashKey: newWaiting ? (group.waitingFlashKey ?? 0) + 1 : (group.waitingFlashKey ?? 0),
+          tabs,
+        };
+      }),
     })),
 
   setTabAutoName: (tabId, name) =>
@@ -903,12 +906,115 @@ const useForgeStore = create((set, get) => ({
 
   setDemoHeatStage: (stage) => set({ demoHeatStage: stage }),
   exitDemoMode: () => set({ demoHeatStage: null }),
+
+  startTour: () => {
+    const state = get();
+    // Snapshot current state for restoration
+    const savedState = {
+      groups: state.groups,
+      activeGroupId: state.activeGroupId,
+      workspaceByGroup: state.workspaceByGroup,
+      documentStateByGroup: state.documentStateByGroup,
+    };
+
+    // Create demo group with 3 descriptive tabs
+    const serverTab = {
+      ...makeTab("Server", null, { type: "server" }),
+      status: "idle",
+    };
+    const waitingTab = {
+      ...makeTab("Waiting", null, { provider: "claude" }),
+      status: "waiting",
+    };
+    const workingTab = {
+      ...makeTab("Working", null, { provider: "codex" }),
+      status: "working",
+    };
+    const demoGroup = {
+      id: crypto.randomUUID(),
+      name: "Demo Project",
+      tabs: [serverTab, waitingTab, workingTab],
+      activeTabId: waitingTab.id,
+      rootPath: null,
+      explorerVisible: true,
+      inspectorVisible: true,
+      selectedPath: null,
+      openDocuments: [],
+      activeDocumentPath: null,
+      activeSurface: "terminal",
+      readerWidth: 0.4,
+      lastIndexedAt: null,
+    };
+
+    set({
+      tourSavedState: savedState,
+      tourOriginalTheme: state.theme,
+      groups: [demoGroup],
+      activeGroupId: demoGroup.id,
+      workspaceByGroup: { [demoGroup.id]: makeRuntimeWorkspaceState() },
+      documentStateByGroup: { [demoGroup.id]: {} },
+      tourActive: true,
+      tourStep: 0,
+      tourExpandedPanel: null,
+    });
+
+    // Pause heat system during tour
+    get().startHeatPause("guided-tour");
+  },
+
+  setTourStep: (step) => set({ tourStep: step }),
+  setTourExpandedPanel: (panel) => set({ tourExpandedPanel: panel }),
+
+  endTour: () => {
+    const state = get();
+    const saved = state.tourSavedState;
+    const originalTheme = state.tourOriginalTheme;
+
+    // Stop heat pause and demo mode
+    state.stopHeatPause("guided-tour");
+    state.exitDemoMode();
+
+    // Restore original theme if changed
+    const restoreTheme = originalTheme || state.theme;
+
+    if (saved) {
+      set({
+        groups: saved.groups,
+        activeGroupId: saved.activeGroupId,
+        workspaceByGroup: saved.workspaceByGroup,
+        documentStateByGroup: saved.documentStateByGroup,
+        tourActive: false,
+        tourStep: 0,
+        tourExpandedPanel: null,
+        tourSavedState: null,
+        tourOriginalTheme: null,
+        theme: restoreTheme,
+      });
+    } else {
+      set({
+        tourActive: false,
+        tourStep: 0,
+        tourExpandedPanel: null,
+        tourSavedState: null,
+        tourOriginalTheme: null,
+        theme: restoreTheme,
+      });
+    }
+  },
 }));
 
 export function storeToConfig(state, windowGeometry) {
+  // During tour, persist the saved (real) state, not the demo state
+  const groups = state.tourActive && state.tourSavedState
+    ? state.tourSavedState.groups
+    : state.groups;
+  const activeGroupId = state.tourActive && state.tourSavedState
+    ? state.tourSavedState.activeGroupId
+    : state.activeGroupId;
+
   return {
     schema_version: 4,
-    groups: state.groups.map((group) => ({
+    groups: groups.map((group) => ({
       id: group.id,
       name: group.name,
       active_tab_id: group.activeTabId,
@@ -934,7 +1040,7 @@ export function storeToConfig(state, windowGeometry) {
       reader_width: group.readerWidth,
       last_indexed_at: group.lastIndexedAt,
     })),
-    active_group_id: state.activeGroupId,
+    active_group_id: activeGroupId,
     window: windowGeometry,
     settings: {
       streak_timer: state.streakTimer,

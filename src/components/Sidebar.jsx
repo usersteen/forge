@@ -6,7 +6,8 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import useForgeStore from "../store/useForgeStore";
 import useInlineRename from "../hooks/useInlineRename";
 import useEffectiveHeatStage from "../hooks/useEffectiveHeatStage";
-import { getEmberStyle } from "../utils/heat";
+import useFlashAnimation from "../hooks/useFlashAnimation";
+import ParticleCanvas from "./ParticleCanvas";
 import useRecencyTick from "../hooks/useRecencyTick";
 import { getThemeHeatColor } from "../utils/themes";
 import ForgeWordmark from "./ForgeWordmark";
@@ -16,25 +17,8 @@ import InfoPanel from "./InfoPanel";
 const ThemeLab = import.meta.env.DEV ? lazy(() => import("./ThemeLab")) : null;
 import NewProjectMenu from "./NewProjectMenu";
 import WelcomeModal from "./WelcomeModal";
+import GuidedTour from "./GuidedTour";
 
-const EMBER_CONFIGS = {
-  3: [15, 35, 60, 82],
-  4: [5, 15, 25, 36, 47, 58, 68, 78, 88, 95],
-  5: [3, 10, 17, 24, 31, 38, 45, 52, 59, 66, 73, 80, 87, 93, 97, 100],
-};
-
-// [left%, animationDelay] — hand-picked to avoid diagonal patterns
-const SIDEBAR_EMBER_CONFIGS = {
-  4: [
-    [12, 1.2], [42, 7.5], [70, 3.8], [28, 10.1], [85, 5.6], [55, 0.4],
-    [20, 4.3], [65, 9.0],
-  ],
-  5: [
-    [8, 2.1], [35, 9.3], [62, 0.7], [18, 6.4], [78, 13.2], [48, 4.0],
-    [90, 8.8], [25, 11.5], [58, 1.9], [5, 3.5], [40, 7.2],
-    [72, 0.3], [15, 10.8], [82, 5.1],
-  ],
-};
 
 const appWindow = getCurrentWindow();
 
@@ -60,6 +44,7 @@ function getGroupPriorityClass(group) {
 
 function SortableGroup({ group, isActive, now, recencyThreshold, onSelect, onDoubleClick, onContextMenu, editingId, inputProps, onRemove }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: group.id });
+  const { elementRef: groupRef, handleAnimationEnd } = useFlashAnimation(group.waitingFlashKey);
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -68,7 +53,7 @@ function SortableGroup({ group, isActive, now, recencyThreshold, onSelect, onDou
 
   return (
     <div
-      ref={setNodeRef}
+      ref={(node) => { setNodeRef(node); groupRef.current = node; }}
       style={style}
       {...attributes}
       {...listeners}
@@ -76,6 +61,7 @@ function SortableGroup({ group, isActive, now, recencyThreshold, onSelect, onDou
       onClick={onSelect}
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
+      onAnimationEnd={handleAnimationEnd}
     >
       <div className="sidebar-group-info">
         {editingId === group.id ? (
@@ -145,6 +131,10 @@ export default function Sidebar() {
   const [showInfo, setShowInfo] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [showThemeLab, setShowThemeLab] = useState(false);
+  const tourActive = useForgeStore((s) => s.tourActive);
+  const tourExpandedPanel = useForgeStore((s) => s.tourExpandedPanel);
+  const storeTourStart = useForgeStore((s) => s.startTour);
+  const storeTourEnd = useForgeStore((s) => s.endTour);
   const [contextMenu, setContextMenu] = useState(null);
   const [newProjectMenu, setNewProjectMenu] = useState(null);
   const newProjectBtnRef = useRef(null);
@@ -154,6 +144,14 @@ export default function Sidebar() {
   const openSettings = useCallback(() => setShowSettings(true), []);
   const closeWelcome = useCallback(() => setShowWelcome(false), []);
   const closeNewProjectMenu = useCallback(() => setNewProjectMenu(null), []);
+  const startTour = useCallback(() => {
+    setShowWelcome(false);
+    setShowInfo(false);
+    setShowSettings(false);
+    setShowThemeLab(false);
+    storeTourStart();
+  }, [storeTourStart]);
+  const closeTour = useCallback(() => storeTourEnd(), [storeTourEnd]);
 
   const heatStage = useEffectiveHeatStage();
   const logoFill = getThemeHeatColor(theme, heatStage);
@@ -164,45 +162,40 @@ export default function Sidebar() {
     heatStage > 0 && `forge-heat-${heatStage}`,
   ].filter(Boolean).join(" ");
 
-  const embers = useMemo(() => {
-    if (!fxEnabled) return null;
-    const positions = EMBER_CONFIGS[heatStage] || (heatStage > 5 ? EMBER_CONFIGS[5] : null);
-    if (!positions) return null;
-    return positions.map((left, i) => (
-      <span
-        key={i}
-        className="forge-ember"
-        style={{ left: `${left}%`, animationDelay: `${(i * 0.4) % 2}s`, ...getEmberStyle(i, theme) }}
-      />
-    ));
-  }, [fxEnabled, heatStage, theme]);
-
-  const sidebarEmbers = useMemo(() => {
-    if (!fxEnabled) return null;
-    const positions = SIDEBAR_EMBER_CONFIGS[heatStage];
-    if (!positions) return null;
-    return positions.map(([left, delay], i) => (
-      <span
-        key={`sb-${i}`}
-        className="forge-ember-tall"
-        style={{ left: `${left}%`, animationDelay: `${delay}s`, ...getEmberStyle(i, theme) }}
-      />
-    ));
-  }, [fxEnabled, heatStage, theme]);
 
   useEffect(() => {
     if (!configLoaded) return;
     if (import.meta.env.DEV || showWelcomeOnLaunch) setShowWelcome(true);
   }, [configLoaded, showWelcomeOnLaunch]);
 
+  // Sync tour-driven panel expansion
+  useEffect(() => {
+    if (!tourActive) {
+      setShowSettings(false);
+      setShowInfo(false);
+      setNewProjectMenu(null);
+      return;
+    }
+    setShowSettings(tourExpandedPanel === "settings");
+    setShowInfo(tourExpandedPanel === "info");
+    if (tourExpandedPanel === "new-project-menu" && newProjectBtnRef.current) {
+      const rect = newProjectBtnRef.current.getBoundingClientRect();
+      setNewProjectMenu({ x: rect.right + 6, y: rect.top });
+    } else {
+      setNewProjectMenu(null);
+    }
+  }, [tourActive, tourExpandedPanel]);
+
   useEffect(() => {
     setContextMenu(null);
   }, [activeGroupId]);
 
+  const NOOP = useCallback(() => {}, []);
+
   return (
-    <div className="sidebar">
-      <div className={headerClasses} onMouseDown={() => appWindow.startDragging()}>
-        {embers ? <div className="forge-ember-layer forge-ember-layer-header">{embers}</div> : null}
+    <div className="sidebar" data-tour="sidebar">
+      <div className={headerClasses} data-tour="sidebar-header" onMouseDown={() => appWindow.startDragging()}>
+        <ParticleCanvas location="header" />
 
         <div className={`sidebar-logo${logoHeatClass}`}>
           <ForgeWordmark fill={logoFill} />
@@ -210,7 +203,7 @@ export default function Sidebar() {
       </div>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={groups.map((g) => g.id)} strategy={verticalListSortingStrategy}>
-          <div className="sidebar-groups">
+          <div className="sidebar-groups" data-tour="sidebar-groups">
             {groups.map((group) => (
               <SortableGroup
                 key={group.id}
@@ -241,6 +234,7 @@ export default function Sidebar() {
       <button
         ref={newProjectBtnRef}
         className="sidebar-add"
+        data-tour="new-project"
         onClick={() => {
           const rect = newProjectBtnRef.current.getBoundingClientRect();
           setNewProjectMenu({ x: rect.right + 6, y: rect.top });
@@ -253,6 +247,7 @@ export default function Sidebar() {
           className={`sidebar-action-btn ${showWelcome ? "sidebar-action-btn-highlighted" : ""}`}
           onClick={openInfo}
           aria-label="Open Forge info"
+          data-tour="info-btn"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10"/>
@@ -264,6 +259,7 @@ export default function Sidebar() {
           className={`sidebar-action-btn ${showWelcome ? "sidebar-action-btn-highlighted" : ""}`}
           onClick={openSettings}
           aria-label="Open Forge settings"
+          data-tour="settings-btn"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="3"/>
@@ -271,25 +267,35 @@ export default function Sidebar() {
           </svg>
         </button>
       </div>
-      {sidebarEmbers ? <div className="forge-ember-layer forge-ember-layer-sidebar">{sidebarEmbers}</div> : null}
+      <ParticleCanvas location="sidebar" />
 
       {newProjectMenu && (
         <NewProjectMenu
           x={newProjectMenu.x}
           y={newProjectMenu.y}
-          onSelect={(path) => {
+          tourElevated={tourActive}
+          onSelect={tourActive ? NOOP : (path) => {
             if (path) {
               addGroup(undefined, { rootPath: path });
             } else {
               addGroup();
             }
           }}
-          onClose={closeNewProjectMenu}
+          onClose={tourActive ? NOOP : closeNewProjectMenu}
         />
       )}
-      {showWelcome && <WelcomeModal onClose={closeWelcome} />}
-      {showInfo && <InfoPanel onClose={closeInfo} />}
-      {showSettings && <Settings onClose={closeSettings} onOpenThemeLab={ThemeLab ? () => { setShowSettings(false); setShowThemeLab(true); } : undefined} />}
+      {showWelcome && <WelcomeModal onClose={closeWelcome} onStartTour={startTour} />}
+      {showInfo && (
+        <div className={tourActive ? "tour-elevated-panel" : ""}>
+          <InfoPanel onClose={tourActive ? NOOP : closeInfo} onStartTour={tourActive ? undefined : startTour} />
+        </div>
+      )}
+      {tourActive && <GuidedTour onClose={closeTour} />}
+      {showSettings && (
+        <div className={tourActive ? "tour-elevated-panel" : ""}>
+          <Settings onClose={tourActive ? NOOP : closeSettings} onOpenThemeLab={tourActive ? undefined : (ThemeLab ? () => { setShowSettings(false); setShowThemeLab(true); } : undefined)} />
+        </div>
+      )}
       {showThemeLab && ThemeLab && (
         <Suspense fallback={null}>
           <ThemeLab onClose={() => setShowThemeLab(false)} />

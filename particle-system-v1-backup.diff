@@ -1,0 +1,1508 @@
+warning: in the working copy of 'src/components/DocumentViewer.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/Sidebar.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/styles/global.css', LF will be replaced by CRLF the next time Git touches it
+diff --git a/src/components/DocumentViewer.jsx b/src/components/DocumentViewer.jsx
+index fc99eac..c09acb3 100644
+--- a/src/components/DocumentViewer.jsx
++++ b/src/components/DocumentViewer.jsx
+@@ -1,14 +1,9 @@
+ import { useEffect, useMemo, useRef, useState } from "react";
+ import { invoke, convertFileSrc } from "@tauri-apps/api/core";
+ import useForgeStore from "../store/useForgeStore";
+-import useEffectiveHeatStage from "../hooks/useEffectiveHeatStage";
+-import { getEmberStyle } from "../utils/heat";
++import ParticleCanvas from "./ParticleCanvas";
+ import { renderMarkdown } from "../utils/markdown";
+ 
+-const DOCUMENT_TAB_EMBER_CONFIGS = {
+-  4: [8, 22, 36, 50, 64, 78, 92],
+-  5: [4, 11, 18, 25, 32, 39, 46, 53, 60, 67, 74, 81, 88, 95],
+-};
+ 
+ function formatBytes(value) {
+   if (value == null) return null;
+@@ -49,12 +44,8 @@ export default function DocumentViewer() {
+   const setActiveDocument = useForgeStore((state) => state.setActiveDocument);
+   const closeDocument = useForgeStore((state) => state.closeDocument);
+   const setDocumentState = useForgeStore((state) => state.setDocumentState);
+-  const theme = useForgeStore((state) => state.theme);
+-  const fxEnabled = useForgeStore((state) => state.fxEnabled);
+-
+   const activeGroup = groups.find((group) => group.id === activeGroupId);
+   const documentStateMap = documentStateByGroup[activeGroupId] || {};
+-  const heatStage = useEffectiveHeatStage();
+   const activeDocument = activeGroup?.openDocuments.find(
+     (document) => document.path === activeGroup.activeDocumentPath
+   );
+@@ -138,18 +129,6 @@ export default function DocumentViewer() {
+   const isReloading = Boolean(activeDocument && reloadingByPath[activeDocument.path]);
+   const saveError = activeDocument ? saveErrorsByPath[activeDocument.path] : "";
+   const isDirty = Boolean(isMarkdown && activeDocument && editorValue !== activeContent);
+-  const documentTabEmbers = useMemo(() => {
+-    if (!fxEnabled) return null;
+-    const positions = DOCUMENT_TAB_EMBER_CONFIGS[heatStage];
+-    if (!positions) return null;
+-    return positions.map((left, i) => (
+-      <span
+-        key={`dt-${i}`}
+-        className="forge-ember-wide document-viewer-ember"
+-        style={{ left: `${left}%`, animationDelay: `${(i * 0.3) % 2}s`, ...getEmberStyle(i, theme) }}
+-      />
+-    ));
+-  }, [fxEnabled, heatStage, theme]);
+ 
+   const dirtyPaths = useMemo(() => {
+     const result = new Set();
+@@ -354,7 +333,7 @@ export default function DocumentViewer() {
+     >
+       <div className="document-viewer-header">
+         <div className="document-viewer-tab-bar">
+-          {documentTabEmbers ? <div className="forge-ember-layer forge-ember-layer-document-tabs">{documentTabEmbers}</div> : null}
++          <ParticleCanvas location="documentTabs" />
+           <div className="document-viewer-tabs">
+             {activeGroup.openDocuments.map((document) => (
+               <div
+diff --git a/src/components/ProjectExplorer.jsx b/src/components/ProjectExplorer.jsx
+index 7c42511..2e36927 100644
+--- a/src/components/ProjectExplorer.jsx
++++ b/src/components/ProjectExplorer.jsx
+@@ -1,7 +1,6 @@
+ import { useCallback, useEffect, useMemo, useState } from "react";
+ import useForgeStore from "../store/useForgeStore";
+-import useEffectiveHeatStage from "../hooks/useEffectiveHeatStage";
+-import { getEmberStyle } from "../utils/heat";
++import ParticleCanvas from "./ParticleCanvas";
+ import { normalizeRootPath } from "../utils/workspace";
+ 
+ const STAR_POINTS = "12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2";
+@@ -14,10 +13,6 @@ function StarIcon({ filled }) {
+   );
+ }
+ 
+-const REPO_BROWSER_EMBER_CONFIGS = {
+-  4: [8, 21, 34, 47, 60, 73, 86],
+-  5: [4, 11, 18, 25, 32, 39, 46, 53, 60, 67, 74, 81, 88, 95],
+-}
+ 
+ function TreeNode({ node, depth, expandedPaths, setExpandedPaths, selectedPath, onOpenFile }) {
+   const isDirectory = node.kind === "directory";
+@@ -87,7 +82,7 @@ function TreeNode({ node, depth, expandedPaths, setExpandedPaths, selectedPath,
+   );
+ }
+ 
+-export default function ProjectExplorer({ open, onClose, onRefresh }) {
++export default function ProjectExplorer({ open, onClose, onRefresh, tourElevated }) {
+   const activeGroupId = useForgeStore((state) => state.activeGroupId);
+   const groups = useForgeStore((state) => state.groups);
+   const workspaceByGroup = useForgeStore((state) => state.workspaceByGroup);
+@@ -100,7 +95,6 @@ export default function ProjectExplorer({ open, onClose, onRefresh }) {
+ 
+   const activeGroup = groups.find((group) => group.id === activeGroupId) ?? null;
+   const workspace = workspaceByGroup[activeGroupId];
+-  const heatStage = useEffectiveHeatStage();
+   const [workspacePathInput, setWorkspacePathInput] = useState("");
+   const [expandedPaths, setExpandedPaths] = useState(() => new Set());
+   const [editingPath, setEditingPath] = useState(true);
+@@ -142,17 +136,6 @@ export default function ProjectExplorer({ open, onClose, onRefresh }) {
+   }, [activeGroup?.rootPath, editingPath, workspacePathInput]);
+ 
+   const isFavoriteTarget = favoriteRepoPaths.includes(favoriteTargetPath);
+-  const repoBrowserEmbers = useMemo(() => {
+-    const positions = REPO_BROWSER_EMBER_CONFIGS[heatStage];
+-    if (!positions) return null;
+-    return positions.map((left, i) => (
+-      <span
+-        key={`rb-${i}`}
+-        className="forge-ember-wide repo-browser-ember"
+-        style={{ left: `${left}%`, animationDelay: `${(i * 0.3) % 2}s`, ...getEmberStyle(i) }}
+-      />
+-    ));
+-  }, [heatStage]);
+ 
+   if (!open || !activeGroup) {
+     return null;
+@@ -169,12 +152,12 @@ export default function ProjectExplorer({ open, onClose, onRefresh }) {
+ 
+   return (
+     <div
+-      className="repo-browser-popover"
++      className={`repo-browser-popover${tourElevated ? " tour-elevated-menu" : ""}`}
+       onMouseDown={(event) => event.stopPropagation()}
+       onPointerDown={(event) => event.stopPropagation()}
+     >
+       <div className="repo-browser-header">
+-        {repoBrowserEmbers ? <div className="forge-ember-layer forge-ember-layer-repo-browser">{repoBrowserEmbers}</div> : null}
++        <ParticleCanvas location="repoBrowser" />
+         <div className="repo-browser-title">Repository</div>
+         <div className="repo-browser-header-actions">
+           {activeGroup.rootPath ? (
+diff --git a/src/components/Sidebar.jsx b/src/components/Sidebar.jsx
+index 50062b0..de49b22 100644
+--- a/src/components/Sidebar.jsx
++++ b/src/components/Sidebar.jsx
+@@ -6,7 +6,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
+ import useForgeStore from "../store/useForgeStore";
+ import useInlineRename from "../hooks/useInlineRename";
+ import useEffectiveHeatStage from "../hooks/useEffectiveHeatStage";
+-import { getEmberStyle } from "../utils/heat";
++import ParticleCanvas from "./ParticleCanvas";
+ import useRecencyTick from "../hooks/useRecencyTick";
+ import { getThemeHeatColor } from "../utils/themes";
+ import ForgeWordmark from "./ForgeWordmark";
+@@ -16,25 +16,8 @@ import InfoPanel from "./InfoPanel";
+ const ThemeLab = import.meta.env.DEV ? lazy(() => import("./ThemeLab")) : null;
+ import NewProjectMenu from "./NewProjectMenu";
+ import WelcomeModal from "./WelcomeModal";
++import GuidedTour from "./GuidedTour";
+ 
+-const EMBER_CONFIGS = {
+-  3: [15, 35, 60, 82],
+-  4: [5, 15, 25, 36, 47, 58, 68, 78, 88, 95],
+-  5: [3, 10, 17, 24, 31, 38, 45, 52, 59, 66, 73, 80, 87, 93, 97, 100],
+-};
+-
+-// [left%, animationDelay] — hand-picked to avoid diagonal patterns
+-const SIDEBAR_EMBER_CONFIGS = {
+-  4: [
+-    [12, 1.2], [42, 7.5], [70, 3.8], [28, 10.1], [85, 5.6], [55, 0.4],
+-    [20, 4.3], [65, 9.0],
+-  ],
+-  5: [
+-    [8, 2.1], [35, 9.3], [62, 0.7], [18, 6.4], [78, 13.2], [48, 4.0],
+-    [90, 8.8], [25, 11.5], [58, 1.9], [5, 3.5], [40, 7.2],
+-    [72, 0.3], [15, 10.8], [82, 5.1],
+-  ],
+-};
+ 
+ const appWindow = getCurrentWindow();
+ 
+@@ -60,15 +43,34 @@ function getGroupPriorityClass(group) {
+ 
+ function SortableGroup({ group, isActive, now, recencyThreshold, onSelect, onDoubleClick, onContextMenu, editingId, inputProps, onRemove }) {
+   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: group.id });
++  const groupRef = useRef(null);
++  const prevFlashKey = useRef(group.waitingFlashKey ?? 0);
+   const style = {
+     transform: CSS.Transform.toString(transform),
+     transition,
+     opacity: isDragging ? 0.5 : 1,
+   };
+ 
++  useEffect(() => {
++    const currentKey = group.waitingFlashKey ?? 0;
++    if (currentKey > prevFlashKey.current && groupRef.current) {
++      const el = groupRef.current;
++      el.classList.remove("flash-waiting");
++      void el.offsetWidth;
++      el.classList.add("flash-waiting");
++    }
++    prevFlashKey.current = currentKey;
++  }, [group.waitingFlashKey]);
++
++  const handleAnimationEnd = useCallback((e) => {
++    if (e.animationName === "waiting-flash") {
++      e.currentTarget.classList.remove("flash-waiting");
++    }
++  }, []);
++
+   return (
+     <div
+-      ref={setNodeRef}
++      ref={(node) => { setNodeRef(node); groupRef.current = node; }}
+       style={style}
+       {...attributes}
+       {...listeners}
+@@ -76,6 +78,7 @@ function SortableGroup({ group, isActive, now, recencyThreshold, onSelect, onDou
+       onClick={onSelect}
+       onDoubleClick={onDoubleClick}
+       onContextMenu={onContextMenu}
++      onAnimationEnd={handleAnimationEnd}
+     >
+       <div className="sidebar-group-info">
+         {editingId === group.id ? (
+@@ -145,6 +148,10 @@ export default function Sidebar() {
+   const [showInfo, setShowInfo] = useState(false);
+   const [showWelcome, setShowWelcome] = useState(false);
+   const [showThemeLab, setShowThemeLab] = useState(false);
++  const tourActive = useForgeStore((s) => s.tourActive);
++  const tourExpandedPanel = useForgeStore((s) => s.tourExpandedPanel);
++  const storeTourStart = useForgeStore((s) => s.startTour);
++  const storeTourEnd = useForgeStore((s) => s.endTour);
+   const [contextMenu, setContextMenu] = useState(null);
+   const [newProjectMenu, setNewProjectMenu] = useState(null);
+   const newProjectBtnRef = useRef(null);
+@@ -154,6 +161,14 @@ export default function Sidebar() {
+   const openSettings = useCallback(() => setShowSettings(true), []);
+   const closeWelcome = useCallback(() => setShowWelcome(false), []);
+   const closeNewProjectMenu = useCallback(() => setNewProjectMenu(null), []);
++  const startTour = useCallback(() => {
++    setShowWelcome(false);
++    setShowInfo(false);
++    setShowSettings(false);
++    setShowThemeLab(false);
++    storeTourStart();
++  }, [storeTourStart]);
++  const closeTour = useCallback(() => storeTourEnd(), [storeTourEnd]);
+ 
+   const heatStage = useEffectiveHeatStage();
+   const logoFill = getThemeHeatColor(theme, heatStage);
+@@ -164,45 +179,48 @@ export default function Sidebar() {
+     heatStage > 0 && `forge-heat-${heatStage}`,
+   ].filter(Boolean).join(" ");
+ 
+-  const embers = useMemo(() => {
+-    if (!fxEnabled) return null;
+-    const positions = EMBER_CONFIGS[heatStage] || (heatStage > 5 ? EMBER_CONFIGS[5] : null);
+-    if (!positions) return null;
+-    return positions.map((left, i) => (
+-      <span
+-        key={i}
+-        className="forge-ember"
+-        style={{ left: `${left}%`, animationDelay: `${(i * 0.4) % 2}s`, ...getEmberStyle(i, theme) }}
+-      />
+-    ));
+-  }, [fxEnabled, heatStage, theme]);
+-
+-  const sidebarEmbers = useMemo(() => {
+-    if (!fxEnabled) return null;
+-    const positions = SIDEBAR_EMBER_CONFIGS[heatStage];
+-    if (!positions) return null;
+-    return positions.map(([left, delay], i) => (
+-      <span
+-        key={`sb-${i}`}
+-        className="forge-ember-tall"
+-        style={{ left: `${left}%`, animationDelay: `${delay}s`, ...getEmberStyle(i, theme) }}
+-      />
+-    ));
+-  }, [fxEnabled, heatStage, theme]);
+ 
+   useEffect(() => {
+     if (!configLoaded) return;
+     if (import.meta.env.DEV || showWelcomeOnLaunch) setShowWelcome(true);
+   }, [configLoaded, showWelcomeOnLaunch]);
+ 
++  // Sync tour-driven panel expansion
++  useEffect(() => {
++    if (!tourActive) {
++      setShowSettings(false);
++      setShowInfo(false);
++      setNewProjectMenu(null);
++      return;
++    }
++    if (tourExpandedPanel === "settings") {
++      setShowSettings(true);
++    } else {
++      setShowSettings(false);
++    }
++    if (tourExpandedPanel === "info") {
++      setShowInfo(true);
++    } else {
++      setShowInfo(false);
++    }
++    if (tourExpandedPanel === "new-project-menu" && newProjectBtnRef.current) {
++      const rect = newProjectBtnRef.current.getBoundingClientRect();
++      setNewProjectMenu({ x: rect.right + 6, y: rect.top });
++    } else {
++      setNewProjectMenu(null);
++    }
++  }, [tourActive, tourExpandedPanel]);
++
+   useEffect(() => {
+     setContextMenu(null);
+   }, [activeGroupId]);
+ 
++  const NOOP = useCallback(() => {}, []);
++
+   return (
+-    <div className="sidebar">
+-      <div className={headerClasses} onMouseDown={() => appWindow.startDragging()}>
+-        {embers ? <div className="forge-ember-layer forge-ember-layer-header">{embers}</div> : null}
++    <div className="sidebar" data-tour="sidebar">
++      <div className={headerClasses} data-tour="sidebar-header" onMouseDown={() => appWindow.startDragging()}>
++        <ParticleCanvas location="header" />
+ 
+         <div className={`sidebar-logo${logoHeatClass}`}>
+           <ForgeWordmark fill={logoFill} />
+@@ -210,7 +228,7 @@ export default function Sidebar() {
+       </div>
+       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+         <SortableContext items={groups.map((g) => g.id)} strategy={verticalListSortingStrategy}>
+-          <div className="sidebar-groups">
++          <div className="sidebar-groups" data-tour="sidebar-groups">
+             {groups.map((group) => (
+               <SortableGroup
+                 key={group.id}
+@@ -241,6 +259,7 @@ export default function Sidebar() {
+       <button
+         ref={newProjectBtnRef}
+         className="sidebar-add"
++        data-tour="new-project"
+         onClick={() => {
+           const rect = newProjectBtnRef.current.getBoundingClientRect();
+           setNewProjectMenu({ x: rect.right + 6, y: rect.top });
+@@ -253,6 +272,7 @@ export default function Sidebar() {
+           className={`sidebar-action-btn ${showWelcome ? "sidebar-action-btn-highlighted" : ""}`}
+           onClick={openInfo}
+           aria-label="Open Forge info"
++          data-tour="info-btn"
+         >
+           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+             <circle cx="12" cy="12" r="10"/>
+@@ -264,6 +284,7 @@ export default function Sidebar() {
+           className={`sidebar-action-btn ${showWelcome ? "sidebar-action-btn-highlighted" : ""}`}
+           onClick={openSettings}
+           aria-label="Open Forge settings"
++          data-tour="settings-btn"
+         >
+           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+             <circle cx="12" cy="12" r="3"/>
+@@ -271,25 +292,35 @@ export default function Sidebar() {
+           </svg>
+         </button>
+       </div>
+-      {sidebarEmbers ? <div className="forge-ember-layer forge-ember-layer-sidebar">{sidebarEmbers}</div> : null}
++      <ParticleCanvas location="sidebar" />
+ 
+       {newProjectMenu && (
+         <NewProjectMenu
+           x={newProjectMenu.x}
+           y={newProjectMenu.y}
+-          onSelect={(path) => {
++          tourElevated={tourActive}
++          onSelect={tourActive ? NOOP : (path) => {
+             if (path) {
+               addGroup(undefined, { rootPath: path });
+             } else {
+               addGroup();
+             }
+           }}
+-          onClose={closeNewProjectMenu}
++          onClose={tourActive ? NOOP : closeNewProjectMenu}
+         />
+       )}
+-      {showWelcome && <WelcomeModal onClose={closeWelcome} />}
+-      {showInfo && <InfoPanel onClose={closeInfo} />}
+-      {showSettings && <Settings onClose={closeSettings} onOpenThemeLab={ThemeLab ? () => { setShowSettings(false); setShowThemeLab(true); } : undefined} />}
++      {showWelcome && <WelcomeModal onClose={closeWelcome} onStartTour={startTour} />}
++      {showInfo && (
++        <div className={tourActive ? "tour-elevated-panel" : ""}>
++          <InfoPanel onClose={tourActive ? NOOP : closeInfo} onStartTour={tourActive ? undefined : startTour} />
++        </div>
++      )}
++      {tourActive && <GuidedTour onClose={closeTour} />}
++      {showSettings && (
++        <div className={tourActive ? "tour-elevated-panel" : ""}>
++          <Settings onClose={tourActive ? NOOP : closeSettings} onOpenThemeLab={tourActive ? undefined : (ThemeLab ? () => { setShowSettings(false); setShowThemeLab(true); } : undefined)} />
++        </div>
++      )}
+       {showThemeLab && ThemeLab && (
+         <Suspense fallback={null}>
+           <ThemeLab onClose={() => setShowThemeLab(false)} />
+diff --git a/src/components/TabBar.jsx b/src/components/TabBar.jsx
+index 42a361a..8490797 100644
+--- a/src/components/TabBar.jsx
++++ b/src/components/TabBar.jsx
+@@ -5,21 +5,16 @@ import { CSS } from "@dnd-kit/utilities";
+ import { getCurrentWindow } from "@tauri-apps/api/window";
+ import useForgeStore from "../store/useForgeStore";
+ import useInlineRename from "../hooks/useInlineRename";
+-import useEffectiveHeatStage from "../hooks/useEffectiveHeatStage";
+ import useRecencyTick from "../hooks/useRecencyTick";
+ import NewTabMenu from "./NewTabMenu";
+ import ProjectExplorer from "./ProjectExplorer";
+ import TabContextMenu from "./TabContextMenu";
+-import { getEmberStyle } from "../utils/heat";
++import ParticleCanvas from "./ParticleCanvas";
+ 
+ 
+ const appWindow = getCurrentWindow();
+ const IS_MACOS = navigator.platform.startsWith("Mac");
+ 
+-const TABBAR_EMBER_CONFIGS = {
+-  4: [6, 18, 30, 42, 54, 66, 78, 90],
+-  5: [3, 10, 17, 24, 31, 38, 45, 52, 59, 66, 73, 80, 87, 94],
+-};
+ 
+ function getStatusDotClass(tab, isRecent) {
+   if (tab.type === "server") {
+@@ -52,8 +47,10 @@ function getRenameSeed(tab) {
+ 
+ function SortableTab({ tab, isActive, isRecent, onSelect, onDoubleClick, onContextMenu, editingId, inputProps, onClose }) {
+   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: tab.id });
++  const tabRef = useRef(null);
++  const prevFlashKey = useRef(tab.waitingFlashKey ?? 0);
+   const style = {
+-    transform: transform ? CSS.Transform.toString({ ...transform, y: 0, scaleY: 1 }) : undefined,
++    transform: transform ? CSS.Transform.toString({ ...transform, y: 0, scaleX: 1, scaleY: 1 }) : undefined,
+     transition,
+     opacity: isDragging ? 0.5 : 1,
+   };
+@@ -61,9 +58,26 @@ function SortableTab({ tab, isActive, isRecent, onSelect, onDoubleClick, onConte
+     tab.type === "server" ? "" : tab.status === "waiting" ? "tab-waiting" : tab.status === "working" ? "tab-working" : "";
+   const providerBadge = getProviderBadge(tab);
+ 
++  useEffect(() => {
++    const currentKey = tab.waitingFlashKey ?? 0;
++    if (currentKey > prevFlashKey.current && tabRef.current) {
++      const el = tabRef.current;
++      el.classList.remove("flash-waiting");
++      void el.offsetWidth;
++      el.classList.add("flash-waiting");
++    }
++    prevFlashKey.current = currentKey;
++  }, [tab.waitingFlashKey]);
++
++  const handleAnimationEnd = useCallback((e) => {
++    if (e.animationName === "waiting-flash") {
++      e.currentTarget.classList.remove("flash-waiting");
++    }
++  }, []);
++
+   return (
+     <div
+-      ref={setNodeRef}
++      ref={(node) => { setNodeRef(node); tabRef.current = node; }}
+       style={style}
+       {...attributes}
+       {...listeners}
+@@ -71,6 +85,7 @@ function SortableTab({ tab, isActive, isRecent, onSelect, onDoubleClick, onConte
+       onClick={onSelect}
+       onDoubleClick={onDoubleClick}
+       onContextMenu={onContextMenu}
++      onAnimationEnd={handleAnimationEnd}
+     >
+       <span className={getStatusDotClass(tab, isRecent)} />
+       {providerBadge ? (
+@@ -107,8 +122,8 @@ export default function TabBar({ onRefreshWorkspace }) {
+   const reorderTabs = useForgeStore((s) => s.reorderTabs);
+   const updateTabTerminal = useForgeStore((s) => s.updateTabTerminal);
+   const theme = useForgeStore((s) => s.theme);
+-  const fxEnabled = useForgeStore((s) => s.fxEnabled);
+-
++  const tourActive = useForgeStore((s) => s.tourActive);
++  const tourExpandedPanel = useForgeStore((s) => s.tourExpandedPanel);
+   const tabRecencyMinutes = useForgeStore((s) => s.tabRecencyMinutes);
+ 
+   const [contextMenu, setContextMenu] = useState(null);
+@@ -153,21 +168,6 @@ export default function TabBar({ onRefreshWorkspace }) {
+     reorderTabs(activeGroupId, newIds);
+   };
+ 
+-  const heatStage = useEffectiveHeatStage();
+-
+-  const tabBarEmbers = useMemo(() => {
+-    if (!fxEnabled) return null;
+-    const positions = TABBAR_EMBER_CONFIGS[heatStage];
+-    if (!positions) return null;
+-    return positions.map((left, i) => (
+-      <span
+-        key={`tb-${i}`}
+-        className="forge-ember-wide"
+-        style={{ left: `${left}%`, animationDelay: `${(i * 0.3) % 2}s`, ...getEmberStyle(i, theme) }}
+-      />
+-    ));
+-  }, [fxEnabled, heatStage, theme]);
+-
+   const repoLabel = useMemo(() => {
+     if (!activeGroup?.rootPath) return "Set Repo Path";
+     const segments = activeGroup.rootPath.split("/");
+@@ -175,7 +175,7 @@ export default function TabBar({ onRefreshWorkspace }) {
+   }, [activeGroup?.rootPath]);
+ 
+   useEffect(() => {
+-    if (!repoOpen) return;
++    if (!repoOpen || tourActive) return;
+ 
+     const handlePointerDown = (event) => {
+       if (repoPanelRef.current?.contains(event.target)) return;
+@@ -194,7 +194,27 @@ export default function TabBar({ onRefreshWorkspace }) {
+       window.removeEventListener("pointerdown", handlePointerDown);
+       window.removeEventListener("keydown", handleKeyDown);
+     };
+-  }, [repoOpen]);
++  }, [repoOpen, tourActive]);
++
++  // Sync tour-driven panel expansion
++  useEffect(() => {
++    if (!tourActive) {
++      setNewTabMenu(null);
++      setRepoOpen(false);
++      return;
++    }
++    if (tourExpandedPanel === "new-tab-menu" && addButtonRef.current) {
++      const rect = addButtonRef.current.getBoundingClientRect();
++      setNewTabMenu({ x: rect.left, y: rect.bottom + 6 });
++    } else {
++      setNewTabMenu(null);
++    }
++    if (tourExpandedPanel === "project-explorer") {
++      setRepoOpen(true);
++    } else {
++      setRepoOpen(false);
++    }
++  }, [tourActive, tourExpandedPanel]);
+ 
+   useEffect(() => {
+     setContextMenu(null);
+@@ -206,6 +226,7 @@ export default function TabBar({ onRefreshWorkspace }) {
+   return (
+     <div
+       className="tab-bar"
++      data-tour="tab-bar"
+       onMouseDown={(event) => {
+         if (event.target.closest(".tab-bar-leading, .tab, .tab-add, .window-control, button, input")) {
+           return;
+@@ -213,10 +234,11 @@ export default function TabBar({ onRefreshWorkspace }) {
+         appWindow.startDragging();
+       }}
+     >
+-      {tabBarEmbers ? <div className="forge-ember-layer forge-ember-layer-tabbar">{tabBarEmbers}</div> : null}
++      <ParticleCanvas location="tabbar" />
+       <div className="tab-bar-leading" ref={repoPanelRef}>
+         <button
+           className={`repo-trigger ${repoOpen ? "repo-trigger-active" : ""}`}
++          data-tour="repo-trigger"
+           onPointerDown={(event) => event.stopPropagation()}
+           onClick={() => setRepoOpen((value) => !value)}
+         >
+@@ -224,13 +246,14 @@ export default function TabBar({ onRefreshWorkspace }) {
+         </button>
+         <ProjectExplorer
+           open={repoOpen}
+-          onClose={() => setRepoOpen(false)}
++          onClose={tourActive ? () => {} : () => setRepoOpen(false)}
+           onRefresh={onRefreshWorkspace}
++          tourElevated={tourActive}
+         />
+       </div>
+       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+         <SortableContext items={activeGroup.tabs.map((t) => t.id)} strategy={horizontalListSortingStrategy}>
+-          <div className="tab-list">
++          <div className="tab-list" data-tour="tab-list">
+             {activeGroup.tabs.map((tab) => (
+               <SortableTab
+                 key={tab.id}
+@@ -259,6 +282,7 @@ export default function TabBar({ onRefreshWorkspace }) {
+             <button
+               ref={addButtonRef}
+               className="tab-add"
++              data-tour="tab-add"
+               aria-label="Open new tab menu"
+               aria-haspopup="menu"
+               aria-expanded={Boolean(newTabMenu)}
+@@ -323,8 +347,9 @@ export default function TabBar({ onRefreshWorkspace }) {
+           x={newTabMenu.x}
+           y={newTabMenu.y}
+           rootPath={activeGroup.rootPath}
+-          onSelect={(tabOptions) => addTab(activeGroupId, tabOptions)}
+-          onClose={() => setNewTabMenu(null)}
++          tourElevated={tourActive}
++          onSelect={tourActive ? () => {} : (tabOptions) => addTab(activeGroupId, tabOptions)}
++          onClose={tourActive ? () => {} : () => setNewTabMenu(null)}
+         />
+       )}
+     </div>
+diff --git a/src/styles/global.css b/src/styles/global.css
+index 02f59ad..8b11303 100644
+--- a/src/styles/global.css
++++ b/src/styles/global.css
+@@ -182,6 +182,23 @@ html, body, #root {
+   }
+ }
+ 
++/* Waiting flash — 2-cycle transient pulse on status transition */
++@keyframes waiting-flash {
++  0%   { background-color: transparent; }
++  25%  { background-color: rgba(var(--accent-waiting-rgb), 0.25); }
++  50%  { background-color: transparent; }
++  75%  { background-color: rgba(var(--accent-waiting-rgb), 0.25); }
++  100% { background-color: transparent; }
++}
++
++.sidebar-group.flash-waiting {
++  animation: waiting-flash 0.8s ease-out;
++}
++
++.tab.flash-waiting {
++  animation: waiting-flash 0.8s ease-out;
++}
++
+ /* Sidebar */
+ .sidebar {
+   background: var(--bg-sidebar);
+@@ -2022,591 +2039,8 @@ body.reader-resizing {
+   overscroll-behavior: contain;
+ }
+ 
+-/* Ember particles (span-based) */
+-.forge-ember {
+-  position: absolute;
+-  bottom: calc(-2px - (4px * var(--size, 1)));
+-  width: calc(3px * var(--size, 1));
+-  height: calc(3px * var(--size, 1));
+-  border-radius: 50%;
+-  background: var(--heat-4);
+-  pointer-events: none;
+-  animation: ember-rise 1.8s ease-out infinite;
+-}
+-
+-@keyframes ember-rise {
+-  0% {
+-    opacity: 1;
+-    transform: translateY(0) translateX(0) scale(1);
+-    box-shadow: 0 0 calc(6px * var(--size, 1)) calc(2px * var(--size, 1)) rgba(var(--heat-4-rgb), 0.4);
+-  }
+-  30% {
+-    opacity: 0.9;
+-    transform: translateY(calc(var(--ember-rise-h, -20px) * 0.3)) translateX(var(--sway, 0px)) scale(0.85);
+-    box-shadow: 0 0 calc(5px * var(--size, 1)) calc(1px * var(--size, 1)) rgba(var(--heat-4-rgb), 0.3);
+-  }
+-  55% {
+-    opacity: 0.6;
+-    transform: translateY(calc(var(--ember-rise-h, -20px) * 0.55)) translateX(0px) scale(0.65);
+-    box-shadow: 0 0 calc(3px * var(--size, 1)) calc(1px * var(--size, 1)) rgba(var(--heat-4-rgb), 0.15);
+-  }
+-  80% {
+-    opacity: 0.3;
+-    transform: translateY(calc(var(--ember-rise-h, -20px) * 0.8)) translateX(calc(var(--sway, 0px) * -0.6)) scale(0.45);
+-    box-shadow: 0 0 calc(2px * var(--size, 1)) 0px rgba(var(--heat-4-rgb), 0.05);
+-  }
+-  100% {
+-    opacity: 0;
+-    transform: translateY(var(--ember-rise-h, -20px)) translateX(calc(var(--sway, 0px) * 0.3)) scale(0.3);
+-    box-shadow: 0 0 0 0 rgba(var(--heat-4-rgb), 0);
+-  }
+-}
+-
+-@keyframes ember-rise-tall {
+-  0% {
+-    opacity: 1;
+-    transform: translateY(0) translateX(0) scale(1);
+-    box-shadow: 0 0 calc(6px * var(--size, 1)) calc(2px * var(--size, 1)) rgba(var(--heat-4-rgb), 0.4);
+-  }
+-  30% {
+-    opacity: 0.9;
+-    transform: translateY(calc(var(--ember-rise-h, -80px) * 0.3)) translateX(var(--sway, 0px)) scale(0.85);
+-    box-shadow: 0 0 calc(5px * var(--size, 1)) calc(1px * var(--size, 1)) rgba(var(--heat-4-rgb), 0.3);
+-  }
+-  55% {
+-    opacity: 0.6;
+-    transform: translateY(calc(var(--ember-rise-h, -80px) * 0.55)) translateX(0px) scale(0.65);
+-    box-shadow: 0 0 calc(3px * var(--size, 1)) calc(1px * var(--size, 1)) rgba(var(--heat-4-rgb), 0.15);
+-  }
+-  80% {
+-    opacity: 0.3;
+-    transform: translateY(calc(var(--ember-rise-h, -80px) * 0.8)) translateX(calc(var(--sway, 0px) * -0.6)) scale(0.45);
+-    box-shadow: 0 0 calc(2px * var(--size, 1)) 0px rgba(var(--heat-4-rgb), 0.05);
+-  }
+-  100% {
+-    opacity: 0;
+-    transform: translateY(var(--ember-rise-h, -80px)) translateX(calc(var(--sway, 0px) * 0.3)) scale(0.3);
+-    box-shadow: 0 0 0 0 rgba(var(--heat-4-rgb), 0);
+-  }
+-}
+-
+-.forge-ember-tall {
+-  position: absolute;
+-  bottom: calc(-2px - (4px * var(--size, 1)));
+-  width: calc(4px * var(--size, 1));
+-  height: calc(4px * var(--size, 1));
+-  border-radius: 50%;
+-  background: var(--heat-4);
+-  pointer-events: none;
+-  animation: ember-rise-tall 2.5s ease-out infinite;
+-  will-change: transform, opacity;
+-}
+-
+-/* Header embers — always the hottest element */
+-[data-heat="4"] .forge-ember { --ember-rise-h: -65px; animation-duration: 2.5s; }
+-[data-heat="5"] .forge-ember { --ember-rise-h: -120px; animation-duration: 3.2s; }
+-
+-/* Tab bar embers — unified intensity with sidebar, adapted for short/wide shape */
+-[data-heat="4"] .forge-ember-wide { --ember-rise-h: -45px; animation-duration: 2.0s; }
+-[data-heat="5"] .forge-ember-wide { --ember-rise-h: -80px; animation-duration: 2.5s; }
+-
+-/* Sidebar tall embers — faster at each stage */
+-[data-heat="4"] .forge-ember-tall {
+-  --ember-rise-h: -55vh;
+-  animation-duration: 7s;
+-}
+-
+-[data-heat="5"] .forge-ember-tall {
+-  --ember-rise-h: -80vh;
+-  animation-duration: 6s;
+-}
+-
+-.forge-ember-wide {
+-  position: absolute;
+-  bottom: calc(-2px - (4px * var(--size, 1)));
+-  width: calc(3px * var(--size, 1));
+-  height: calc(3px * var(--size, 1));
+-  border-radius: 50%;
+-  background: var(--heat-4);
+-  pointer-events: none;
+-  animation: ember-rise 2s ease-out infinite;
+-}
+-
+-@keyframes ice-drift {
+-  0% {
+-    opacity: 0.95;
+-    transform: translateY(0) translateX(0) scale(1) rotate(45deg);
+-    box-shadow: 0 0 calc(5px * var(--size, 1)) calc(1px * var(--size, 1)) rgba(var(--heat-4-rgb), 0.2);
+-  }
+-  40% {
+-    opacity: 0.78;
+-    transform: translateY(calc(var(--ember-rise-h, -20px) * 0.38)) translateX(calc(var(--sway, 0px) * 0.18)) scale(0.88) rotate(45deg);
+-  }
+-  76% {
+-    opacity: 0.42;
+-    transform: translateY(calc(var(--ember-rise-h, -20px) * 0.78)) translateX(calc(var(--sway, 0px) * 0.04)) scale(0.7) rotate(45deg);
+-    box-shadow: 0 0 calc(3px * var(--size, 1)) 0 rgba(var(--heat-4-rgb), 0.08);
+-  }
+-  100% {
+-    opacity: 0;
+-    transform: translateY(var(--ember-rise-h, -20px)) translateX(calc(var(--sway, 0px) * 0.02)) scale(0.42) rotate(45deg);
+-    box-shadow: 0 0 0 0 rgba(var(--heat-4-rgb), 0);
+-  }
+-}
+-
+-@keyframes void-pulse {
+-  0% {
+-    opacity: 0.15;
+-    transform: translateY(0) translateX(0) scale(0.8);
+-    box-shadow: 0 0 calc(3px * var(--size, 1)) calc(1px * var(--size, 1)) rgba(var(--heat-4-rgb), 0.15);
+-  }
+-  18% {
+-    opacity: 0.65;
+-    transform: translateY(calc(var(--ember-rise-h, -20px) * 0.18)) translateX(calc(var(--sway, 0px) * 0.6)) scale(1.05);
+-    box-shadow: 0 0 calc(4px * var(--size, 1)) calc(1px * var(--size, 1)) rgba(var(--heat-4-rgb), 0.2);
+-  }
+-  45% {
+-    opacity: 0.98;
+-    transform: translateY(calc(var(--ember-rise-h, -20px) * 0.78)) translateX(var(--void-drift, 0px)) scale(0.95);
+-    box-shadow: 0 0 calc(6px * var(--size, 1)) calc(2px * var(--size, 1)) rgba(var(--heat-4-rgb), 0.2);
+-  }
+-  72% {
+-    opacity: 0.55;
+-    transform: translateY(calc(var(--ember-rise-h, -20px) * 0.26)) translateX(calc(var(--void-drift, 0px) * -0.25)) scale(0.65);
+-    box-shadow: 0 0 calc(3px * var(--size, 1)) 0 rgba(var(--heat-4-rgb), 0.1);
+-  }
+-  100% {
+-    opacity: 0;
+-    transform: translateY(calc(var(--ember-rise-h, -20px) * 0.52 + var(--void-sink, 10px))) translateX(calc(var(--sway, 0px) * -0.2)) scale(0.3);
+-    box-shadow: 0 0 0 0 rgba(var(--heat-4-rgb), 0);
+-  }
+-}
+-
+-@keyframes grass-float {
+-  0% {
+-    opacity: 0.82;
+-    transform: translateY(0) translateX(0) scale(0.9);
+-    box-shadow: 0 0 calc(4px * var(--size, 1)) calc(1px * var(--size, 1)) rgba(var(--heat-4-rgb), 0.18);
+-  }
+-  20% {
+-    opacity: 0.88;
+-    transform: translateY(calc(var(--ember-rise-h, -20px) * 0.18)) translateX(calc(var(--grass-drift, var(--sway, 0px)) * 0.5)) scale(1.05);
+-  }
+-  45% {
+-    opacity: 0.78;
+-    transform: translateY(calc(var(--ember-rise-h, -20px) * 0.42)) translateX(calc(var(--grass-drift, var(--sway, 0px)) * -0.3)) scale(0.85);
+-    box-shadow: 0 0 calc(5px * var(--size, 1)) calc(1px * var(--size, 1)) rgba(var(--heat-4-rgb), 0.15);
+-  }
+-  70% {
+-    opacity: 0.55;
+-    transform: translateY(calc(var(--ember-rise-h, -20px) * 0.7)) translateX(calc(var(--grass-drift, var(--sway, 0px)) * 0.2)) scale(0.92);
+-  }
+-  100% {
+-    opacity: 0;
+-    transform: translateY(var(--ember-rise-h, -20px)) translateX(calc(var(--sway, 0px) * -0.1)) scale(0.4);
+-    box-shadow: 0 0 0 0 rgba(var(--heat-4-rgb), 0);
+-  }
+-}
+-
+-@keyframes ice-sparkle {
+-  0%, 22%, 100% {
+-    opacity: 0;
+-    transform: translate(-50%, -50%) rotate(45deg) scale(0.2);
+-    box-shadow: 0 0 0 rgba(255, 255, 255, 0);
+-  }
+-  28% {
+-    opacity: 0.95;
+-    transform: translate(-50%, -50%) rotate(45deg) scale(0.75);
+-    box-shadow: 0 0 8px rgba(255, 255, 255, 0.8), 0 0 14px rgba(var(--heat-4-rgb), 0.45);
+-  }
+-  38% {
+-    opacity: 0.25;
+-    transform: translate(-50%, -50%) rotate(45deg) scale(0.38);
+-    box-shadow: 0 0 4px rgba(255, 255, 255, 0.35);
+-  }
+-  58% {
+-    opacity: 0.8;
+-    transform: translate(-50%, -50%) rotate(45deg) scale(0.65);
+-    box-shadow: 0 0 6px rgba(255, 255, 255, 0.75), 0 0 12px rgba(var(--heat-3-rgb), 0.28);
+-  }
+-  72% {
+-    opacity: 0;
+-    transform: translate(-50%, -50%) rotate(45deg) scale(0.15);
+-    box-shadow: 0 0 0 rgba(255, 255, 255, 0);
+-  }
+-}
+-
+-@keyframes ice-halo {
+-  0%, 18%, 100% {
+-    opacity: 0;
+-    transform: translate(-50%, -50%) scale(0.2);
+-  }
+-  32% {
+-    opacity: 0.5;
+-    transform: translate(-50%, -50%) scale(1.1);
+-  }
+-  50% {
+-    opacity: 0.18;
+-    transform: translate(-50%, -50%) scale(1.9);
+-  }
+-}
+-
+-@keyframes forge-spark-flash {
+-  0%, 10%, 43%, 100% {
+-    opacity: 0;
+-    transform: translate(-50%, -50%) scale(1);
+-    box-shadow:
+-      0 0 2px 0 rgba(255, 200, 60, 0),
+-      0 0 2px 0 rgba(255, 180, 40, 0),
+-      0 0 2px 0 rgba(255, 160, 30, 0),
+-      0 0 1px 0 rgba(255, 140, 20, 0);
+-  }
+-  12% {
+-    opacity: 0.7;
+-    transform: translate(-50%, -50%) scale(1);
+-    box-shadow:
+-      0 0 3px 1px rgba(255, 200, 60, 0.6),
+-      0 0 3px 1px rgba(255, 180, 40, 0.55),
+-      0 0 3px 1px rgba(255, 160, 30, 0.5),
+-      0 0 2px 0 rgba(255, 140, 20, 0.45);
+-  }
+-  15% {
+-    opacity: 0.5;
+-    transform: translate(-50%, -50%) scale(1);
+-    box-shadow:
+-      var(--forge-spark-spread, 10px) calc(var(--forge-spark-spread, 10px) * -0.6) 1px 0 rgba(255, 200, 60, 0.5),
+-      calc(var(--forge-spark-spread, 10px) * -0.8) calc(var(--forge-spark-spread, 10px) * -0.9) 1px 0 rgba(255, 180, 40, 0.45),
+-      calc(var(--forge-spark-spread, 10px) * 0.5) var(--forge-spark-spread, 10px) 1px 0 rgba(255, 160, 30, 0.4),
+-      calc(var(--forge-spark-spread, 10px) * -1.1) calc(var(--forge-spark-spread, 10px) * 0.3) 1px 0 rgba(255, 140, 20, 0.35);
+-  }
+-  17% {
+-    opacity: 0;
+-    transform: translate(-50%, -50%) scale(1);
+-    box-shadow:
+-      calc(var(--forge-spark-spread, 10px) * 1.4) calc(var(--forge-spark-spread, 10px) * -0.84) 1px 0 rgba(255, 200, 60, 0),
+-      calc(var(--forge-spark-spread, 10px) * -1.12) calc(var(--forge-spark-spread, 10px) * -1.26) 1px 0 rgba(255, 180, 40, 0),
+-      calc(var(--forge-spark-spread, 10px) * 0.7) calc(var(--forge-spark-spread, 10px) * 1.4) 1px 0 rgba(255, 160, 30, 0),
+-      calc(var(--forge-spark-spread, 10px) * -1.54) calc(var(--forge-spark-spread, 10px) * 0.42) 1px 0 rgba(255, 140, 20, 0);
+-  }
+-  44% {
+-    opacity: 0.6;
+-    transform: translate(-50%, -50%) scale(1);
+-    box-shadow:
+-      0 0 3px 1px rgba(255, 200, 60, 0.5),
+-      0 0 3px 1px rgba(255, 180, 40, 0.45),
+-      0 0 3px 1px rgba(255, 160, 30, 0.4),
+-      0 0 2px 0 rgba(255, 140, 20, 0.35);
+-  }
+-  47% {
+-    opacity: 0.4;
+-    transform: translate(-50%, -50%) scale(1);
+-    box-shadow:
+-      calc(var(--forge-spark-spread, 10px) * 0.8) calc(var(--forge-spark-spread, 10px) * -0.48) 1px 0 rgba(255, 200, 60, 0.4),
+-      calc(var(--forge-spark-spread, 10px) * -0.64) calc(var(--forge-spark-spread, 10px) * -0.72) 1px 0 rgba(255, 180, 40, 0.35),
+-      calc(var(--forge-spark-spread, 10px) * 0.4) calc(var(--forge-spark-spread, 10px) * 0.8) 1px 0 rgba(255, 160, 30, 0.3),
+-      calc(var(--forge-spark-spread, 10px) * -0.88) calc(var(--forge-spark-spread, 10px) * 0.24) 1px 0 rgba(255, 140, 20, 0.25);
+-  }
+-  49% {
+-    opacity: 0;
+-    transform: translate(-50%, -50%) scale(1);
+-    box-shadow:
+-      calc(var(--forge-spark-spread, 10px) * 1.12) calc(var(--forge-spark-spread, 10px) * -0.67) 1px 0 rgba(255, 200, 60, 0),
+-      calc(var(--forge-spark-spread, 10px) * -0.9) calc(var(--forge-spark-spread, 10px) * -1.0) 1px 0 rgba(255, 180, 40, 0),
+-      calc(var(--forge-spark-spread, 10px) * 0.56) calc(var(--forge-spark-spread, 10px) * 1.12) 1px 0 rgba(255, 160, 30, 0),
+-      calc(var(--forge-spark-spread, 10px) * -1.23) calc(var(--forge-spark-spread, 10px) * 0.34) 1px 0 rgba(255, 140, 20, 0);
+-  }
+-}
+-
+-@keyframes forge-spark-center {
+-  0%, 10%, 20%, 43%, 52%, 100% {
+-    opacity: 0;
+-    transform: translate(-50%, -50%) scale(0.1);
+-    box-shadow: 0 0 0 rgba(255, 200, 60, 0);
+-  }
+-  12% {
+-    opacity: 0.6;
+-    transform: translate(-50%, -50%) scale(0.8);
+-    box-shadow: 0 0 3px rgba(255, 200, 60, 0.5), 0 0 6px rgba(255, 140, 20, 0.25);
+-  }
+-  18% {
+-    opacity: 0.2;
+-    transform: translate(-50%, -50%) scale(0.5);
+-    box-shadow: 0 0 2px rgba(255, 200, 60, 0.15);
+-  }
+-  44% {
+-    opacity: 0.5;
+-    transform: translate(-50%, -50%) scale(0.7);
+-    box-shadow: 0 0 3px rgba(255, 200, 60, 0.4), 0 0 5px rgba(255, 140, 20, 0.2);
+-  }
+-  50% {
+-    opacity: 0.15;
+-    transform: translate(-50%, -50%) scale(0.4);
+-    box-shadow: 0 0 1px rgba(255, 200, 60, 0.1);
+-  }
+-}
+-
+-@keyframes void-split {
+-  0%, 12% {
+-    opacity: 0.9;
+-    transform: translate(-50%, -50%);
+-  }
+-  25% {
+-    opacity: 0.9;
+-    transform: translate(calc(-50% + var(--void-split-a-x, 16px) * 0.5), calc(-50% + var(--void-split-a-y, 0px) * 0.5));
+-  }
+-  40%, 55% {
+-    opacity: 0.9;
+-    transform: translate(calc(-50% + var(--void-split-a-x, 16px)), calc(-50% + var(--void-split-a-y, 0px)));
+-  }
+-  70% {
+-    opacity: 0.9;
+-    transform: translate(calc(-50% + var(--void-split-a-x, 16px) * 0.5), calc(-50% + var(--void-split-a-y, 0px) * 0.5));
+-  }
+-  85%, 100% {
+-    opacity: 0.9;
+-    transform: translate(-50%, -50%);
+-  }
+-}
+-
+-@keyframes grass-firefly-glow {
+-  0% {
+-    opacity: 0.15;
+-    transform: translate(-50%, -50%) scale(0.9);
+-    box-shadow: 0 0 2px rgba(var(--heat-4-rgb), 0.1);
+-  }
+-  30% {
+-    opacity: 0.7;
+-    transform: translate(-50%, -50%) scale(1.1);
+-    box-shadow: 0 0 8px rgba(var(--heat-4-rgb), 0.4), 0 0 14px rgba(var(--heat-5-rgb), 0.15);
+-  }
+-  50% {
+-    opacity: 0.2;
+-    transform: translate(-50%, -50%) scale(0.95);
+-    box-shadow: 0 0 3px rgba(var(--heat-4-rgb), 0.12);
+-  }
+-  75% {
+-    opacity: 0.55;
+-    transform: translate(-50%, -50%) scale(1.05);
+-    box-shadow: 0 0 6px rgba(var(--heat-4-rgb), 0.3), 0 0 10px rgba(var(--heat-5-rgb), 0.1);
+-  }
+-  100% {
+-    opacity: 0.15;
+-    transform: translate(-50%, -50%) scale(0.9);
+-    box-shadow: 0 0 2px rgba(var(--heat-4-rgb), 0.1);
+-  }
+-}
+-
+-@keyframes grass-dandelion-puff {
+-  0%, 18%, 100% {
+-    opacity: 0;
+-    box-shadow:
+-      0 0 0 0 rgba(var(--heat-5-rgb), 0),
+-      0 0 0 0 rgba(var(--heat-4-rgb), 0),
+-      0 0 0 0 rgba(var(--heat-5-rgb), 0),
+-      0 0 0 0 rgba(var(--heat-4-rgb), 0),
+-      0 0 0 0 rgba(var(--heat-3-rgb), 0),
+-      0 0 0 0 rgba(var(--heat-3-rgb), 0);
+-    transform: translate(-50%, -50%) scale(0.2);
+-  }
+-  30% {
+-    opacity: 0.9;
+-    box-shadow:
+-      var(--grass-puff-0-x, 12px) var(--grass-puff-0-y, -12px) 4px 1px rgba(var(--heat-5-rgb), 0.85),
+-      var(--grass-puff-1-x, -8px) var(--grass-puff-1-y, -14px) 4px 1px rgba(var(--heat-4-rgb), 0.75),
+-      var(--grass-puff-2-x, -14px) var(--grass-puff-2-y, 0px) 4px 1px rgba(var(--heat-5-rgb), 0.65),
+-      var(--grass-puff-3-x, -8px) var(--grass-puff-3-y, 12px) 4px 1px rgba(var(--heat-4-rgb), 0.6),
+-      var(--grass-puff-4-x, 8px) var(--grass-puff-4-y, 14px) 3px 1px rgba(var(--heat-3-rgb), 0.55),
+-      var(--grass-puff-5-x, 14px) var(--grass-puff-5-y, 0px) 3px 1px rgba(var(--heat-3-rgb), 0.65);
+-    transform: translate(-50%, -50%) scale(1);
+-  }
+-  55% {
+-    opacity: 0.55;
+-    box-shadow:
+-      calc(var(--grass-puff-0-x, 12px) * 1.7) calc(var(--grass-puff-0-y, -12px) * 1.7) 5px 0 rgba(var(--heat-5-rgb), 0.5),
+-      calc(var(--grass-puff-1-x, -8px) * 1.7) calc(var(--grass-puff-1-y, -14px) * 1.7) 5px 0 rgba(var(--heat-4-rgb), 0.45),
+-      calc(var(--grass-puff-2-x, -14px) * 1.7) calc(var(--grass-puff-2-y, 0px) * 1.7) 5px 0 rgba(var(--heat-5-rgb), 0.4),
+-      calc(var(--grass-puff-3-x, -8px) * 1.7) calc(var(--grass-puff-3-y, 12px) * 1.7) 5px 0 rgba(var(--heat-4-rgb), 0.35),
+-      calc(var(--grass-puff-4-x, 8px) * 1.7) calc(var(--grass-puff-4-y, 14px) * 1.7) 4px 0 rgba(var(--heat-3-rgb), 0.3),
+-      calc(var(--grass-puff-5-x, 14px) * 1.7) calc(var(--grass-puff-5-y, 0px) * 1.7) 4px 0 rgba(var(--heat-3-rgb), 0.35);
+-    transform: translate(-50%, -50%) scale(0.7);
+-  }
+-  80% {
+-    opacity: 0;
+-    box-shadow:
+-      calc(var(--grass-puff-0-x, 12px) * 2.4) calc(var(--grass-puff-0-y, -12px) * 2.4) 3px 0 rgba(var(--heat-5-rgb), 0),
+-      calc(var(--grass-puff-1-x, -8px) * 2.4) calc(var(--grass-puff-1-y, -14px) * 2.4) 3px 0 rgba(var(--heat-4-rgb), 0),
+-      calc(var(--grass-puff-2-x, -14px) * 2.4) calc(var(--grass-puff-2-y, 0px) * 2.4) 3px 0 rgba(var(--heat-5-rgb), 0),
+-      calc(var(--grass-puff-3-x, -8px) * 2.4) calc(var(--grass-puff-3-y, 12px) * 2.4) 3px 0 rgba(var(--heat-4-rgb), 0),
+-      calc(var(--grass-puff-4-x, 8px) * 2.4) calc(var(--grass-puff-4-y, 14px) * 2.4) 3px 0 rgba(var(--heat-3-rgb), 0),
+-      calc(var(--grass-puff-5-x, 14px) * 2.4) calc(var(--grass-puff-5-y, 0px) * 2.4) 3px 0 rgba(var(--heat-3-rgb), 0);
+-    transform: translate(-50%, -50%) scale(0.3);
+-  }
+-}
+ 
+-[data-fx="on"][data-theme="forge"] .forge-ember::before,
+-[data-fx="on"][data-theme="forge"] .forge-ember-wide::before,
+-[data-fx="on"][data-theme="forge"] .forge-ember-tall::before {
+-  content: "";
+-  position: absolute;
+-  top: 50%;
+-  left: 50%;
+-  width: 2px;
+-  height: 2px;
+-  border-radius: 50%;
+-  background: rgba(255, 220, 80, 1);
+-  transform: translate(-50%, -50%);
+-  mix-blend-mode: screen;
+-  opacity: 0;
+-  animation: forge-spark-flash 2.25s linear infinite;
+-  animation-delay: calc(var(--size, 1) * -0.55s);
+-  animation-play-state: var(--forge-spark-play, paused);
+-}
+-
+-[data-fx="on"][data-theme="forge"] .forge-ember::after,
+-[data-fx="on"][data-theme="forge"] .forge-ember-wide::after,
+-[data-fx="on"][data-theme="forge"] .forge-ember-tall::after {
+-  content: "";
+-  position: absolute;
+-  top: 50%;
+-  left: 50%;
+-  width: 3px;
+-  height: 3px;
+-  border-radius: 50%;
+-  background: rgba(255, 240, 200, 1);
+-  transform: translate(-50%, -50%);
+-  mix-blend-mode: screen;
+-  opacity: 0;
+-  animation: forge-spark-center 2.25s linear infinite;
+-  animation-delay: calc(var(--size, 1) * -0.55s);
+-  animation-play-state: var(--forge-spark-play, paused);
+-}
+-
+-[data-fx="on"][data-theme="ice"] .forge-ember::before,
+-[data-fx="on"][data-theme="ice"] .forge-ember-wide::before,
+-[data-fx="on"][data-theme="ice"] .forge-ember-tall::before {
+-  content: "";
+-  position: absolute;
+-  top: 50%;
+-  left: 50%;
+-  width: calc(6px * var(--size, 1));
+-  height: calc(6px * var(--size, 1));
+-  background:
+-    linear-gradient(transparent 44%, rgba(255, 255, 255, 0.98) 44%, rgba(255, 255, 255, 0.98) 56%, transparent 56%),
+-    linear-gradient(90deg, transparent 44%, rgba(255, 255, 255, 0.98) 44%, rgba(255, 255, 255, 0.98) 56%, transparent 56%);
+-  border-radius: 2px;
+-  transform: translate(-50%, -50%) rotate(45deg);
+-  mix-blend-mode: screen;
+-  opacity: 0;
+-  animation: ice-sparkle 2.2s linear infinite;
+-  animation-delay: calc(var(--size, 1) * -0.9s);
+-}
+-
+-[data-fx="on"][data-theme="ice"] .forge-ember::after,
+-[data-fx="on"][data-theme="ice"] .forge-ember-wide::after,
+-[data-fx="on"][data-theme="ice"] .forge-ember-tall::after {
+-  content: "";
+-  position: absolute;
+-  top: 50%;
+-  left: 50%;
+-  width: calc(8px * var(--size, 1));
+-  height: calc(8px * var(--size, 1));
+-  border-radius: 50%;
+-  border: 1px solid rgba(255, 255, 255, 0.45);
+-  transform: translate(-50%, -50%);
+-  opacity: 0;
+-  animation: ice-halo 2.2s ease-out infinite;
+-  animation-delay: calc(var(--size, 1) * -0.7s);
+-}
+-
+-[data-fx="on"][data-theme="void"] .forge-ember::before,
+-[data-fx="on"][data-theme="void"] .forge-ember-wide::before,
+-[data-fx="on"][data-theme="void"] .forge-ember-tall::before {
+-  content: "";
+-  position: absolute;
+-  top: 50%;
+-  left: 50%;
+-  width: calc(3px * var(--size, 1));
+-  height: calc(3px * var(--size, 1));
+-  border-radius: 50%;
+-  background: var(--heat-4);
+-  opacity: 0;
+-  animation: void-split 3.5s ease-in-out infinite;
+-  animation-delay: calc(var(--size, 1) * -0.65s);
+-}
+-
+-[data-fx="on"][data-theme="grass"] .forge-ember::before,
+-[data-fx="on"][data-theme="grass"] .forge-ember-wide::before,
+-[data-fx="on"][data-theme="grass"] .forge-ember-tall::before {
+-  content: "";
+-  position: absolute;
+-  top: 50%;
+-  left: 50%;
+-  width: calc(5px * var(--size, 1));
+-  height: calc(5px * var(--size, 1));
+-  border-radius: 50%;
+-  background: radial-gradient(circle, rgba(var(--heat-5-rgb), 0.6) 0%, rgba(var(--heat-4-rgb), 0.25) 50%, rgba(var(--heat-4-rgb), 0) 72%);
+-  transform: translate(-50%, -50%);
+-  opacity: 0.15;
+-  animation: grass-firefly-glow 3.5s ease-in-out infinite;
+-  animation-delay: calc(var(--size, 1) * -0.8s);
+-  animation-play-state: var(--grass-glow-play, paused);
+-}
+-
+-[data-fx="on"][data-theme="grass"] .forge-ember::after,
+-[data-fx="on"][data-theme="grass"] .forge-ember-wide::after,
+-[data-fx="on"][data-theme="grass"] .forge-ember-tall::after {
+-  content: "";
+-  position: absolute;
+-  top: 50%;
+-  left: 50%;
+-  width: calc(2px * var(--size, 1));
+-  height: calc(2px * var(--size, 1));
+-  border-radius: 50%;
+-  opacity: 0;
+-  animation: grass-dandelion-puff 3.2s ease-out infinite;
+-  animation-delay: calc(var(--size, 1) * -0.35s);
+-  animation-play-state: var(--grass-special-play, paused);
+-}
+-
+-[data-theme="ice"] .forge-ember,
+-[data-theme="ice"] .forge-ember-wide,
+-[data-theme="ice"] .forge-ember-tall {
+-  animation-name: ice-drift;
+-  border-radius: 1px;
+-}
+-
+-[data-theme="void"] .forge-ember,
+-[data-theme="void"] .forge-ember-wide,
+-[data-theme="void"] .forge-ember-tall {
+-  animation-name: void-pulse;
+-}
+-
+-[data-theme="grass"] .forge-ember,
+-[data-theme="grass"] .forge-ember-wide,
+-[data-theme="grass"] .forge-ember-tall {
+-  animation-name: grass-float;
+-}
+-
+-[data-theme="ice"][data-heat="4"] .forge-ember { --ember-rise-h: -52px; animation-duration: 4.2s; }
+-[data-theme="ice"][data-heat="5"] .forge-ember { --ember-rise-h: -88px; animation-duration: 5.1s; }
+-[data-theme="ice"][data-heat="4"] .forge-ember-wide { --ember-rise-h: -32px; animation-duration: 3.5s; }
+-[data-theme="ice"][data-heat="5"] .forge-ember-wide { --ember-rise-h: -54px; animation-duration: 4.2s; }
+-[data-theme="ice"][data-heat="4"] .forge-ember-tall { --ember-rise-h: -42vh; animation-duration: 10s; }
+-[data-theme="ice"][data-heat="5"] .forge-ember-tall { --ember-rise-h: -56vh; animation-duration: 9.4s; }
+-
+-[data-theme="void"][data-heat="4"] .forge-ember { --ember-rise-h: -66px; animation-duration: 3.4s; }
+-[data-theme="void"][data-heat="5"] .forge-ember { --ember-rise-h: -98px; animation-duration: 4.2s; }
+-[data-theme="void"][data-heat="4"] .forge-ember-wide { --ember-rise-h: -48px; animation-duration: 3s; }
+-[data-theme="void"][data-heat="5"] .forge-ember-wide { --ember-rise-h: -78px; animation-duration: 3.7s; }
+-[data-theme="void"][data-heat="4"] .forge-ember-tall { --ember-rise-h: -50vh; animation-duration: 8.8s; }
+-[data-theme="void"][data-heat="5"] .forge-ember-tall { --ember-rise-h: -68vh; animation-duration: 8.1s; }
+-
+-[data-theme="grass"][data-heat="4"] .forge-ember { --ember-rise-h: -64px; animation-duration: 3.2s; }
+-[data-theme="grass"][data-heat="5"] .forge-ember { --ember-rise-h: -110px; animation-duration: 4.1s; }
+-[data-theme="grass"][data-heat="4"] .forge-ember-wide { --ember-rise-h: -44px; animation-duration: 2.8s; }
+-[data-theme="grass"][data-heat="5"] .forge-ember-wide { --ember-rise-h: -76px; animation-duration: 3.6s; }
+-[data-theme="grass"][data-heat="4"] .forge-ember-tall { --ember-rise-h: -54vh; animation-duration: 8s; }
+-[data-theme="grass"][data-heat="5"] .forge-ember-tall { --ember-rise-h: -72vh; animation-duration: 7.6s; }
++/* V1 ember particle CSS removed — replaced by Canvas 2D engine (particleEngine.js) */
+ 
+ @keyframes micro-ember-rise {
+   0% {
+@@ -2916,7 +2350,8 @@ body.reader-resizing {
+ 
+ .welcome-actions {
+   display: flex;
+-  justify-content: flex-end;
++  justify-content: flex-start;
++  gap: 12px;
+   margin-top: 18px;
+ }
+ 
+@@ -3127,6 +2562,24 @@ body.reader-resizing {
+   margin-bottom: 8px;
+ }
+ 
++.info-tour-link {
++  display: inline-block;
++  background: rgba(var(--accent-active-rgb), 0.12);
++  border: 1px solid rgba(var(--accent-active-rgb), 0.35);
++  color: var(--text-primary);
++  padding: 6px 14px;
++  font-size: 12px;
++  font-family: inherit;
++  border-radius: 0;
++  cursor: pointer;
++  margin-bottom: 14px;
++  transition: background 0.1s;
++}
++
++.info-tour-link:hover {
++  background: rgba(var(--accent-active-rgb), 0.22);
++}
++
+ .info-content h2 {
+   font-size: 11px;
+   font-weight: 600;
+@@ -3426,3 +2879,247 @@ body.reader-resizing {
+   --bg-active: #28100e;
+   --border: #401815;
+ }
++
++/* ── Guided Tour ── */
++
++.tour-overlay {
++  position: fixed;
++  inset: 0;
++  z-index: 2500;
++  background: rgba(0, 0, 0, 0.45);
++  transition: clip-path 0.3s ease;
++  pointer-events: auto;
++}
++
++.tour-backdrop {
++  position: fixed;
++  inset: 0;
++  z-index: 2500;
++  background: rgba(0, 0, 0, 0.55);
++}
++
++.tour-glow-ring {
++  position: fixed;
++  z-index: 2501;
++  border: 1.5px solid rgba(var(--accent-active-rgb), 0.6);
++  box-shadow:
++    0 0 0 2px rgba(var(--accent-active-rgb), 0.15),
++    0 0 20px rgba(var(--accent-active-rgb), 0.25);
++  pointer-events: none;
++  transition: top 0.3s ease, left 0.3s ease, width 0.3s ease, height 0.3s ease;
++  animation: tour-glow-pulse 2s ease-in-out infinite;
++}
++
++@keyframes tour-glow-pulse {
++  0%, 100% {
++    box-shadow:
++      0 0 0 2px rgba(var(--accent-active-rgb), 0.15),
++      0 0 20px rgba(var(--accent-active-rgb), 0.25);
++  }
++  50% {
++    box-shadow:
++      0 0 0 3px rgba(var(--accent-active-rgb), 0.25),
++      0 0 30px rgba(var(--accent-active-rgb), 0.35);
++  }
++}
++
++.tour-tooltip {
++  position: fixed;
++  z-index: 2502;
++  background: var(--bg-sidebar);
++  border: 1px solid rgba(var(--accent-active-rgb), 0.4);
++  padding: 16px 20px;
++  max-width: 380px;
++  min-width: 280px;
++  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
++  animation: tour-tooltip-enter 0.25s ease-out;
++}
++
++.tour-tooltip-centered {
++  max-width: 440px;
++}
++
++@keyframes tour-tooltip-enter {
++  from {
++    opacity: 0;
++    transform: translateY(6px);
++  }
++  to {
++    opacity: 1;
++    transform: translateY(0);
++  }
++}
++
++.tour-tooltip-header {
++  font-size: 14px;
++  font-weight: 600;
++  color: var(--text-primary);
++  margin-bottom: 8px;
++}
++
++.tour-tooltip-body {
++  font-size: 12px;
++  line-height: 1.5;
++  color: var(--text-secondary);
++  margin-bottom: 16px;
++}
++
++.tour-tooltip-footer {
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  gap: 8px;
++}
++
++.tour-step-counter {
++  font-size: 11px;
++  color: var(--text-muted);
++  white-space: nowrap;
++}
++
++.tour-tooltip-buttons {
++  display: flex;
++  gap: 6px;
++}
++
++.tour-btn {
++  background: rgba(255, 255, 255, 0.05);
++  border: 1px solid var(--border);
++  color: var(--text-secondary);
++  padding: 6px 14px;
++  font-size: 12px;
++  font-family: inherit;
++  border-radius: 0;
++  cursor: pointer;
++  transition: background 0.1s, color 0.1s;
++}
++
++.tour-btn:hover {
++  background: var(--bg-active);
++  color: var(--text-primary);
++}
++
++.tour-btn:disabled {
++  opacity: 0.4;
++  cursor: default;
++}
++
++.tour-btn-primary {
++  background: rgba(var(--accent-active-rgb), 0.18);
++  border-color: rgba(var(--accent-active-rgb), 0.42);
++  color: var(--text-primary);
++}
++
++.tour-btn-primary:hover {
++  background: rgba(var(--accent-active-rgb), 0.28);
++}
++
++/* Tour tooltip close button */
++.tour-tooltip-close {
++  position: absolute;
++  top: 8px;
++  right: 8px;
++  background: none;
++  border: none;
++  color: var(--text-muted);
++  cursor: pointer;
++  font-size: 14px;
++  font-family: inherit;
++  padding: 2px 6px;
++  line-height: 1;
++}
++
++.tour-tooltip-close:hover {
++  color: var(--text-secondary);
++}
++
++/* Elevated panels during tour (settings, info) — visible but non-interactive */
++.tour-elevated-panel {
++  z-index: 2504 !important;
++  position: relative;
++}
++
++.tour-elevated-panel > .settings-overlay {
++  z-index: 2504;
++  background: transparent;
++  pointer-events: none;
++}
++
++.tour-elevated-panel > .settings-overlay > .settings-panel,
++.tour-elevated-panel > .settings-overlay > .info-panel {
++  z-index: 2505;
++  pointer-events: none;
++}
++
++/* Elevate menus during tour — visible but non-interactive */
++.quick-tab-menu.tour-elevated-menu,
++.repo-browser-popover.tour-elevated-menu {
++  z-index: 2504;
++  pointer-events: none;
++}
++
++/* Mock document viewer for tour */
++.terminal-area:has(.tour-mock-doc-viewer) {
++  display: flex;
++  flex-direction: row;
++}
++
++.tour-mock-doc-viewer {
++  width: 40%;
++  height: 100%;
++  display: flex;
++  flex-direction: column;
++  border-left: 1px solid var(--border);
++  background: var(--bg-deep);
++  position: relative;
++  z-index: 2;
++  order: 2;
++  pointer-events: none;
++}
++
++.tour-mock-doc-toolbar {
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  padding: 6px 12px;
++  border-bottom: 1px solid var(--border);
++  background: var(--bg-sidebar);
++}
++
++.tour-mock-doc-title {
++  font-size: 12px;
++  color: var(--text-primary);
++  font-weight: 500;
++}
++
++.tour-mock-doc-actions {
++  display: flex;
++  gap: 6px;
++}
++
++.tour-mock-doc-btn {
++  background: rgba(255, 255, 255, 0.05);
++  border: 1px solid var(--border);
++  color: var(--text-secondary);
++  padding: 3px 10px;
++  font-size: 11px;
++  font-family: inherit;
++  cursor: default;
++}
++
++.tour-mock-doc-content {
++  padding: 16px;
++  flex: 1;
++  overflow: hidden;
++}
++
++.tour-mock-doc-line {
++  font-size: 12px;
++  line-height: 1.7;
++  color: var(--text-secondary);
++  font-family: inherit;
++}
++
++.tour-mock-doc-line-muted {
++  opacity: 0;
++}

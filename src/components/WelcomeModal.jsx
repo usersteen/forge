@@ -2,7 +2,7 @@ import { useState } from "react";
 import useForgeStore from "../store/useForgeStore";
 import useEscapeKey from "../hooks/useEscapeKey";
 
-export default function WelcomeModal({ onClose }) {
+export default function WelcomeModal({ onClose, onStartTour }) {
   useEscapeKey(onClose);
   const showWelcomeOnLaunch = useForgeStore((state) => state.showWelcomeOnLaunch);
   const setShowWelcomeOnLaunch = useForgeStore((state) => state.setShowWelcomeOnLaunch);
@@ -38,7 +38,7 @@ export default function WelcomeModal({ onClose }) {
           Forge is a terminal manager designed to help you cook with Claude Code and Codex.
         </p>
         <p className="welcome-copy">
-          Check out <strong>Info</strong> and <strong>Settings</strong> in the bottom-left of the interface.
+          The guided tour and Repos Folder setting are also available in Settings.
         </p>
 
         <div className="welcome-repos-row">
@@ -56,6 +56,19 @@ export default function WelcomeModal({ onClose }) {
         </div>
 
         <div className="welcome-actions">
+          {onStartTour && (
+            <button
+              type="button"
+              className="welcome-action"
+              onClick={() => {
+                if (localPath.trim()) setReposRootPath(localPath.trim());
+                onClose();
+                onStartTour();
+              }}
+            >
+              Take a Tour
+            </button>
+          )}
           <button type="button" className="welcome-action welcome-action-primary" onClick={handleClose}>
             Start Using Forge
           </button>

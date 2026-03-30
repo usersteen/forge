@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="forge" data-heat="5">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forge — A workspace for AI coding agents</title>
+<meta property="og:title" content="Forge — A workspace for AI coding agents">
+<meta property="og:description" content="Run terminals across every project. See who's working, who's waiting, and stay in command.">
+<meta property="og:image" content="/og-image.png">
+<meta property="og:url" content="https://forge.usersteen.app">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="description" content="Forge is a desktop workspace for managing multiple AI coding agents across every project. Live status detection, heat streaks, themes, and more.">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════
+   RESET & CSS VARIABLES
+   ═══════════════════════════════════════════ */
+:root {
+  --bg-deep: #080c14;
+  --bg-sidebar: #0a0f1a;
+  --bg-active: #111b2e;
+  --border: #1e293b;
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --accent-active: #60a5fa;
+  --accent-idle: #64748b;
+  --accent-waiting: #f59e0b;
+  --accent-working: #ff4d4d;
+  --accent-server: #3b82f6;
+  --heat-current: #ff4d4d;
+  --heat-0: #475569;
+  --heat-1: #f59e0b;
+  --heat-2: #ea580c;
+  --heat-3: #dc2626;
+  --heat-4: #ef4444;
+  --heat-5: #ff4d4d;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  overflow-x: hidden;
+  scroll-snap-type: y proximity;
+  transition: background 0.4s ease;
+}
+
+/* ═══════════════════════════════════════════
+   TYPOGRAPHY
+   ═══════════════════════════════════════════ */
+.mono {
+  font-family: 'IBM Plex Mono', 'Cascadia Code', monospace;
+}
+
+h1 {
+  font-size: 3.2rem;
+  font-weight: 300;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+}
+h1 em {
+  font-style: normal;
+  color: var(--accent-active);
+  transition: color 0.4s ease;
+}
+
+h2 {
+  font-size: 1.5rem;
+  font-weight: 400;
+  line-height: 1.4;
+  margin-bottom: 16px;
+  color: var(--text-primary);
+}
+
+.sub {
+  font-size: 0.9rem;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  max-width: 540px;
+}
+
+.section-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.65rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+}
+
+/* ═══════════════════════════════════════════
+   LAYOUT & SCROLL SNAP
+   ═══════════════════════════════════════════ */
+section {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 80px 40px;
+  max-width: 840px;
+  margin: 0 auto;
+  position: relative;
+  scroll-snap-align: start;
+}
+
+/* ═══════════════════════════════════════════
+   REVEAL ANIMATIONS
+   ═══════════════════════════════════════════ */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ═══════════════════════════════════════════
+   SCROLL PROGRESS BAR
+   ═══════════════════════════════════════════ */
+#scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 2px;
+  width: 0%;
+  background: var(--heat-current);
+  z-index: 200;
+  transition: background 0.4s ease;
+}
+
+/* ═══════════════════════════════════════════
+   HEAT BORDER GLOW
+   ═══════════════════════════════════════════ */
+#heat-border {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  border: 2px solid transparent;
+  transition: border-color 0.4s ease, box-shadow 0.4s ease;
+}
+
+/* ═══════════════════════════════════════════
+   EMBER PARTICLES
+   ═══════════════════════════════════════════ */
+#embers {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 99;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+.ember {
+  position: absolute;
+  bottom: -10px;
+  border-radius: 50%;
+  background: var(--heat-4);
+  animation: ember-rise linear infinite;
+  transition: background 0.4s ease;
+}
+@keyframes ember-rise {
+  0% { transform: translateY(0) translateX(0); opacity: 0.85; }
+  40% { opacity: 0.5; }
+  100% { transform: translateY(-105vh) translateX(var(--sway, 20px)); opacity: 0; }
+}
+
+/* ═══════════════════════════════════════════
+   FORGE LOGO
+   ═══════════════════════════════════════════ */
+.forge-logo {
+  transition: filter 0.4s ease;
+}
+.forge-logo path {
+  fill: var(--heat-current);
+  transition: fill 0.4s ease;
+}
+
+.logo-hero {
+  width: 220px;
+  height: auto;
+  margin-bottom: 32px;
+}
+
+.logo-showcase {
+  width: 360px;
+  max-width: 100%;
+  height: auto;
+  margin: 32px 0;
+}
+
+/* ═══════════════════════════════════════════
+   BUTTONS
+   ═══════════════════════════════════════════ */
+.btn {
+  display: inline-block;
+  padding: 12px 28px;
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  background: transparent;
+  border-radius: 0;
+  transition: border-color 0.3s ease, color 0.3s ease, background 0.3s ease;
+  text-decoration: none;
+}
+.btn:hover {
+  border-color: var(--accent-active);
+  color: var(--accent-active);
+}
+.btn-large {
+  font-size: 0.82rem;
+  padding: 16px 40px;
+  border-width: 2px;
+}
+.btn-primary {
+  background: var(--bg-active);
+  border-color: var(--accent-active);
+}
+.btn-primary:hover {
+  background: rgba(255,255,255,0.06);
+}
+
+/* ═══════════════════════════════════════════
+   HERO
+   ═══════════════════════════════════════════ */
+#hero .tagline {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  font-weight: 400;
+}
+#hero .sub {
+  margin-bottom: 40px;
+}
+
+/* ═══════════════════════════════════════════
+   STATUS DEMO — MINI APP
+   ═══════════════════════════════════════════ */
+.demo-app {
+  display: flex;
+  border: 1px solid var(--border);
+  background: var(--bg-deep);
+  margin: 32px 0 24px;
+  max-width: 680px;
+  height: 320px;
+  overflow: hidden;
+  transition: border-color 0.4s ease, background 0.4s ease;
+}
+
+.demo-sidebar {
+  width: 170px;
+  min-width: 170px;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  transition: background 0.4s ease, border-color 0.4s ease;
+}
+
+.demo-sidebar-header {
+  height: 38px;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--border);
+  transition: border-color 0.4s ease;
+}
+.demo-sidebar-header .forge-logo {
+  width: 60px;
+  height: auto;
+}
+
+.demo-groups {
+  flex: 1;
+  padding: 6px 0;
+}
+
+.demo-group {
+  padding: 8px 14px;
+  cursor: default;
+  border-right: 3px solid transparent;
+  transition: border-color 0.3s ease, background 0.3s ease;
+}
+.demo-group.active {
+  background: var(--bg-active);
+  border-right-color: var(--accent-active);
+  transition: background 0.4s ease, border-color 0.4s ease;
+}
+
+.demo-group-name {
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: block;
+  margin-bottom: 5px;
+}
+
+.demo-group-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.demo-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-idle);
+  transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+.demo-dot.working {
+  background: var(--accent-working);
+  animation: glow-working-small 1.5s ease-in-out infinite;
+}
+.demo-dot.waiting {
+  background: var(--accent-waiting);
+  box-shadow: 0 0 4px rgba(245, 158, 11, 0.6);
+}
+.demo-dot.server {
+  background: var(--accent-server);
+}
+
+.demo-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.demo-tabbar {
+  height: 38px;
+  display: flex;
+  align-items: stretch;
+  background: var(--bg-sidebar);
+  border-bottom: 1px solid var(--border);
+  padding: 0 8px;
+  gap: 0;
+  overflow: hidden;
+  transition: background 0.4s ease, border-color 0.4s ease;
+}
+
+.demo-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  border-bottom: 3px solid transparent;
+  transition: border-color 0.3s ease, color 0.3s ease;
+  cursor: default;
+}
+.demo-tab.active {
+  border-bottom-color: var(--accent-active);
+  color: var(--text-primary);
+  background: var(--bg-active);
+  transition: background 0.4s ease, border-color 0.4s ease;
+}
+
+.demo-tab-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent-idle);
+  flex-shrink: 0;
+  transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+.demo-tab-dot.working {
+  background: var(--accent-working);
+  animation: glow-working 1.5s ease-in-out infinite;
+}
+.demo-tab-dot.waiting {
+  background: var(--accent-waiting);
+  box-shadow: 0 0 5px rgba(245, 158, 11, 0.7);
+}
+.demo-tab-dot.server {
+  background: var(--accent-server);
+}
+
+.demo-tab-badge {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 1px 5px;
+  border: 1px solid rgba(217, 119, 6, 0.24);
+  color: rgba(251, 191, 36, 0.88);
+  line-height: 1.4;
+}
+
+.demo-terminal {
+  flex: 1;
+  padding: 14px 16px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  overflow: hidden;
+  background: var(--bg-deep);
+  transition: background 0.4s ease;
+}
+
+.demo-terminal-line {
+  margin-bottom: 4px;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+.demo-terminal-line.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.demo-terminal-line.user {
+  color: var(--accent-active);
+}
+.demo-terminal-line.ai {
+  color: var(--text-secondary);
+}
+.demo-terminal-line.dim {
+  color: var(--text-muted);
+}
+.demo-terminal-line .spinner {
+  display: inline-block;
+  animation: spin 0.8s steps(8) infinite;
+}
+@keyframes spin {
+  0% { content: ''; }
+}
+
+.demo-status-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 16px;
+  letter-spacing: 0.08em;
+}
+
+/* ═══════════════════════════════════════════
+   GLOW ANIMATIONS (matching app)
+   ═══════════════════════════════════════════ */
+@keyframes glow-working {
+  0%, 100% {
+    box-shadow: 0 0 4px rgba(255, 77, 77, 0.7), 0 0 9px rgba(255, 77, 77, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 6px rgba(255, 77, 77, 0.9), 0 0 13px rgba(255, 77, 77, 0.35), 0 0 20px rgba(255, 77, 77, 0.15);
+  }
+}
+@keyframes glow-working-small {
+  0%, 100% {
+    box-shadow: 0 0 3px rgba(255, 77, 77, 0.7), 0 0 7px rgba(255, 77, 77, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 4px rgba(255, 77, 77, 0.85), 0 0 9px rgba(255, 77, 77, 0.3);
+  }
+}
+
+/* ═══════════════════════════════════════════
+   HEAT STREAK SECTION
+   ═══════════════════════════════════════════ */
+.heat-stages {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 24px;
+}
+
+.heat-stage-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  border-radius: 0;
+  transition: border-color 0.3s ease, color 0.3s ease, background 0.3s ease;
+}
+.heat-stage-btn:hover {
+  border-color: var(--text-muted);
+  color: var(--text-primary);
+}
+.heat-stage-btn.active {
+  border-color: var(--heat-current);
+  color: var(--text-primary);
+  background: var(--bg-active);
+}
+
+.heat-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* ═══════════════════════════════════════════
+   FEATURES STRIP
+   ═══════════════════════════════════════════ */
+.features-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.feature-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  transition: border-color 0.3s ease, color 0.3s ease, background 0.3s ease;
+  cursor: default;
+}
+.feature-chip:hover {
+  border-color: var(--accent-active);
+  color: var(--text-primary);
+}
+.chip-icon {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  transition: color 0.3s ease;
+}
+.feature-chip:hover .chip-icon {
+  color: var(--accent-active);
+}
+
+/* ═══════════════════════════════════════════
+   THEMES + DOWNLOAD (CTA)
+   ═══════════════════════════════════════════ */
+.theme-options {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+  margin-bottom: 56px;
+}
+
+.theme-btn {
+  padding: 10px 22px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  border-radius: 0;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.3s ease, color 0.3s ease, background 0.3s ease;
+}
+.theme-btn::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--preview-color);
+  opacity: 0.7;
+}
+.theme-btn:hover, .theme-btn.active {
+  border-color: var(--preview-color);
+  color: var(--text-primary);
+}
+.theme-btn.active {
+  background: rgba(255,255,255,0.04);
+}
+
+#cta {
+  text-align: center;
+}
+#cta h1 {
+  margin-bottom: 12px;
+}
+#cta .sub {
+  margin: 0 auto 36px;
+  text-align: center;
+}
+
+.download-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.version-info {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin-top: 20px;
+  letter-spacing: 0.05em;
+}
+.version-info a {
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+.version-info a:hover {
+  color: var(--accent-active);
+}
+
+/* ═══════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════ */
+@media (max-width: 700px) {
+  h1 { font-size: 2.2rem; }
+  h2 { font-size: 1.2rem; }
+  section { padding: 60px 24px; }
+  .demo-app { flex-direction: column; height: auto; }
+  .demo-sidebar { width: 100%; min-width: 0; border-right: none; border-bottom: 1px solid var(--border); }
+  .demo-groups { display: flex; gap: 0; }
+  .demo-group { flex: 1; border-right: none; border-bottom: 3px solid transparent; }
+  .demo-group.active { border-right: none; border-bottom-color: var(--accent-active); }
+  .demo-tabbar { overflow-x: auto; }
+  .demo-terminal { min-height: 140px; }
+  .logo-showcase { width: 260px; }
+  .btn-large { padding: 14px 28px; font-size: 0.75rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ FIXED OVERLAYS ═══ -->
+<div id="scroll-progress"></div>
+<div id="heat-border"></div>
+<div id="embers"></div>
+
+<!-- ═══════════════════════════════════════════
+     SECTION 1: HERO
+     ═══════════════════════════════════════════ -->
+<section id="hero">
+  <div class="reveal">
+    <svg class="forge-logo logo-hero" viewBox="0 0 320 60.7" xmlns="http://www.w3.org/2000/svg">
+      <path d="M51.59.91v2.73c0,.5-.41.91-.91.91h-27.01c-.5,0-.91.41-.91.91v21.7c0,.5.41.91.91.91h10.32c.5,0,.91-.41.91-.91v-.46c0-.5.41-.91.91-.91h1.21c.5,0,.91.41.91.91v7.28c0,.5-.41.91-.91.91h-1.21c-.5,0-.91-.41-.91-.91v-.45c0-.5-.41-.91-.91-.91h-10.32c-.5,0-.91.41-.91.91v21.7c0,.5.41.91.91.91h7.28c.5,0,.91.41.91.91v2.73c0,.5-.41.91-.91.91H.91c-.5,0-.91-.41-.91-.91v-2.73c0-.5.41-.91.91-.91h4.55c2.01,0,3.64-1.63,3.64-3.64V8.19c0-2.01-1.63-3.64-3.64-3.64H.91c-.5,0-.91-.41-.91-.91V.91C0,.41.41,0,.91,0h49.77c.5,0,.91.41.91.91Z"/>
+      <path d="M109.68,4.55c.5,0,.91.41.91.91v49.77c0,.5-.41.91-.91.91-2.01,0-3.64,1.63-3.64,3.64,0,.5-.41.91-.91.91h-31.56c-.5,0-.91-.41-.91-.91,0-2.01-1.63-3.64-3.64-3.64-.5,0-.91-.41-.91-.91V5.46c0-.5.41-.91.91-.91,2.01,0,3.64-1.63,3.64-3.64,0-.5.41-.91.91-.91h31.56c.5,0,.91.41.91.91,0,2.01,1.63,3.64,3.64,3.64ZM96.93,55.23V5.46c0-.5-.41-.91-.91-.91h-13.35c-.5,0-.91.41-.91.91v49.77c0,.5.41.91.91.91h13.35c.5,0,.91-.41.91-.91Z"/>
+      <path d="M188.1,56.14c.5,0,.91.41.91.91v2.73c0,.5-.41.91-.91.91h-16.39c-.5,0-.91-.41-.91-.91,0-2.01-1.63-3.64-3.64-3.64-.5,0-.91-.41-.91-.91v-21.7c0-.5-.41-.91-.91-.91h-13.35c-.5,0-.91.41-.91.91v21.7c0,.5-.41.91-.91.91-2.01,0-3.64,1.63-3.64,3.64,0,.5-.41.91-.91.91h-16.39c-.5,0-.91-.41-.91-.91v-2.73c0-.5.41-.91.91-.91h4.55c2.01,0,3.64-1.63,3.64-3.64V8.19c0-2.01-1.63-3.64-3.64-3.64h-4.55c-.5,0-.91-.41-.91-.91V.91c0-.5.41-.91.91-.91h45.22c.5,0,.91.41.91.91,0,2.01,1.63,3.64,3.64,3.64.5,0,.91.41.91.91v21.7c0,.5-.41.91-.91.91h-2.73c-.5,0-.91.41-.91.91v2.73c0,.5.41.91.91.91h2.73c.5,0,.91.41.91.91v18.97c0,2.01,1.63,3.64,3.64,3.64h4.55ZM151.99,28.07h13.35c.5,0,.91-.41.91-.91V5.46c0-.5-.41-.91-.91-.91h-13.35c-.5,0-.91.41-.91.91v21.7c0,.5.41.91.91.91Z"/>
+      <path d="M257.72,28.98v2.73c0,.5-.41.91-.91.91h-7.28c-.5,0-.91.41-.91.91v21.7c0,.5-.41.91-.91.91-2.01,0-3.64,1.63-3.64,3.64,0,.5-.41.91-.91.91h-31.56c-.5,0-.91-.41-.91-.91,0-2.01-1.63-3.64-3.64-3.64-.5,0-.91-.41-.91-.91V5.46c0-.5.41-.91.91-.91,2.01,0,3.64-1.63,3.64-3.64,0-.5.41-.91.91-.91h31.56c.5,0,.91.41.91.91,0,2.01,1.63,3.64,3.64,3.64.5,0,.91.41.91.91v2.73c0,.5-.41.91-.91.91h-11.84c-.5,0-.91-.41-.91-.91v-2.73c0-.5-.41-.91-.91-.91h-13.35c-.5,0-.91.41-.91.91v49.77c0,.5.41.91.91.91h13.35c.5,0,.91-.41.91-.91v-21.7c0-.5-.41-.91-.91-.91h-7.28c-.5,0-.91-.41-.91-.91v-2.73c0-.5.41-.91.91-.91h30.04c.5,0,.91.41.91.91Z"/>
+      <path d="M291.17,5.46v21.7c0,.5.41.91.91.91h10.32c.5,0,.91-.41.91-.91v-.46c0-.5.41-.91.91-.91h1.21c.5,0,.91.41.91.91v7.28c0,.5-.41.91-.91.91h-1.21c-.5,0-.91-.41-.91-.91v-.45c0-.5-.41-.91-.91-.91h-10.32c-.5,0-.91.41-.91.91v21.7c0,.5.41.91.91.91h27.01c.5,0,.91.41.91.91v2.73c0,.5-.41.91-.91.91h-49.77c-.5,0-.91-.41-.91-.91v-2.73c0-.5.41-.91.91-.91h4.55c2.01,0,3.64-1.63,3.64-3.64V8.19c0-2.01-1.63-3.64-3.64-3.64h-4.55c-.5,0-.91-.41-.91-.91V.91c0-.5.41-.91.91-.91h49.77c.5,0,.91.41.91.91v2.73c0,.5-.41.91-.91.91h-27.01c-.5,0-.91.41-.91.91Z"/>
+    </svg>
+    <h1><em>Craft code</em> with Forge.</h1>
+    <p class="tagline">A workspace for AI coding agents.</p>
+    <p class="sub">Run terminals across every project. See who's working, who's waiting, and stay in command.</p>
+    <a href="#cta" class="btn">Download Preview</a>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     SECTION 2: STATUS DEMO
+     ═══════════════════════════════════════════ -->
+<section id="status">
+  <div class="reveal">
+    <div class="section-label">The workspace</div>
+    <h2>All your agents across all your projects in one workspace.</h2>
+    <p class="sub">Organize by project. See every terminal's status at a glance. Jump to what needs you.</p>
+
+    <div class="demo-app" id="demo-app">
+      <!-- Sidebar -->
+      <div class="demo-sidebar">
+        <div class="demo-sidebar-header">
+          <svg class="forge-logo" viewBox="0 0 320 60.7" xmlns="http://www.w3.org/2000/svg" style="width:56px;">
+            <path d="M51.59.91v2.73c0,.5-.41.91-.91.91h-27.01c-.5,0-.91.41-.91.91v21.7c0,.5.41.91.91.91h10.32c.5,0,.91-.41.91-.91v-.46c0-.5.41-.91.91-.91h1.21c.5,0,.91.41.91.91v7.28c0,.5-.41.91-.91.91h-1.21c-.5,0-.91-.41-.91-.91v-.45c0-.5-.41-.91-.91-.91h-10.32c-.5,0-.91.41-.91.91v21.7c0,.5.41.91.91.91h7.28c.5,0,.91.41.91.91v2.73c0,.5-.41.91-.91.91H.91c-.5,0-.91-.41-.91-.91v-2.73c0-.5.41-.91.91-.91h4.55c2.01,0,3.64-1.63,3.64-3.64V8.19c0-2.01-1.63-3.64-3.64-3.64H.91c-.5,0-.91-.41-.91-.91V.91C0,.41.41,0,.91,0h49.77c.5,0,.91.41.91.91Z"/>
+            <path d="M109.68,4.55c.5,0,.91.41.91.91v49.77c0,.5-.41.91-.91.91-2.01,0-3.64,1.63-3.64,3.64,0,.5-.41.91-.91.91h-31.56c-.5,0-.91-.41-.91-.91,0-2.01-1.63-3.64-3.64-3.64-.5,0-.91-.41-.91-.91V5.46c0-.5.41-.91.91-.91,2.01,0,3.64-1.63,3.64-3.64,0-.5.41-.91.91-.91h31.56c.5,0,.91.41.91.91,0,2.01,1.63,3.64,3.64,3.64ZM96.93,55.23V5.46c0-.5-.41-.91-.91-.91h-13.35c-.5,0-.91.41-.91.91v49.77c0,.5.41.91.91.91h13.35c.5,0,.91-.41.91-.91Z"/>
+            <path d="M188.1,56.14c.5,0,.91.41.91.91v2.73c0,.5-.41.91-.91.91h-16.39c-.5,0-.91-.41-.91-.91,0-2.01-1.63-3.64-3.64-3.64-.5,0-.91-.41-.91-.91v-21.7c0-.5-.41-.91-.91-.91h-13.35c-.5,0-.91.41-.91.91v21.7c0,.5-.41.91-.91.91-2.01,0-3.64,1.63-3.64,3.64,0,.5-.41.91-.91.91h-16.39c-.5,0-.91-.41-.91-.91v-2.73c0-.5.41-.91.91-.91h4.55c2.01,0,3.64-1.63,3.64-3.64V8.19c0-2.01-1.63-3.64-3.64-3.64h-4.55c-.5,0-.91-.41-.91-.91V.91c0-.5.41-.91.91-.91h45.22c.5,0,.91.41.91.91,0,2.01,1.63,3.64,3.64,3.64.5,0,.91.41.91.91v21.7c0,.5-.41.91-.91.91h-2.73c-.5,0-.91.41-.91.91v2.73c0,.5.41.91.91.91h2.73c.5,0,.91.41.91.91v18.97c0,2.01,1.63,3.64,3.64,3.64h4.55ZM151.99,28.07h13.35c.5,0,.91-.41.91-.91V5.46c0-.5-.41-.91-.91-.91h-13.35c-.5,0-.91.41-.91.91v21.7c0,.5.41.91.91.91Z"/>
+            <path d="M257.72,28.98v2.73c0,.5-.41.91-.91.91h-7.28c-.5,0-.91.41-.91.91v21.7c0,.5-.41.91-.91.91-2.01,0-3.64,1.63-3.64,3.64,0,.5-.41.91-.91.91h-31.56c-.5,0-.91-.41-.91-.91,0-2.01-1.63-3.64-3.64-3.64-.5,0-.91-.41-.91-.91V5.46c0-.5.41-.91.91-.91,2.01,0,3.64-1.63,3.64-3.64,0-.5.41-.91.91-.91h31.56c.5,0,.91.41.91.91,0,2.01,1.63,3.64,3.64,3.64.5,0,.91.41.91.91v2.73c0,.5-.41.91-.91.91h-11.84c-.5,0-.91-.41-.91-.91v-2.73c0-.5-.41-.91-.91-.91h-13.35c-.5,0-.91.41-.91.91v49.77c0,.5.41.91.91.91h13.35c.5,0,.91-.41.91-.91v-21.7c0-.5-.41-.91-.91-.91h-7.28c-.5,0-.91-.41-.91-.91v-2.73c0-.5.41-.91.91-.91h30.04c.5,0,.91.41.91.91Z"/>
+            <path d="M291.17,5.46v21.7c0,.5.41.91.91.91h10.32c.5,0,.91-.41.91-.91v-.46c0-.5.41-.91.91-.91h1.21c.5,0,.91.41.91.91v7.28c0,.5-.41.91-.91.91h-1.21c-.5,0-.91-.41-.91-.91v-.45c0-.5-.41-.91-.91-.91h-10.32c-.5,0-.91.41-.91.91v21.7c0,.5.41.91.91.91h27.01c.5,0,.91.41.91.91v2.73c0,.5-.41.91-.91.91h-49.77c-.5,0-.91-.41-.91-.91v-2.73c0-.5.41-.91.91-.91h4.55c2.01,0,3.64-1.63,3.64-3.64V8.19c0-2.01-1.63-3.64-3.64-3.64h-4.55c-.5,0-.91-.41-.91-.91V.91c0-.5.41-.91.91-.91h49.77c.5,0,.91.41.91.91v2.73c0,.5-.41.91-.91.91h-27.01c-.5,0-.91.41-.91.91Z"/>
+          </svg>
+        </div>
+        <div class="demo-groups">
+          <div class="demo-group active" id="dg-forge">
+            <span class="demo-group-name">forge-v2</span>
+            <div class="demo-group-dots">
+              <span class="demo-dot" id="sd-1"></span>
+              <span class="demo-dot" id="sd-2"></span>
+            </div>
+          </div>
+          <div class="demo-group" id="dg-api">
+            <span class="demo-group-name">api-server</span>
+            <div class="demo-group-dots">
+              <span class="demo-dot server" id="sd-3"></span>
+            </div>
+          </div>
+          <div class="demo-group" id="dg-docs">
+            <span class="demo-group-name">docs-site</span>
+            <div class="demo-group-dots">
+              <span class="demo-dot" id="sd-4"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main -->
+      <div class="demo-main">
+        <div class="demo-tabbar">
+          <div class="demo-tab active" id="dt-1">
+            <span class="demo-tab-dot" id="td-1"></span>
+            <span class="demo-tab-badge">CL</span>
+            <span>refactor auth</span>
+          </div>
+          <div class="demo-tab" id="dt-2">
+            <span class="demo-tab-dot" id="td-2"></span>
+            <span class="demo-tab-badge">CL</span>
+            <span>add tests</span>
+          </div>
+          <div class="demo-tab" id="dt-3">
+            <span class="demo-tab-dot server" id="td-3"></span>
+            <span>dev server</span>
+          </div>
+          <div class="demo-tab" id="dt-4">
+            <span class="demo-tab-dot" id="td-4"></span>
+            <span class="demo-tab-badge">CL</span>
+            <span>update readme</span>
+          </div>
+        </div>
+        <div class="demo-terminal" id="demo-terminal"></div>
+      </div>
+    </div>
+
+    <p class="demo-status-label">Working. Waiting. Idle. Always visible.</p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     SECTION 3: HEAT STREAK
+     ═══════════════════════════════════════════ -->
+<section id="heat">
+  <div class="reveal">
+    <div class="section-label">Heat streak</div>
+    <h2>Respond fast. Watch it build.</h2>
+    <p class="sub">The faster you act on waiting agents, the higher your heat rises. Six stages from Cold to Meltdown.</p>
+
+    <svg class="forge-logo logo-showcase" id="logo-showcase" viewBox="0 0 320 60.7" xmlns="http://www.w3.org/2000/svg">
+      <path d="M51.59.91v2.73c0,.5-.41.91-.91.91h-27.01c-.5,0-.91.41-.91.91v21.7c0,.5.41.91.91.91h10.32c.5,0,.91-.41.91-.91v-.46c0-.5.41-.91.91-.91h1.21c.5,0,.91.41.91.91v7.28c0,.5-.41.91-.91.91h-1.21c-.5,0-.91-.41-.91-.91v-.45c0-.5-.41-.91-.91-.91h-10.32c-.5,0-.91.41-.91.91v21.7c0,.5.41.91.91.91h7.28c.5,0,.91.41.91.91v2.73c0,.5-.41.91-.91.91H.91c-.5,0-.91-.41-.91-.91v-2.73c0-.5.41-.91.91-.91h4.55c2.01,0,3.64-1.63,3.64-3.64V8.19c0-2.01-1.63-3.64-3.64-3.64H.91c-.5,0-.91-.41-.91-.91V.91C0,.41.41,0,.91,0h49.77c.5,0,.91.41.91.91Z"/>
+      <path d="M109.68,4.55c.5,0,.91.41.91.91v49.77c0,.5-.41.91-.91.91-2.01,0-3.64,1.63-3.64,3.64,0,.5-.41.91-.91.91h-31.56c-.5,0-.91-.41-.91-.91,0-2.01-1.63-3.64-3.64-3.64-.5,0-.91-.41-.91-.91V5.46c0-.5.41-.91.91-.91,2.01,0,3.64-1.63,3.64-3.64,0-.5.41-.91.91-.91h31.56c.5,0,.91.41.91.91,0,2.01,1.63,3.64,3.64,3.64ZM96.93,55.23V5.46c0-.5-.41-.91-.91-.91h-13.35c-.5,0-.91.41-.91.91v49.77c0,.5.41.91.91.91h13.35c.5,0,.91-.41.91-.91Z"/>
+      <path d="M188.1,56.14c.5,0,.91.41.91.91v2.73c0,.5-.41.91-.91.91h-16.39c-.5,0-.91-.41-.91-.91,0-2.01-1.63-3.64-3.64-3.64-.5,0-.91-.41-.91-.91v-21.7c0-.5-.41-.91-.91-.91h-13.35c-.5,0-.91.41-.91.91v21.7c0,.5-.41.91-.91.91-2.01,0-3.64,1.63-3.64,3.64,0,.5-.41.91-.91.91h-16.39c-.5,0-.91-.41-.91-.91v-2.73c0-.5.41-.91.91-.91h4.55c2.01,0,3.64-1.63,3.64-3.64V8.19c0-2.01-1.63-3.64-3.64-3.64h-4.55c-.5,0-.91-.41-.91-.91V.91c0-.5.41-.91.91-.91h45.22c.5,0,.91.41.91.91,0,2.01,1.63,3.64,3.64,3.64.5,0,.91.41.91.91v21.7c0,.5-.41.91-.91.91h-2.73c-.5,0-.91.41-.91.91v2.73c0,.5.41.91.91.91h2.73c.5,0,.91.41.91.91v18.97c0,2.01,1.63,3.64,3.64,3.64h4.55ZM151.99,28.07h13.35c.5,0,.91-.41.91-.91V5.46c0-.5-.41-.91-.91-.91h-13.35c-.5,0-.91.41-.91.91v21.7c0,.5.41.91.91.91Z"/>
+      <path d="M257.72,28.98v2.73c0,.5-.41.91-.91.91h-7.28c-.5,0-.91.41-.91.91v21.7c0,.5-.41.91-.91.91-2.01,0-3.64,1.63-3.64,3.64,0,.5-.41.91-.91.91h-31.56c-.5,0-.91-.41-.91-.91,0-2.01-1.63-3.64-3.64-3.64-.5,0-.91-.41-.91-.91V5.46c0-.5.41-.91.91-.91,2.01,0,3.64-1.63,3.64-3.64,0-.5.41-.91.91-.91h31.56c.5,0,.91.41.91.91,0,2.01,1.63,3.64,3.64,3.64.5,0,.91.41.91.91v2.73c0,.5-.41.91-.91.91h-11.84c-.5,0-.91-.41-.91-.91v-2.73c0-.5-.41-.91-.91-.91h-13.35c-.5,0-.91.41-.91.91v49.77c0,.5.41.91.91.91h13.35c.5,0,.91-.41.91-.91v-21.7c0-.5-.41-.91-.91-.91h-7.28c-.5,0-.91-.41-.91-.91v-2.73c0-.5.41-.91.91-.91h30.04c.5,0,.91.41.91.91Z"/>
+      <path d="M291.17,5.46v21.7c0,.5.41.91.91.91h10.32c.5,0,.91-.41.91-.91v-.46c0-.5.41-.91.91-.91h1.21c.5,0,.91.41.91.91v7.28c0,.5-.41.91-.91.91h-1.21c-.5,0-.91-.41-.91-.91v-.45c0-.5-.41-.91-.91-.91h-10.32c-.5,0-.91.41-.91.91v21.7c0,.5.41.91.91.91h27.01c.5,0,.91.41.91.91v2.73c0,.5-.41.91-.91.91h-49.77c-.5,0-.91-.41-.91-.91v-2.73c0-.5.41-.91.91-.91h4.55c2.01,0,3.64-1.63,3.64-3.64V8.19c0-2.01-1.63-3.64-3.64-3.64h-4.55c-.5,0-.91-.41-.91-.91V.91c0-.5.41-.91.91-.91h49.77c.5,0,.91.41.91.91v2.73c0,.5-.41.91-.91.91h-27.01c-.5,0-.91.41-.91.91Z"/>
+    </svg>
+
+    <div class="heat-stages" id="heat-stages"></div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     SECTION 4: FEATURES
+     ═══════════════════════════════════════════ -->
+<section id="features">
+  <div class="reveal">
+    <div class="section-label">And also</div>
+    <h2>Everything else that's already in there.</h2>
+    <div class="features-wrap">
+      <div class="feature-chip"><span class="chip-icon">&#9654;</span> Server tabs</div>
+      <div class="feature-chip"><span class="chip-icon">&#9776;</span> Repo browser</div>
+      <div class="feature-chip"><span class="chip-icon">&#182;</span> Markdown editor</div>
+      <div class="feature-chip"><span class="chip-icon">&#9835;</span> Audio alerts</div>
+      <div class="feature-chip"><span class="chip-icon">&#8635;</span> Session persistence</div>
+      <div class="feature-chip"><span class="chip-icon">&#9670;</span> Configurable heat</div>
+      <div class="feature-chip"><span class="chip-icon">&#9109;</span> Windows + macOS</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     SECTION 5: THEMES + DOWNLOAD
+     ═══════════════════════════════════════════ -->
+<section id="cta">
+  <div class="reveal">
+    <div class="section-label">Themes</div>
+    <h2>Pick a palette.</h2>
+    <div class="theme-options" id="theme-options">
+      <button class="theme-btn active" data-theme="forge" style="--preview-color: #60a5fa;">Forge</button>
+      <button class="theme-btn" data-theme="ice" style="--preview-color: #5ccaf4;">Frost</button>
+      <button class="theme-btn" data-theme="void" style="--preview-color: #8c6bff;">Void</button>
+      <button class="theme-btn" data-theme="grass" style="--preview-color: #6bcf63;">Spore</button>
+    </div>
+
+    <h1>Your computer is a <em>forge</em>.</h1>
+    <p class="sub">Early preview. Rough edges expected. Craftspeople welcome.</p>
+
+    <div class="download-buttons">
+      <a href="#" class="btn btn-large btn-primary">Download for Windows</a>
+      <a href="#" class="btn btn-large">Download for macOS</a>
+    </div>
+
+    <div class="version-info">
+      v0.5.30 &middot; Built with Tauri + React &middot; <a href="https://github.com/user/forge-v2/releases" target="_blank">GitHub Releases</a>
+    </div>
+  </div>
+</section>
+
+<script>
+// ═══════════════════════════════════════════
+// THEME DATA (ported from src/utils/themes.js)
+// ═══════════════════════════════════════════
+const THEMES = {
+  forge: {
+    accentActive: "#60a5fa",
+    heatColors: ["#475569","#f59e0b","#ea580c","#dc2626","#ef4444","#ff4d4d"],
+    backgrounds: [
+      { bgDeep:"#080c14", bgSidebar:"#0a0f1a", bgActive:"#111b2e", border:"#1e293b" },
+      { bgDeep:"#0a0c12", bgSidebar:"#0d1018", bgActive:"#151a28", border:"#25293a" },
+      { bgDeep:"#0c0b10", bgSidebar:"#100e16", bgActive:"#1a1520", border:"#2e2535" },
+      { bgDeep:"#0e0a0a", bgSidebar:"#120d0c", bgActive:"#1e1412", border:"#352220" },
+      { bgDeep:"#100808", bgSidebar:"#140b0a", bgActive:"#22120f", border:"#3a1e1a" },
+      { bgDeep:"#120606", bgSidebar:"#180808", bgActive:"#28100e", border:"#401815" },
+    ],
+    statusStops: { waiting: 1, working: 5 }
+  },
+  ice: {
+    accentActive: "#5ccaf4",
+    heatColors: ["#4B6272","#2098FF","#00B8E0","#00D4D4","#70F0E8","#D8FFFC"],
+    backgrounds: [
+      { bgDeep:"#08111a", bgSidebar:"#0b1621", bgActive:"#112030", border:"#1e3143" },
+      { bgDeep:"#08121c", bgSidebar:"#0c1824", bgActive:"#122333", border:"#21384a" },
+      { bgDeep:"#08151f", bgSidebar:"#0d1b28", bgActive:"#142738", border:"#264253" },
+      { bgDeep:"#081821", bgSidebar:"#0f1f2d", bgActive:"#172d3d", border:"#2d4b5b" },
+      { bgDeep:"#081a24", bgSidebar:"#112332", bgActive:"#1a3344", border:"#365768" },
+      { bgDeep:"#091d28", bgSidebar:"#142838", bgActive:"#1d394d", border:"#426476" },
+    ],
+    statusStops: { waiting: 1, working: 5 }
+  },
+  void: {
+    accentActive: "#8c6bff",
+    heatColors: ["#3D3554","#5855E0","#8840E8","#C830D0","#F020A0","#FF40B0"],
+    backgrounds: [
+      { bgDeep:"#08070c", bgSidebar:"#0b0911", bgActive:"#12101a", border:"#201b2b" },
+      { bgDeep:"#09080e", bgSidebar:"#0d0a13", bgActive:"#15121e", border:"#272033" },
+      { bgDeep:"#0a0810", bgSidebar:"#0f0b16", bgActive:"#181321", border:"#30253d" },
+      { bgDeep:"#0b0812", bgSidebar:"#120d1a", bgActive:"#1c1528", border:"#3b2b4a" },
+      { bgDeep:"#0c0915", bgSidebar:"#150f1f", bgActive:"#21192f", border:"#4b315e" },
+      { bgDeep:"#0d0a18", bgSidebar:"#181223", bgActive:"#271d37", border:"#5b3971" },
+    ],
+    statusStops: { waiting: 1, working: 5 }
+  },
+  grass: {
+    accentActive: "#6bcf63",
+    heatColors: ["#5C553A","#E08830","#C8B020","#80B830","#40C048","#34D058"],
+    backgrounds: [
+      { bgDeep:"#08100b", bgSidebar:"#0b150e", bgActive:"#111f15", border:"#1f3022" },
+      { bgDeep:"#09120c", bgSidebar:"#0c180f", bgActive:"#132316", border:"#223724" },
+      { bgDeep:"#0a140d", bgSidebar:"#0e1b11", bgActive:"#162917", border:"#274129" },
+      { bgDeep:"#0b160e", bgSidebar:"#101f13", bgActive:"#1a2f1a", border:"#2e4d2f" },
+      { bgDeep:"#0c180f", bgSidebar:"#122416", bgActive:"#1d351d", border:"#356036" },
+      { bgDeep:"#0d1b11", bgSidebar:"#152a18", bgActive:"#223d21", border:"#3e7740" },
+    ],
+    statusStops: { waiting: 1, working: 5 }
+  }
+};
+
+const HEAT_LABELS = ["Cold","Warm","Hot","Blazing","Inferno","Meltdown"];
+
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+let currentTheme = "forge";
+let currentHeat = 5; // Start at Meltdown
+let rampInterval = null;
+
+// ═══════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1,3), 16);
+  const g = parseInt(hex.slice(3,5), 16);
+  const b = parseInt(hex.slice(5,7), 16);
+  return `${r}, ${g}, ${b}`;
+}
+
+// ═══════════════════════════════════════════
+// APPLY STATE — updates all CSS variables
+// ═══════════════════════════════════════════
+function applyState() {
+  const t = THEMES[currentTheme];
+  const bg = t.backgrounds[currentHeat];
+  const hc = t.heatColors;
+  const root = document.documentElement;
+
+  // Backgrounds
+  root.style.setProperty("--bg-deep", bg.bgDeep);
+  root.style.setProperty("--bg-sidebar", bg.bgSidebar);
+  root.style.setProperty("--bg-active", bg.bgActive);
+  root.style.setProperty("--border", bg.border);
+
+  // Accent
+  root.style.setProperty("--accent-active", t.accentActive);
+
+  // Status colors (derived from heat colors via statusStops)
+  root.style.setProperty("--accent-waiting", hc[t.statusStops.waiting]);
+  root.style.setProperty("--accent-working", hc[t.statusStops.working]);
+
+  // Heat colors
+  for (let i = 0; i < 6; i++) {
+    root.style.setProperty(`--heat-${i}`, hc[i]);
+  }
+  root.style.setProperty("--heat-current", hc[currentHeat]);
+
+  // Data attributes
+  root.setAttribute("data-theme", currentTheme);
+  root.setAttribute("data-heat", currentHeat);
+
+  // Heat border glow
+  const heatBorder = document.getElementById("heat-border");
+  if (currentHeat >= 3) {
+    heatBorder.style.borderColor = hc[currentHeat];
+    const intensity = 15 + (currentHeat - 3) * 14;
+    const alpha = 0.08 + (currentHeat - 3) * 0.06;
+    heatBorder.style.boxShadow = `inset 0 0 ${intensity}px rgba(${hexToRgb(hc[currentHeat])}, ${alpha})`;
+  } else {
+    heatBorder.style.borderColor = "transparent";
+    heatBorder.style.boxShadow = "none";
+  }
+
+  // Embers visibility
+  document.getElementById("embers").style.opacity = currentHeat >= 4 ? "1" : "0";
+
+  // Logo glow filter
+  applyLogoGlow();
+
+  // Update working glow animation colors
+  updateGlowColors();
+
+  // Update heat stage buttons
+  updateHeatButtons();
+}
+
+function applyLogoGlow() {
+  const hc = THEMES[currentTheme].heatColors;
+  let filter = "none";
+  if (currentHeat === 1) filter = `drop-shadow(0 0 3px ${hc[1]})`;
+  else if (currentHeat === 2) filter = `drop-shadow(0 0 4px ${hc[2]}) drop-shadow(0 0 8px ${hc[2]}40)`;
+  else if (currentHeat === 3) filter = `drop-shadow(0 0 6px ${hc[3]}) drop-shadow(0 0 11px ${hc[3]}48)`;
+  else if (currentHeat === 4) filter = `drop-shadow(0 0 7px ${hc[4]}) drop-shadow(0 0 13px ${hc[4]}4d)`;
+  else if (currentHeat === 5) filter = `drop-shadow(0 0 5px ${hc[5]}) drop-shadow(0 0 10px ${hc[5]}6b) drop-shadow(0 0 18px ${hc[4]}30)`;
+
+  document.querySelectorAll(".forge-logo").forEach(logo => {
+    logo.style.filter = filter;
+  });
+}
+
+function updateGlowColors() {
+  const wc = THEMES[currentTheme].heatColors[THEMES[currentTheme].statusStops.working];
+  const wcRgb = hexToRgb(wc);
+  // Dynamically update the glow keyframe colors via a style element
+  let dynamicStyle = document.getElementById("dynamic-glow-style");
+  if (!dynamicStyle) {
+    dynamicStyle = document.createElement("style");
+    dynamicStyle.id = "dynamic-glow-style";
+    document.head.appendChild(dynamicStyle);
+  }
+  dynamicStyle.textContent = `
+    @keyframes glow-working {
+      0%, 100% { box-shadow: 0 0 4px rgba(${wcRgb}, 0.7), 0 0 9px rgba(${wcRgb}, 0.2); }
+      50% { box-shadow: 0 0 6px rgba(${wcRgb}, 0.9), 0 0 13px rgba(${wcRgb}, 0.35), 0 0 20px rgba(${wcRgb}, 0.15); }
+    }
+    @keyframes glow-working-small {
+      0%, 100% { box-shadow: 0 0 3px rgba(${wcRgb}, 0.7), 0 0 7px rgba(${wcRgb}, 0.2); }
+      50% { box-shadow: 0 0 4px rgba(${wcRgb}, 0.85), 0 0 9px rgba(${wcRgb}, 0.3); }
+    }
+  `;
+}
+
+// ═══════════════════════════════════════════
+// HEAT RAMP ANIMATION
+// ═══════════════════════════════════════════
+function rampHeat(target, duration) {
+  if (rampInterval) clearInterval(rampInterval);
+  const steps = Math.abs(target - currentHeat);
+  if (steps === 0) { rampInterval = null; return; }
+  const stepDelay = duration / steps;
+  const direction = target > currentHeat ? 1 : -1;
+  let stepped = 0;
+  rampInterval = setInterval(() => {
+    currentHeat += direction;
+    applyState();
+    stepped++;
+    if (stepped >= steps) {
+      clearInterval(rampInterval);
+      rampInterval = null;
+    }
+  }, stepDelay);
+}
+
+function setHeat(stage) {
+  if (rampInterval) { clearInterval(rampInterval); rampInterval = null; }
+  currentHeat = stage;
+  applyState();
+}
+
+// ═══════════════════════════════════════════
+// HEAT STAGE BUTTONS
+// ═══════════════════════════════════════════
+const heatStagesContainer = document.getElementById("heat-stages");
+HEAT_LABELS.forEach((label, i) => {
+  const btn = document.createElement("button");
+  btn.className = "heat-stage-btn" + (i === currentHeat ? " active" : "");
+  btn.dataset.stage = i;
+  btn.innerHTML = `<span class="heat-swatch" style="background:${THEMES[currentTheme].heatColors[i]}"></span>${label}`;
+  btn.addEventListener("click", () => setHeat(i));
+  heatStagesContainer.appendChild(btn);
+});
+
+function updateHeatButtons() {
+  const hc = THEMES[currentTheme].heatColors;
+  document.querySelectorAll(".heat-stage-btn").forEach((btn, i) => {
+    btn.classList.toggle("active", i === currentHeat);
+    btn.querySelector(".heat-swatch").style.background = hc[i];
+    if (i === currentHeat) {
+      btn.querySelector(".heat-swatch").style.boxShadow = `0 0 6px ${hc[i]}`;
+    } else {
+      btn.querySelector(".heat-swatch").style.boxShadow = "none";
+    }
+  });
+}
+
+// ═══════════════════════════════════════════
+// THEME SWITCHING
+// ═══════════════════════════════════════════
+document.querySelectorAll(".theme-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".theme-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentTheme = btn.dataset.theme;
+    applyState();
+  });
+});
+
+// ═══════════════════════════════════════════
+// EMBER PARTICLES
+// ═══════════════════════════════════════════
+const embersContainer = document.getElementById("embers");
+for (let i = 0; i < 14; i++) {
+  const ember = document.createElement("div");
+  ember.className = "ember";
+  ember.style.left = (5 + Math.random() * 90) + "%";
+  ember.style.animationDuration = (3 + Math.random() * 5) + "s";
+  ember.style.animationDelay = (Math.random() * 4) + "s";
+  const size = 2 + Math.random() * 3;
+  ember.style.width = size + "px";
+  ember.style.height = size + "px";
+  ember.style.setProperty("--sway", (10 + Math.random() * 30) * (Math.random() > 0.5 ? 1 : -1) + "px");
+  embersContainer.appendChild(ember);
+}
+
+// ═══════════════════════════════════════════
+// STATUS DEMO ANIMATION
+// ═══════════════════════════════════════════
+const DEMO_STEPS = [
+  {
+    tabs: ["idle", "waiting", "server", "idle"],
+    terminal: [
+      { cls: "user", text: "> Help me refactor the auth module" },
+      { cls: "ai", text: "" },
+      { cls: "dim", text: "Waiting for your input..." },
+    ]
+  },
+  {
+    tabs: ["working", "waiting", "server", "idle"],
+    terminal: [
+      { cls: "user", text: "> Help me refactor the auth module" },
+      { cls: "ai", text: "I'll analyze the current structure..." },
+      { cls: "dim", text: "\u2847 Reading src/middleware/auth.js" },
+    ]
+  },
+  {
+    tabs: ["working", "working", "server", "idle"],
+    terminal: [
+      { cls: "user", text: "> Help me refactor the auth module" },
+      { cls: "ai", text: "Replacing express-session with JWT." },
+      { cls: "ai", text: "Updating 3 files..." },
+    ]
+  },
+  {
+    tabs: ["waiting", "idle", "server", "idle"],
+    terminal: [
+      { cls: "ai", text: "Done. I've refactored auth to use JWT." },
+      { cls: "ai", text: "4 files modified, tests passing." },
+      { cls: "dim", text: "Ready for your review." },
+    ]
+  },
+];
+
+// Sidebar dot mapping: sd-1 and sd-2 = forge-v2 group (tabs 0,1), sd-3 = api (tab 2), sd-4 = docs (tab 3)
+const SIDEBAR_MAP = [[0,1],[2],[3]];
+const SIDEBAR_DOT_IDS = [["sd-1","sd-2"],["sd-3"],["sd-4"]];
+const TAB_DOT_IDS = ["td-1","td-2","td-3","td-4"];
+
+let demoStep = 0;
+const terminalEl = document.getElementById("demo-terminal");
+
+function applyDemoStep(step) {
+  const s = DEMO_STEPS[step];
+
+  // Update tab dots
+  s.tabs.forEach((status, i) => {
+    const dot = document.getElementById(TAB_DOT_IDS[i]);
+    dot.className = "demo-tab-dot" + (status !== "idle" ? " " + status : "");
+  });
+
+  // Update sidebar dots
+  SIDEBAR_DOT_IDS.forEach((dotIds, groupIdx) => {
+    dotIds.forEach((dotId, dotIdx) => {
+      const tabIdx = SIDEBAR_MAP[groupIdx][dotIdx];
+      const status = s.tabs[tabIdx];
+      const dot = document.getElementById(dotId);
+      dot.className = "demo-dot" + (status !== "idle" ? " " + status : "");
+    });
+  });
+
+  // Update terminal content
+  terminalEl.innerHTML = "";
+  s.terminal.forEach((line, i) => {
+    const div = document.createElement("div");
+    div.className = `demo-terminal-line ${line.cls}`;
+    div.textContent = line.text;
+    terminalEl.appendChild(div);
+    // Stagger reveal
+    setTimeout(() => div.classList.add("visible"), 80 * (i + 1));
+  });
+}
+
+// Start demo loop
+applyDemoStep(0);
+setInterval(() => {
+  demoStep = (demoStep + 1) % DEMO_STEPS.length;
+  applyDemoStep(demoStep);
+}, 2500);
+
+// ═══════════════════════════════════════════
+// SCROLL PROGRESS
+// ═══════════════════════════════════════════
+const scrollProgressEl = document.getElementById("scroll-progress");
+function updateScrollProgress() {
+  const h = document.documentElement.scrollHeight - window.innerHeight;
+  const progress = h > 0 ? window.scrollY / h : 0;
+  scrollProgressEl.style.width = (progress * 100) + "%";
+}
+window.addEventListener("scroll", updateScrollProgress, { passive: true });
+
+// ═══════════════════════════════════════════
+// REVEAL ANIMATIONS (IntersectionObserver)
+// ═══════════════════════════════════════════
+const revealObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add("visible");
+    }
+  });
+}, { threshold: 0.15 });
+
+document.querySelectorAll(".reveal").forEach(el => revealObserver.observe(el));
+
+// ═══════════════════════════════════════════
+// HEAT SECTION — ramp down on enter
+// ═══════════════════════════════════════════
+let heatSectionCooled = false;
+const heatSection = document.getElementById("heat");
+const heatObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting && !heatSectionCooled) {
+      heatSectionCooled = true;
+      rampHeat(0, 600);
+    }
+  });
+}, { threshold: 0.35 });
+heatObserver.observe(heatSection);
+
+// ═══════════════════════════════════════════
+// CTA SECTION — ramp up on enter
+// ═══════════════════════════════════════════
+const ctaSection = document.getElementById("cta");
+const ctaObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      rampHeat(5, 500);
+      heatSectionCooled = false; // Reset so scrolling back up will re-cool
+    }
+  });
+}, { threshold: 0.35 });
+ctaObserver.observe(ctaSection);
+
+// ═══════════════════════════════════════════
+// INITIAL STATE
+// ═══════════════════════════════════════════
+applyState();
+// Force hero reveal immediately
+document.querySelector("#hero .reveal").classList.add("visible");
+</script>
+</body>
+</html>

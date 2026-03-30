@@ -455,6 +455,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       }
 
       if (detector.provider !== "codex") return;
+
       scheduleCodexIdleCheck();
 
       const snapshot = getTabSnapshot(useForgeStore.getState(), tabId);
@@ -725,8 +726,10 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
     term.attachCustomKeyEventHandler((e) => {
       if (e.type !== "keydown") return true;
 
-      // Copy: Ctrl+C with selection (on both platforms, Ctrl not Cmd)
-      if (e.ctrlKey && !e.shiftKey && e.key === "c") {
+      // Copy: Ctrl+Shift+C copies selection (terminal convention).
+      // Plain Ctrl+C always passes through as interrupt (SIGINT).
+      // On macOS, Cmd+C is handled by the metaKey block below.
+      if (e.ctrlKey && e.shiftKey && e.key === "C") {
         const selection = term.getSelection();
         if (selection) {
           navigator.clipboard.writeText(selection);
@@ -735,9 +738,17 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
         return true;
       }
 
-      // Paste: Ctrl+V — trigger a native paste event so the paste listener
-      // can read clipboardData (text + images) without WebKit permission prompts.
-      if (e.ctrlKey && !e.shiftKey && e.key === "v") {
+      // Ctrl+C without shift — always let xterm send \x03 (interrupt).
+      // Prevent the browser/webview from intercepting it as a copy shortcut.
+      if (e.ctrlKey && !e.shiftKey && e.key === "c") {
+        e.preventDefault();
+        return true;
+      }
+
+      // Paste: Ctrl+Shift+V (terminal convention) or Ctrl+V — trigger a
+      // native paste event so the paste listener can read clipboardData
+      // (text + images) without WebKit permission prompts.
+      if (e.ctrlKey && (e.key === "v" || e.key === "V")) {
         e.preventDefault();
         document.execCommand("paste");
         return false;

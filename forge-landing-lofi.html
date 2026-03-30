@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forge — Lo-fi Landing Prototype</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
+
+  :root {
+    --bg: #0a0a0c;
+    --surface: #111114;
+    --border: #1e1e24;
+    --text: #e0e0e6;
+    --text-dim: #6a6a78;
+    --accent: var(--heat-color, #3a3a4a);
+    --glow: var(--heat-glow, transparent);
+    --ember-opacity: 0;
+    --heat-color: #3a3a4a;
+    --heat-glow: transparent;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--bg);
+    color: var(--text);
+    overflow-x: hidden;
+    transition: background 0.6s ease;
+  }
+
+  /* ── HEAT OVERLAY ── */
+  #heat-border {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 100;
+    border: 2px solid transparent;
+    border-color: var(--accent);
+    opacity: 0;
+    transition: border-color 0.4s ease, opacity 0.4s ease, box-shadow 0.4s ease;
+  }
+
+  /* ── EMBER PARTICLES ── */
+  #embers {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 99;
+    overflow: hidden;
+    opacity: var(--ember-opacity);
+    transition: opacity 0.6s ease;
+  }
+  .ember {
+    position: absolute;
+    bottom: -10px;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: rise linear infinite;
+  }
+  @keyframes rise {
+    0% { transform: translateY(0) translateX(0); opacity: 1; }
+    50% { opacity: 0.6; }
+    100% { transform: translateY(-100vh) translateX(30px); opacity: 0; }
+  }
+
+  /* ── HEAT STAGE INDICATOR ── */
+  #heat-indicator {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 101;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--text-dim);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 6px 12px;
+    border-radius: 4px;
+    transition: all 0.4s ease;
+  }
+  #heat-indicator .dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    margin-right: 6px;
+    vertical-align: middle;
+    transition: background 0.4s ease, box-shadow 0.4s ease;
+  }
+
+  /* ── SCROLL PROGRESS ── */
+  #scroll-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 2px;
+    width: 0%;
+    background: var(--accent);
+    z-index: 102;
+    transition: background 0.4s ease;
+  }
+
+  /* ── SECTIONS ── */
+  section {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 80px 40px;
+    max-width: 800px;
+    margin: 0 auto;
+    position: relative;
+  }
+
+  .section-label {
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: var(--text-dim);
+    margin-bottom: 24px;
+  }
+
+  h1 {
+    font-size: 2.4rem;
+    font-weight: 300;
+    line-height: 1.2;
+    margin-bottom: 16px;
+    letter-spacing: -0.02em;
+  }
+  h1 em {
+    font-style: normal;
+    color: var(--accent);
+    transition: color 0.4s ease;
+  }
+
+  h2 {
+    font-size: 1.3rem;
+    font-weight: 400;
+    line-height: 1.4;
+    margin-bottom: 20px;
+  }
+
+  p {
+    font-size: 0.85rem;
+    line-height: 1.7;
+    color: var(--text-dim);
+    max-width: 600px;
+  }
+
+  /* ── HERO ── */
+  #hero h1 { font-size: 3rem; }
+  #hero .tagline {
+    font-size: 0.9rem;
+    color: var(--text-dim);
+    margin-bottom: 40px;
+  }
+  .download-btn {
+    display: inline-block;
+    padding: 12px 28px;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    cursor: pointer;
+    background: transparent;
+    transition: all 0.3s ease;
+    text-decoration: none;
+  }
+  .download-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* ── EXPERIENCE LADDER ── */
+  .ladder {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+    margin-top: 20px;
+  }
+  .ladder-step {
+    padding-left: 24px;
+    border-left: 2px solid var(--border);
+    transition: border-color 0.4s ease;
+  }
+  .ladder-step.active {
+    border-left-color: var(--accent);
+  }
+  .ladder-step .step-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+  .ladder-step .step-text {
+    font-size: 0.95rem;
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  /* ── FEATURE CARDS ── */
+  .features-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+    margin-top: 20px;
+  }
+  .feature-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 28px;
+    border-radius: 4px;
+    transition: border-color 0.4s ease, box-shadow 0.4s ease;
+  }
+  .feature-card:hover {
+    border-color: var(--accent);
+  }
+  .feature-card h3 {
+    font-size: 0.85rem;
+    font-weight: 500;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .feature-card p {
+    font-size: 0.78rem;
+    line-height: 1.6;
+  }
+
+  /* ── STATUS DOT DEMO ── */
+  .status-demo {
+    display: flex;
+    gap: 24px;
+    margin: 24px 0;
+    flex-wrap: wrap;
+  }
+  .status-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+  }
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    transition: box-shadow 0.4s ease;
+  }
+  .status-dot.idle { background: #3a3a4a; }
+  .status-dot.working { background: #e8a83e; animation: pulse 1.5s ease infinite; }
+  .status-dot.done { background: #4ade80; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ── HEAT DEMO ── */
+  .heat-demo {
+    display: flex;
+    gap: 4px;
+    margin: 24px 0;
+    height: 40px;
+    align-items: flex-end;
+  }
+  .heat-bar {
+    flex: 1;
+    border-radius: 2px;
+    transition: all 0.3s ease;
+  }
+
+  /* ── BONUS STRIP ── */
+  .bonus-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 20px;
+  }
+  .bonus-tag {
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    transition: border-color 0.3s ease, color 0.3s ease;
+  }
+  .bonus-tag:hover {
+    border-color: var(--accent);
+    color: var(--text);
+  }
+
+  /* ── THEME PICKER ── */
+  #theme-picker {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 28px;
+    margin-top: 24px;
+  }
+  .theme-options {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+  }
+  .theme-btn {
+    padding: 10px 20px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    font-family: inherit;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .theme-btn::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--preview-color);
+    opacity: 0.6;
+  }
+  .theme-btn:hover, .theme-btn.active {
+    border-color: var(--preview-color, var(--accent));
+    color: var(--text);
+  }
+  .theme-btn.active {
+    background: rgba(255,255,255,0.03);
+  }
+  .theme-hint {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    margin-top: 16px;
+    font-style: italic;
+  }
+
+  /* ── CTA ── */
+  #cta {
+    text-align: center;
+  }
+  #cta .download-btn {
+    font-size: 0.85rem;
+    padding: 16px 40px;
+    border-width: 2px;
+  }
+  #cta .platforms {
+    margin-top: 16px;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+  }
+
+  /* ── FADE IN ── */
+  .reveal {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+</style>
+</head>
+<body>
+
+<div id="scroll-progress"></div>
+<div id="heat-border"></div>
+<div id="embers"></div>
+<div id="heat-indicator"><span class="dot"></span><span id="heat-label">Cold</span></div>
+
+<!-- ═══ HERO ═══ -->
+<section id="hero">
+  <div class="reveal">
+    <h1><em>Craft code</em> with Forge.</h1>
+    <p class="tagline">Manage your attention across every terminal and project.</p>
+    <a href="#" class="download-btn">Download Preview</a>
+  </div>
+</section>
+
+<!-- ═══ EXPERIENCE LADDER ═══ -->
+<section id="experience">
+  <div class="reveal">
+    <div class="section-label">The experience</div>
+    <h2>AI agents changed how fast code ships.<br>Nobody fixed how you keep up.</h2>
+    <div class="ladder">
+      <div class="ladder-step" data-threshold="0">
+        <div class="step-label">One project</div>
+        <div class="step-text">Working with an AI agent in terminal is fabulous. Forge makes even this significantly easier.</div>
+      </div>
+      <div class="ladder-step" data-threshold="0.15">
+        <div class="step-label">Multiple terminals</div>
+        <div class="step-text">Manageable but not optimized. You're tab-switching, losing context, missing when agents finish.</div>
+      </div>
+      <div class="ladder-step" data-threshold="0.25">
+        <div class="step-label">Multiple projects</div>
+        <div class="step-text">Doable, but draining. The energy goes to managing the work, not doing the work.</div>
+      </div>
+      <div class="ladder-step" data-threshold="0.35">
+        <div class="step-label">With Forge</div>
+        <div class="step-text">Working across projects isn't just doable — it's satisfying. Your computer becomes a forge.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ STATUS DETECTION ═══ -->
+<section id="status">
+  <div class="reveal">
+    <div class="section-label">Core · Live status</div>
+    <h2>Every terminal, one glance.</h2>
+    <p>Forge reads each terminal's state in real time. Working, waiting, idle — always visible. No checking tabs. No guessing.</p>
+    <div class="status-demo">
+      <div class="status-item"><span class="status-dot idle"></span> Idle</div>
+      <div class="status-item"><span class="status-dot working"></span> Working</div>
+      <div class="status-item"><span class="status-dot done"></span> Done — needs you</div>
+    </div>
+    <div class="feature-card" style="margin-top: 12px;">
+      <p style="font-family: inherit; font-size: 0.7rem; color: var(--text-dim); opacity: 0.6;">[screenshot: sidebar with project groups, status dots visible on each tab]</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ HEAT STREAK ═══ -->
+<section id="heat">
+  <div class="reveal">
+    <div class="section-label">Core · Heat streak</div>
+    <h2>Respond fast. Watch it build.</h2>
+    <p>When an agent finishes and you respond quickly, your heat rises. Color shifts, glowing borders, rising embers. Six stages from Cold to Meltdown. It's not gamified — it's satisfying.</p>
+    <div class="heat-demo" id="heat-demo-bars"></div>
+    <div style="display: flex; justify-content: space-between; font-size: 0.6rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.1em;">
+      <span>Cold</span>
+      <span>Warm</span>
+      <span>Hot</span>
+      <span>Blazing</span>
+      <span>Inferno</span>
+      <span>Meltdown</span>
+    </div>
+    <div class="feature-card" style="margin-top: 24px;">
+      <p style="font-family: inherit; font-size: 0.7rem; color: var(--text-dim); opacity: 0.6;">[video: UI progressively heating up — borders glowing, embers rising, accent colors intensifying]</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ PROJECT GROUPS ═══ -->
+<section id="groups">
+  <div class="reveal">
+    <div class="section-label">Core · Project groups</div>
+    <h2>Organize by what matters.</h2>
+    <p>Group terminals by repo, workstream, or however you think. Context-switch between projects without losing state. Collapse groups to see status at a glance.</p>
+    <div class="feature-card" style="margin-top: 24px;">
+      <p style="font-family: inherit; font-size: 0.7rem; color: var(--text-dim); opacity: 0.6;">[screenshot: full app view showing multiple project groups with nested terminal tabs]</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ BONUS FEATURES ═══ -->
+<section id="bonus">
+  <div class="reveal">
+    <div class="section-label">And also</div>
+    <h2>Everything else that's already in there.</h2>
+    <div class="bonus-strip">
+      <div class="bonus-tag">Server tabs</div>
+      <div class="bonus-tag">Repo browser</div>
+      <div class="bonus-tag">Markdown editor</div>
+      <div class="bonus-tag">Audio alerts</div>
+      <div class="bonus-tag">Session persistence</div>
+      <div class="bonus-tag">Configurable heat</div>
+      <div class="bonus-tag">Windows + macOS</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ THEME PICKER ═══ -->
+<section id="themes">
+  <div class="reveal">
+    <div class="section-label">Themes</div>
+    <h2>Pick a palette. Scroll back up.</h2>
+    <div id="theme-picker">
+      <div class="theme-options">
+        <button class="theme-btn active" data-theme="ember" style="--preview-color: #e85d3a;">Ember</button>
+        <button class="theme-btn" data-theme="neon" style="--preview-color: #00ffaa;">Neon</button>
+        <button class="theme-btn" data-theme="plasma" style="--preview-color: #a855f7;">Plasma</button>
+        <button class="theme-btn" data-theme="arctic" style="--preview-color: #38bdf8;">Arctic</button>
+      </div>
+      <div class="theme-hint">Switch themes and scroll back up to see how the heat progression changes.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ CTA ═══ -->
+<section id="cta">
+  <div class="reveal">
+    <h1>Your computer is a <em>forge</em>.</h1>
+    <p style="margin: 0 auto 32px;">Early preview. Rough edges expected. Craftspeople welcome.</p>
+    <a href="#" class="download-btn">Download for free</a>
+    <div class="platforms">Windows (.exe) · macOS (.dmg)</div>
+  </div>
+</section>
+
+<script>
+// ── THEME DEFINITIONS ──
+const themes = {
+  ember: {
+    stages: ['#3a3a4a','#8b5e3c','#c4693d','#e85d3a','#ff4422','#ff2200'],
+    glows:  ['transparent','rgba(139,94,60,0.1)','rgba(196,105,61,0.15)','rgba(232,93,58,0.2)','rgba(255,68,34,0.3)','rgba(255,34,0,0.5)']
+  },
+  neon: {
+    stages: ['#3a3a4a','#2d6b4f','#22a06b','#00cc88','#00ffaa','#00ffcc'],
+    glows:  ['transparent','rgba(45,107,79,0.1)','rgba(34,160,107,0.15)','rgba(0,204,136,0.2)','rgba(0,255,170,0.3)','rgba(0,255,204,0.5)']
+  },
+  plasma: {
+    stages: ['#3a3a4a','#6b3fa0','#8b5cf6','#a855f7','#c026d3','#e020f0'],
+    glows:  ['transparent','rgba(107,63,160,0.1)','rgba(139,92,246,0.15)','rgba(168,85,247,0.2)','rgba(192,38,211,0.3)','rgba(224,32,240,0.5)']
+  },
+  arctic: {
+    stages: ['#3a3a4a','#2d6b8a','#0ea5e9','#38bdf8','#7dd3fc','#bae6fd'],
+    glows:  ['transparent','rgba(45,107,138,0.1)','rgba(14,165,233,0.15)','rgba(56,189,248,0.2)','rgba(125,211,252,0.3)','rgba(186,230,253,0.5)']
+  }
+};
+
+const stageNames = ['Cold','Warm','Hot','Blazing','Inferno','Meltdown'];
+let currentTheme = 'ember';
+
+// ── EMBER PARTICLES ──
+const embersEl = document.getElementById('embers');
+for (let i = 0; i < 20; i++) {
+  const ember = document.createElement('div');
+  ember.className = 'ember';
+  ember.style.left = Math.random() * 100 + '%';
+  ember.style.animationDuration = (4 + Math.random() * 6) + 's';
+  ember.style.animationDelay = Math.random() * 5 + 's';
+  ember.style.width = (2 + Math.random() * 3) + 'px';
+  ember.style.height = ember.style.width;
+  embersEl.appendChild(ember);
+}
+
+// ── HEAT DEMO BARS ──
+const heatDemoContainer = document.getElementById('heat-demo-bars');
+for (let i = 0; i < 6; i++) {
+  const bar = document.createElement('div');
+  bar.className = 'heat-bar';
+  bar.style.height = (20 + i * 10) + '%';
+  heatDemoContainer.appendChild(bar);
+}
+
+function updateHeatBars() {
+  const bars = heatDemoContainer.querySelectorAll('.heat-bar');
+  const t = themes[currentTheme];
+  bars.forEach((bar, i) => {
+    bar.style.background = t.stages[i];
+  });
+}
+updateHeatBars();
+
+// ── SCROLL HANDLER ──
+const heatBorder = document.getElementById('heat-border');
+const heatLabel = document.getElementById('heat-label');
+const heatIndicator = document.getElementById('heat-indicator');
+const scrollProgress = document.getElementById('scroll-progress');
+
+function getScrollProgress() {
+  const h = document.documentElement.scrollHeight - window.innerHeight;
+  return h > 0 ? window.scrollY / h : 0;
+}
+
+function update() {
+  const progress = getScrollProgress();
+  const t = themes[currentTheme];
+  
+  // Map scroll to heat stage (0-5)
+  const stageFloat = progress * 5;
+  const stage = Math.min(5, Math.floor(stageFloat));
+  
+  // Interpolate between stages
+  const color = t.stages[stage];
+  const glow = t.glows[stage];
+  
+  // Apply heat
+  document.documentElement.style.setProperty('--heat-color', color);
+  document.documentElement.style.setProperty('--heat-glow', glow);
+  
+  // Border
+  heatBorder.style.borderColor = color;
+  heatBorder.style.opacity = Math.min(1, progress * 3);
+  if (stage >= 3) {
+    heatBorder.style.boxShadow = `inset 0 0 ${20 + stage * 15}px ${glow}`;
+  } else {
+    heatBorder.style.boxShadow = 'none';
+  }
+  
+  // Embers
+  document.documentElement.style.setProperty('--ember-opacity', Math.max(0, (progress - 0.4) * 2.5));
+  embersEl.querySelectorAll('.ember').forEach(e => e.style.background = color);
+  
+  // Label
+  heatLabel.textContent = stageNames[stage];
+  heatIndicator.querySelector('.dot').style.background = color;
+  if (stage >= 4) {
+    heatIndicator.querySelector('.dot').style.boxShadow = `0 0 8px ${color}`;
+  } else {
+    heatIndicator.querySelector('.dot').style.boxShadow = 'none';
+  }
+  
+  // Progress bar
+  scrollProgress.style.width = (progress * 100) + '%';
+  scrollProgress.style.background = color;
+  
+  // Ladder steps
+  document.querySelectorAll('.ladder-step').forEach(step => {
+    const threshold = parseFloat(step.dataset.threshold);
+    step.classList.toggle('active', progress >= threshold);
+  });
+  
+  // Reveal animations
+  document.querySelectorAll('.reveal').forEach(el => {
+    const rect = el.getBoundingClientRect();
+    if (rect.top < window.innerHeight * 0.85) {
+      el.classList.add('visible');
+    }
+  });
+}
+
+window.addEventListener('scroll', update, { passive: true });
+window.addEventListener('resize', update);
+
+// ── THEME SWITCHING ──
+document.querySelectorAll('.theme-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentTheme = btn.dataset.theme;
+    updateHeatBars();
+    update();
+  });
+});
+
+// Initial
+update();
+</script>
+</body>
+</html>

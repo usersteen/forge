@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import useForgeStore from "../store/useForgeStore";
-import useEffectiveHeatStage from "../hooks/useEffectiveHeatStage";
-import { getEmberStyle } from "../utils/heat";
+import ParticleCanvas from "./ParticleCanvas";
 import { normalizeRootPath } from "../utils/workspace";
 
 const STAR_POINTS = "12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2";
@@ -14,10 +13,6 @@ function StarIcon({ filled }) {
   );
 }
 
-const REPO_BROWSER_EMBER_CONFIGS = {
-  4: [8, 21, 34, 47, 60, 73, 86],
-  5: [4, 11, 18, 25, 32, 39, 46, 53, 60, 67, 74, 81, 88, 95],
-}
 
 function TreeNode({ node, depth, expandedPaths, setExpandedPaths, selectedPath, onOpenFile }) {
   const isDirectory = node.kind === "directory";
@@ -87,7 +82,7 @@ function TreeNode({ node, depth, expandedPaths, setExpandedPaths, selectedPath, 
   );
 }
 
-export default function ProjectExplorer({ open, onClose, onRefresh }) {
+export default function ProjectExplorer({ open, onClose, onRefresh, tourElevated }) {
   const activeGroupId = useForgeStore((state) => state.activeGroupId);
   const groups = useForgeStore((state) => state.groups);
   const workspaceByGroup = useForgeStore((state) => state.workspaceByGroup);
@@ -100,7 +95,6 @@ export default function ProjectExplorer({ open, onClose, onRefresh }) {
 
   const activeGroup = groups.find((group) => group.id === activeGroupId) ?? null;
   const workspace = workspaceByGroup[activeGroupId];
-  const heatStage = useEffectiveHeatStage();
   const [workspacePathInput, setWorkspacePathInput] = useState("");
   const [expandedPaths, setExpandedPaths] = useState(() => new Set());
   const [editingPath, setEditingPath] = useState(true);
@@ -142,17 +136,6 @@ export default function ProjectExplorer({ open, onClose, onRefresh }) {
   }, [activeGroup?.rootPath, editingPath, workspacePathInput]);
 
   const isFavoriteTarget = favoriteRepoPaths.includes(favoriteTargetPath);
-  const repoBrowserEmbers = useMemo(() => {
-    const positions = REPO_BROWSER_EMBER_CONFIGS[heatStage];
-    if (!positions) return null;
-    return positions.map((left, i) => (
-      <span
-        key={`rb-${i}`}
-        className="forge-ember-wide repo-browser-ember"
-        style={{ left: `${left}%`, animationDelay: `${(i * 0.3) % 2}s`, ...getEmberStyle(i) }}
-      />
-    ));
-  }, [heatStage]);
 
   if (!open || !activeGroup) {
     return null;
@@ -169,12 +152,12 @@ export default function ProjectExplorer({ open, onClose, onRefresh }) {
 
   return (
     <div
-      className="repo-browser-popover"
+      className={`repo-browser-popover${tourElevated ? " tour-elevated-menu" : ""}`}
       onMouseDown={(event) => event.stopPropagation()}
       onPointerDown={(event) => event.stopPropagation()}
     >
       <div className="repo-browser-header">
-        {repoBrowserEmbers ? <div className="forge-ember-layer forge-ember-layer-repo-browser">{repoBrowserEmbers}</div> : null}
+        <ParticleCanvas location="repoBrowser" />
         <div className="repo-browser-title">Repository</div>
         <div className="repo-browser-header-actions">
           {activeGroup.rootPath ? (

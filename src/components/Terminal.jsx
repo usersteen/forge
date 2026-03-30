@@ -462,7 +462,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
     };
 
     const applyDetectedStatus = (status, title = "", options = {}) => {
-      const { countResponse = true, notifyWaiting = true } = options;
+      const { countResponse = true, notifyWaiting = true, heatEligibleWaiting = status === "waiting" } = options;
       const store = useForgeStore.getState();
       const snapshot = getTabSnapshot(store, tabId);
       if (!snapshot) return;
@@ -470,7 +470,9 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       const { tab } = snapshot;
       const prevStatus = prevStatusRef.current;
       const nextTitle = title || tab.statusTitle || "";
-      if (status === prevStatus && nextTitle === tab.statusTitle) return;
+      const shouldPromoteHeatWaiting =
+        status === "waiting" && heatEligibleWaiting && !tab.heatWaitingSince;
+      if (status === prevStatus && nextTitle === tab.statusTitle && !shouldPromoteHeatWaiting) return;
 
       if (detectorRef.current.provider === "codex") {
         logCodexDebug("status-change", {
@@ -497,6 +499,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
         detectorRef.current.provider === "codex" && shouldAnnounceWaiting;
 
       store.setTabStatus(tabId, status, nextTitle, {
+        heatEligibleWaiting,
         triggerWaitingAttention: shouldAnnounceWaiting && !shouldDelayCodexWaitingAnnouncement,
       });
 
@@ -593,7 +596,10 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
           summary: summary || "Codex ready",
           recentText,
         });
-        applyDetectedStatus("waiting", summary || "Codex ready", { notifyWaiting: false });
+        applyDetectedStatus("waiting", summary || "Codex ready", {
+          notifyWaiting: false,
+          heatEligibleWaiting: false,
+        });
         return;
       }
 
@@ -738,7 +744,10 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
         });
         if (codexLaunchMode === "interactive") {
           clearCodexIdleTimeout();
-          applyDetectedStatus("waiting", "Codex ready", { notifyWaiting: false });
+          applyDetectedStatus("waiting", "Codex ready", {
+            notifyWaiting: false,
+            heatEligibleWaiting: false,
+          });
         } else {
           applyDetectedStatus("working", summarizeStatusText(command, "Codex"));
           scheduleCodexIdleCheck();
@@ -1114,7 +1123,9 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
         store.setTabAutoName(tabId, nextLabel);
       }
 
-      applyDetectedStatus(nextStatus, title);
+      applyDetectedStatus(nextStatus, title, {
+        heatEligibleWaiting: !(provider === "codex" && nextStatus === "waiting"),
+      });
     });
 
     let resizeTimeout;

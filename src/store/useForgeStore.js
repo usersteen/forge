@@ -74,6 +74,7 @@ function makeTab(name = "Terminal 1", cwd = null, options = {}) {
     manuallyRenamed: false,
     suggestedServerName: "",
     waitingSince: null,
+    heatWaitingSince: null,
     lastEngagedAt: null,
     launchCommand: options.launchCommand || null,
   };
@@ -344,10 +345,15 @@ const useForgeStore = create((set, get) => ({
         const triggerWaitingAttention = options.triggerWaitingAttention ?? true;
         const shouldFlashWaiting = newWaiting && triggerWaitingAttention;
         const waitingSince = status === "waiting" ? (oldTab.waitingSince ?? Date.now()) : null;
+        const heatEligibleWaiting = options.heatEligibleWaiting ?? newWaiting;
+        const heatWaitingSince =
+          status !== "waiting"
+            ? null
+            : oldTab.heatWaitingSince ?? (heatEligibleWaiting ? Date.now() : null);
         const lastEngagedAt =
           status === "working" && oldTab.status === "waiting" ? Date.now() : oldTab.lastEngagedAt;
         const updatedTab = {
-          ...oldTab, status, statusTitle: title, waitingSince, lastEngagedAt,
+          ...oldTab, status, statusTitle: title, waitingSince, heatWaitingSince, lastEngagedAt,
           waitingFlashKey: shouldFlashWaiting ? (oldTab.waitingFlashKey ?? 0) + 1 : (oldTab.waitingFlashKey ?? 0),
         };
         const tabs = group.tabs.slice();
@@ -830,16 +836,16 @@ const useForgeStore = create((set, get) => ({
 
   recordResponse: (tabId) => {
     const state = get();
-    let waitingSince = null;
+    let heatWaitingSince = null;
     for (const group of state.groups) {
       const tab = group.tabs.find((entry) => entry.id === tabId);
       if (tab) {
-        waitingSince = tab.waitingSince;
+        heatWaitingSince = tab.heatWaitingSince;
         break;
       }
     }
-    if (!waitingSince) return;
-    const fast = Date.now() - waitingSince <= state.streakTimer;
+    if (!heatWaitingSince) return;
+    const fast = Date.now() - heatWaitingSince <= state.streakTimer;
     set({
       streak: fast ? clampHeatStreak(state.streak + 1) : clampHeatStreak(state.streak),
       lastStreakTime: Date.now(),
@@ -884,6 +890,7 @@ const useForgeStore = create((set, get) => ({
                 tabs: group.tabs.map((tab) => ({
                   ...tab,
                   waitingSince: tab.waitingSince ? tab.waitingSince + pausedDuration : null,
+                  heatWaitingSince: tab.heatWaitingSince ? tab.heatWaitingSince + pausedDuration : null,
                   lastEngagedAt: tab.lastEngagedAt ? tab.lastEngagedAt + pausedDuration : null,
                 })),
               }))

@@ -3,11 +3,16 @@ import { invoke } from "@tauri-apps/api/core";
 import useEscapeKey from "../hooks/useEscapeKey";
 import useForgeStore from "../store/useForgeStore";
 
+function repoNameFromPath(path) {
+  return path.split(/[\\/]/).filter(Boolean).pop() || path;
+}
+
 export default function NewProjectMenu({ x, y, onSelect, onClose, tourElevated }) {
   const menuRef = useRef(null);
   const [inputValue, setInputValue] = useState("");
   const [menuStyle, setMenuStyle] = useState({ left: x, top: y, opacity: 0 });
   const [repos, setRepos] = useState([]);
+  const favoriteRepoPaths = useForgeStore((s) => s.favoriteRepoPaths);
   const reposRootPath = useForgeStore((s) => s.reposRootPath);
 
   useEffect(() => {
@@ -43,7 +48,7 @@ export default function NewProjectMenu({ x, y, onSelect, onClose, tourElevated }
     }
 
     setMenuStyle({ left: nextX, top: nextY, opacity: 1 });
-  }, [x, y, repos]);
+  }, [x, y, repos, favoriteRepoPaths]);
 
   const handleInputKeyDown = (event) => {
     if (event.key === "Enter" && inputValue.trim()) {
@@ -53,6 +58,12 @@ export default function NewProjectMenu({ x, y, onSelect, onClose, tourElevated }
   };
 
   const filterValue = inputValue.trim().toLowerCase();
+  const filteredFavoriteRepoPaths = filterValue
+    ? favoriteRepoPaths.filter((path) => {
+        const repoName = repoNameFromPath(path).toLowerCase();
+        return path.toLowerCase().includes(filterValue) || repoName.includes(filterValue);
+      })
+    : favoriteRepoPaths;
   const filteredRepos = filterValue
     ? repos.filter((name) => name.toLowerCase().includes(filterValue))
     : repos;
@@ -74,7 +85,11 @@ export default function NewProjectMenu({ x, y, onSelect, onClose, tourElevated }
         <input
           className="new-project-path-input"
           type="text"
-          placeholder={repos.length > 0 ? "Filter repos or paste a path..." : "Paste a repo path..."}
+          placeholder={
+            repos.length > 0 || favoriteRepoPaths.length > 0
+              ? "Filter repos or paste a path..."
+              : "Paste a repo path..."
+          }
           autoFocus
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
@@ -82,9 +97,33 @@ export default function NewProjectMenu({ x, y, onSelect, onClose, tourElevated }
         />
       </div>
 
+      {filteredFavoriteRepoPaths.length > 0 && (
+        <>
+          <div className="new-project-divider" />
+          <div className="new-project-section-label">Starred Repos</div>
+          <div className="new-project-starred-list">
+            {filteredFavoriteRepoPaths.map((path) => (
+              <button
+                key={path}
+                className="quick-tab-item"
+                onClick={() => {
+                  onSelect(path);
+                  onClose();
+                }}
+                title={path}
+              >
+                <span className="quick-tab-item-label">{repoNameFromPath(path)}</span>
+                <span className="quick-tab-item-hint">{path}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
       {filteredRepos.length > 0 && (
         <>
           <div className="new-project-divider" />
+          <div className="new-project-section-label">Repos</div>
           <div className="new-project-repo-list">
             {filteredRepos.map((name) => (
               <button

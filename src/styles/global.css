@@ -1039,6 +1039,16 @@ html, body, #root {
   margin: 2px 6px;
 }
 
+.new-project-section-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 6px 12px 2px;
+  letter-spacing: 0.5px;
+}
+
+.new-project-starred-list,
 .new-project-repo-list {
   max-height: 240px;
   overflow-y: auto;
@@ -1046,19 +1056,23 @@ html, body, #root {
   scrollbar-color: rgba(100, 116, 139, 0.5) transparent;
 }
 
+.new-project-starred-list::-webkit-scrollbar,
 .new-project-repo-list::-webkit-scrollbar {
   width: 6px;
 }
 
+.new-project-starred-list::-webkit-scrollbar-track,
 .new-project-repo-list::-webkit-scrollbar-track {
   background: transparent;
 }
 
+.new-project-starred-list::-webkit-scrollbar-thumb,
 .new-project-repo-list::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 3px;
 }
 
+.new-project-starred-list::-webkit-scrollbar-thumb:hover,
 .new-project-repo-list::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.18);
 }
@@ -1501,67 +1515,6 @@ body.reader-resizing {
 .repo-browser-path-actions {
   display: flex;
   gap: 8px;
-}
-
-.repo-browser-favorites {
-  flex-shrink: 0;
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--border);
-}
-
-.repo-browser-favorite-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 8px;
-}
-
-.repo-browser-favorite-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.repo-browser-favorite-link {
-  min-width: 0;
-  flex: 1;
-  height: 30px;
-  border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.03);
-  color: var(--text-secondary);
-  border-radius: 0;
-  padding: 0 10px;
-  text-align: left;
-  cursor: pointer;
-  font-size: 12px;
-  font-family: inherit;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.repo-browser-favorite-link:hover,
-.repo-browser-favorite-link-active {
-  background: var(--bg-active);
-  color: var(--text-primary);
-  border-color: rgba(96, 165, 250, 0.3);
-}
-
-.repo-browser-favorite-remove {
-  width: 30px;
-  height: 30px;
-  border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.03);
-  color: var(--text-muted);
-  border-radius: 0;
-  cursor: pointer;
-  font-size: 12px;
-  font-family: inherit;
-}
-
-.repo-browser-favorite-remove:hover {
-  background: var(--bg-active);
-  color: var(--text-primary);
 }
 
 .repo-browser-note,

@@ -91,7 +91,6 @@ export default function ProjectExplorer({ open, onClose, onRefresh, tourElevated
   const setGroupRootPath = useForgeStore((state) => state.setGroupRootPath);
   const setSelectedPath = useForgeStore((state) => state.setSelectedPath);
   const toggleFavoriteRepoPath = useForgeStore((state) => state.toggleFavoriteRepoPath);
-  const removeFavoriteRepoPath = useForgeStore((state) => state.removeFavoriteRepoPath);
 
   const activeGroup = groups.find((group) => group.id === activeGroupId) ?? null;
   const workspace = workspaceByGroup[activeGroupId];
@@ -230,34 +229,6 @@ export default function ProjectExplorer({ open, onClose, onRefresh, tourElevated
           Paste a repository path to browse files and open markdown, text, or image documents.
         </div>
       )}
-
-      {favoriteRepoPaths.length > 0 ? (
-        <div className="repo-browser-favorites">
-          <div className="repo-browser-path-label">Starred repos</div>
-          <div className="repo-browser-favorite-list">
-            {favoriteRepoPaths.map((path) => (
-              <div key={path} className="repo-browser-favorite-item">
-                <button
-                  type="button"
-                  className={`repo-browser-favorite-link ${activeGroup.rootPath === path ? "repo-browser-favorite-link-active" : ""}`}
-                  onClick={() => commitWorkspacePath(path)}
-                  title={path}
-                >
-                  {path}
-                </button>
-                <button
-                  type="button"
-                  className="repo-browser-favorite-remove"
-                  onClick={() => removeFavoriteRepoPath(path)}
-                  aria-label={`Remove ${path} from starred repos`}
-                >
-                  x
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
 
       {!activeGroup.rootPath ? null : workspace?.status === "loading" ? (
         <div className="repo-browser-empty">Loading repository tree...</div>

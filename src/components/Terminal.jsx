@@ -9,9 +9,11 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import useForgeStore from "../store/useForgeStore";
 import {
   extractPlainText,
+  isClaudeLaunchCommand,
   getCodexLaunchMode,
   isCodexExitCommand,
   looksLikeCodexSession,
+  parseAgentStatusTitle,
   summarizeStatusText,
 } from "../utils/statusDetection";
 
@@ -147,7 +149,9 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
   const fitAddonRef = useRef(null);
   const termRef = useRef(null);
   const initialLaunchCommandRef = useRef(launchCommand);
+  const initialLaunchSentRef = useRef(false);
   const noticeTimerRef = useRef(null);
+  const launchTimerRef = useRef(null);
   const ptyReady = useRef(false);
   const prevStatusRef = useRef("idle");
   const inputBufferRef = useRef("");
@@ -166,6 +170,10 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
     at: 0,
   });
   const recentCodexReplyAtRef = useRef(0);
+  const codexTitleStatusRef = useRef({
+    supported: false,
+    lastSeenAt: 0,
+  });
 
   useEffect(() => {
     let isTearingDown = false;
@@ -184,6 +192,31 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
     };
 
     let codexIdleTimeout;
+
+    const clearLaunchTimer = () => {
+      clearTimeout(launchTimerRef.current);
+      launchTimerRef.current = null;
+    };
+
+    const triggerInitialLaunch = () => {
+      if (initialLaunchSentRef.current || !ptyReady.current || isTearingDown) return;
+      const initialLaunchCommand = initialLaunchCommandRef.current;
+      if (!initialLaunchCommand) return;
+
+      initialLaunchSentRef.current = true;
+      clearLaunchTimer();
+      useForgeStore.getState().clearTabLaunchCommand(tabId);
+      handleSubmittedCommand(initialLaunchCommand);
+      invoke("write_pty", { tabId, data: `${initialLaunchCommand}\r` }).catch((error) => {
+        if (isTearingDown) return;
+        console.error("Failed to send launch command to PTY:", error);
+        handlePtyDisconnect(
+          "Terminal session lost",
+          `Forge could not start the preset command in this shell. ${TERMINAL_RECOVERY_MESSAGE}`,
+          String(error)
+        );
+      });
+    };
 
     const clearNoticeTimer = () => {
       clearTimeout(noticeTimerRef.current);
@@ -248,6 +281,23 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       clearTimeout(codexIdleTimeout);
       codexIdleTimeout = undefined;
     };
+
+    const resetCodexTitleStatus = () => {
+      codexTitleStatusRef.current = {
+        supported: false,
+        lastSeenAt: 0,
+      };
+    };
+
+    const noteCodexTitleStatus = () => {
+      codexTitleStatusRef.current = {
+        supported: true,
+        lastSeenAt: Date.now(),
+      };
+    };
+
+    const hasCodexTitleStatus = () =>
+      detectorRef.current.provider === "codex" && codexTitleStatusRef.current.supported;
 
     const rememberRecentCodexInput = (command) => {
       recentCodexInputRef.current = {
@@ -379,6 +429,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
 
     const inspectCodexSurface = (source, fallbackTitle = "") => {
       if (detectorRef.current.provider !== "codex") return null;
+      if (hasCodexTitleStatus()) return null;
 
       const { status, screenText } = inspectCodexScreen(termRef.current);
       if (!status) return null;
@@ -405,6 +456,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       clearCodexIdleTimeout();
       codexIdleTimeout = setTimeout(() => {
         if (detectorRef.current.provider !== "codex") return;
+        if (hasCodexTitleStatus()) return;
 
         const surfaceStatus = inspectCodexSurface("idle-timeout");
         if (surfaceStatus === "working") {
@@ -455,6 +507,15 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       }
 
       if (detector.provider !== "codex") return;
+
+      if (hasCodexTitleStatus()) {
+        logCodexDebug("ignored-output-title-mode", {
+          summary,
+          recentText,
+          lastTitleAt: codexTitleStatusRef.current.lastSeenAt,
+        });
+        return;
+      }
 
       scheduleCodexIdleCheck();
 
@@ -511,6 +572,14 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
         store.setTabProvider(tabId, "codex");
       }
 
+      if (hasCodexTitleStatus()) {
+        logCodexDebug("ignored-bell-title-mode", {
+          recentText: codexDebugRef.current.recentText,
+          lastTitleAt: codexTitleStatusRef.current.lastSeenAt,
+        });
+        return;
+      }
+
       codexDebugRef.current.lastBellEventAt = Date.now();
       logCodexDebug("bell-event", {
         recentText: codexDebugRef.current.recentText,
@@ -533,6 +602,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
         if (detectorRef.current.provider === "codex") {
           detectorRef.current.provider = "unknown";
           detectorRef.current.awaitingUser = false;
+          resetCodexTitleStatus();
           applyDetectedStatus("idle", "");
         }
         return null;
@@ -558,6 +628,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       if (codexLaunchMode) {
         detector.provider = "codex";
         detector.awaitingUser = codexLaunchMode === "interactive";
+        resetCodexTitleStatus();
         const store = useForgeStore.getState();
         store.setTabProvider(tabId, "codex");
         const snapshot = getTabSnapshot(store, tabId);
@@ -581,6 +652,20 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
         return;
       }
 
+      if (isClaudeLaunchCommand(command)) {
+        clearCodexIdleTimeout();
+        detector.provider = "claude";
+        detector.awaitingUser = false;
+        resetCodexTitleStatus();
+        const store = useForgeStore.getState();
+        store.setTabProvider(tabId, "claude");
+        const snapshot = getTabSnapshot(store, tabId);
+        if (snapshot?.tab.type !== "server") {
+          store.setTabAutoName(tabId, "Claude");
+        }
+        return;
+      }
+
       if (detector.provider !== "codex") return;
 
       if (isCodexExitCommand(command)) {
@@ -591,6 +676,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
         clearCodexIdleTimeout();
         detector.provider = "unknown";
         detector.awaitingUser = false;
+        resetCodexTitleStatus();
         applyDetectedStatus("idle", "", { countResponse: false, notifyWaiting: false });
         return;
       }
@@ -654,6 +740,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
     const unlistenOutput = listen(`pty-output-${tabId}`, (event) => {
       clearPersistentNotice();
       term.write(event.payload);
+      triggerInitialLaunch();
       syncServerSuggestion(extractPlainText(event.payload));
       handleCodexOutput(event.payload);
     });
@@ -681,18 +768,11 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
         clearNotice();
         const initialLaunchCommand = initialLaunchCommandRef.current;
         if (!initialLaunchCommand) return;
-
-        useForgeStore.getState().clearTabLaunchCommand(tabId);
-        handleSubmittedCommand(initialLaunchCommand);
-        invoke("write_pty", { tabId, data: `${initialLaunchCommand}\r` }).catch((error) => {
-          if (isTearingDown) return;
-          console.error("Failed to send launch command to PTY:", error);
-          handlePtyDisconnect(
-            "Terminal session lost",
-            `Forge could not start the preset command in this shell. ${TERMINAL_RECOVERY_MESSAGE}`,
-            String(error)
-          );
-        });
+        clearLaunchTimer();
+        launchTimerRef.current = setTimeout(() => {
+          launchTimerRef.current = null;
+          triggerInitialLaunch();
+        }, 250);
       })
       .catch((err) => {
         console.error("Failed to spawn PTY:", err);
@@ -791,28 +871,50 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
     });
 
     term.onTitleChange((title) => {
-      const firstChar = title.codePointAt(0);
-      let status = "idle";
-      if (firstChar >= 0x2800 && firstChar <= 0x28ff) {
-        status = "working";
-      } else if (title.startsWith("\u2733")) {
-        status = "waiting";
-      } else {
+      const store = useForgeStore.getState();
+      const snapshot = getTabSnapshot(store, tabId);
+      const provider =
+        detectorRef.current.provider !== "unknown"
+          ? detectorRef.current.provider
+          : (snapshot?.tab.provider ?? "unknown");
+
+      if (provider === "unknown") {
         return;
       }
 
-      detectorRef.current.provider = "claude";
-      detectorRef.current.awaitingUser = false;
+      const parsedTitle = parseAgentStatusTitle(title);
+      let nextStatus = parsedTitle?.status ?? null;
+      let nextLabel = parsedTitle?.label ?? "";
 
-      const store = useForgeStore.getState();
-      store.setTabProvider(tabId, "claude");
-      const snapshot = getTabSnapshot(store, tabId);
-      const textPart = title.replace(/^[\u2800-\u28ff\u2733\uFE0F]+\s*/, "").trim();
-      if (textPart && snapshot?.tab.type !== "server") {
-        store.setTabAutoName(tabId, textPart);
+      if (provider === "codex") {
+        if (parsedTitle?.status === "working") {
+          noteCodexTitleStatus();
+        } else if (hasCodexTitleStatus()) {
+          nextStatus = "waiting";
+          nextLabel = "";
+        }
       }
 
-      applyDetectedStatus(status, title);
+      if (!nextStatus) return;
+
+      detectorRef.current.provider = provider;
+      detectorRef.current.awaitingUser = nextStatus === "waiting";
+
+      if (provider === "codex") {
+        if (nextStatus === "waiting") {
+          clearCodexIdleTimeout();
+          recentCodexReplyAtRef.current = 0;
+        } else {
+          scheduleCodexIdleCheck();
+        }
+      }
+
+      store.setTabProvider(tabId, provider);
+      if (provider === "claude" && nextLabel && snapshot?.tab.type !== "server") {
+        store.setTabAutoName(tabId, nextLabel);
+      }
+
+      applyDetectedStatus(nextStatus, title);
     });
 
     let resizeTimeout;
@@ -886,6 +988,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       isTearingDown = true;
       bellListener.dispose();
       clearCodexIdleTimeout();
+      clearLaunchTimer();
       stopHumanInputPause();
       clearNoticeTimer();
       clearTimeout(resizeTimeout);
@@ -902,6 +1005,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       termRef.current = null;
       ptyReady.current = false;
       inputBufferRef.current = "";
+      initialLaunchSentRef.current = false;
       codexDebugRef.current = {
         recentText: "",
         lastBellByteAt: null,
@@ -910,6 +1014,10 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       detectorRef.current = { provider: "unknown", awaitingUser: false };
       recentCodexInputRef.current = { summary: "", at: 0 };
       recentCodexReplyAtRef.current = 0;
+      codexTitleStatusRef.current = {
+        supported: false,
+        lastSeenAt: 0,
+      };
     };
   }, [tabId, cwd]);
 

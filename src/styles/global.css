@@ -769,9 +769,9 @@ html, body, #root {
 .tab {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   position: relative;
-  padding: 0 12px;
+  padding: 0 10px;
   cursor: pointer;
   border-bottom: 3px solid transparent;
   white-space: nowrap;
@@ -781,13 +781,24 @@ html, body, #root {
   touch-action: none;
 }
 
+.tab + .tab::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 9px;
+  bottom: 9px;
+  width: 1px;
+  background: rgba(148, 163, 184, 0.14);
+  pointer-events: none;
+}
+
 .tab-provider-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 22px;
-  height: 18px;
-  padding: 0 6px;
+  min-width: 20px;
+  height: 16px;
+  padding: 0 4px;
   border-radius: 0;
   border: 1px solid rgba(148, 163, 184, 0.2);
   background: rgba(255, 255, 255, 0.035);
@@ -850,7 +861,7 @@ html, body, #root {
   flex: 1 1 auto;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 150px;
+  max-width: 168px;
 }
 
 .tab-close {

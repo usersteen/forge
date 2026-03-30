@@ -39,6 +39,11 @@ function getProviderBadge(tab) {
   return null;
 }
 
+function getTabTooltip(tab, providerBadge) {
+  if (!providerBadge) return tab.name;
+  return `${tab.name} - ${providerBadge.title}`;
+}
+
 function getRenameSeed(tab) {
   if (tab.type === "server" && !tab.manuallyRenamed && tab.suggestedServerName) {
     return tab.suggestedServerName;
@@ -57,6 +62,7 @@ function SortableTab({ tab, isActive, isRecent, onSelect, onDoubleClick, onConte
   const statusClass =
     tab.type === "server" ? "" : tab.status === "waiting" ? "tab-waiting" : tab.status === "working" ? "tab-working" : "";
   const providerBadge = getProviderBadge(tab);
+  const showProviderBadge = isActive && providerBadge;
 
   return (
     <div
@@ -69,9 +75,10 @@ function SortableTab({ tab, isActive, isRecent, onSelect, onDoubleClick, onConte
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
       onAnimationEnd={handleAnimationEnd}
+      title={getTabTooltip(tab, providerBadge)}
     >
       <span className={getStatusDotClass(tab, isRecent)} />
-      {providerBadge ? (
+      {showProviderBadge ? (
         <span className={`tab-provider-badge tab-provider-${tab.provider}`} title={providerBadge.title}>
           {providerBadge.label}
         </span>

@@ -2108,7 +2108,7 @@ body.reader-resizing {
 }
 
 
-/* V1 ember particle CSS removed — replaced by Canvas 2D engine (particleEngine.js) */
+/* V1 ember particle CSS removed — replaced by V3 canvas engine (particleEngine.js). V2 = particle-demo.html */
 
 @keyframes micro-ember-rise {
   0% {

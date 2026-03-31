@@ -135,38 +135,32 @@ const THEME_GLOWS = {
     status: {
       waiting: {
         normal: shadowValue([
-          { spread: 1, color: rgbaVar("--heat-5-rgb", 0.22) },
-          { blur: 4, color: rgbaVar("--accent-waiting-rgb", 0.88) },
-          { blur: 10, color: rgbaVar("--heat-5-rgb", 0.3) },
+          { blur: 4, color: rgbaVar("--accent-waiting-rgb", 0.7) },
+          { blur: 9, color: rgbaVar("--accent-waiting-rgb", 0.22) },
         ]),
         small: shadowValue([
-          { spread: 1, color: rgbaVar("--heat-5-rgb", 0.18) },
-          { blur: 3, color: rgbaVar("--accent-waiting-rgb", 0.82) },
-          { blur: 7, color: rgbaVar("--heat-5-rgb", 0.24) },
+          { blur: 3, color: rgbaVar("--accent-waiting-rgb", 0.62) },
+          { blur: 6, color: rgbaVar("--accent-waiting-rgb", 0.18) },
         ]),
       },
       working: {
         normalRest: shadowValue([
-          { spread: 1, color: rgbaVar("--heat-5-rgb", 0.3) },
-          { blur: 4, color: rgbaVar("--accent-working-rgb", 0.92) },
-          { blur: 10, color: rgbaVar("--heat-5-rgb", 0.34) },
+          { blur: 4, color: rgbaVar("--accent-working-rgb", 0.74) },
+          { blur: 9, color: rgbaVar("--accent-working-rgb", 0.22) },
         ]),
         normalPeak: shadowValue([
-          { spread: 1, color: rgbaVar("--heat-5-rgb", 0.42) },
-          { blur: 6, color: rgbaVar("--accent-working-rgb", 0.98) },
-          { blur: 12, color: rgbaVar("--heat-5-rgb", 0.5) },
-          { blur: 18, color: rgbaVar("--heat-4-rgb", 0.22) },
+          { blur: 6, color: rgbaVar("--accent-working-rgb", 0.92) },
+          { blur: 13, color: rgbaVar("--accent-working-rgb", 0.34) },
+          { blur: 20, color: rgbaVar("--heat-5-rgb", 0.16) },
         ]),
         smallRest: shadowValue([
-          { spread: 1, color: rgbaVar("--heat-5-rgb", 0.24) },
-          { blur: 3, color: rgbaVar("--accent-working-rgb", 0.88) },
-          { blur: 8, color: rgbaVar("--heat-5-rgb", 0.28) },
+          { blur: 3, color: rgbaVar("--accent-working-rgb", 0.72) },
+          { blur: 7, color: rgbaVar("--accent-working-rgb", 0.2) },
         ]),
         smallPeak: shadowValue([
-          { spread: 1, color: rgbaVar("--heat-5-rgb", 0.34) },
-          { blur: 4, color: rgbaVar("--accent-working-rgb", 0.96) },
-          { blur: 10, color: rgbaVar("--heat-5-rgb", 0.42) },
-          { blur: 14, color: rgbaVar("--heat-4-rgb", 0.18) },
+          { blur: 4, color: rgbaVar("--accent-working-rgb", 0.88) },
+          { blur: 9, color: rgbaVar("--accent-working-rgb", 0.3) },
+          { blur: 14, color: rgbaVar("--heat-5-rgb", 0.14) },
         ]),
       },
     },
@@ -549,11 +543,28 @@ const THEMES = {
 };
 
 const THEME_VARIANTS = {
+  forge: {
+    v1: {
+      label: "Forge v1",
+      heatColors: ["#475569", "#b45309", "#c2410c", "#b91c1c", "#dc2626", "#ef4444"],
+      statusStops: { waiting: 1, working: 5 },
+    },
+    v3: {
+      label: "Forge v3",
+      heatColors: ["#4a4555", "#d97706", "#f97316", "#ef4444", "#f87171", "#fca5a5"],
+      statusStops: { waiting: 1, working: 5 },
+    },
+  },
   ice: {
     v1: {
       label: "Frost v1",
       heatColors: ["#53667d", "#4d82b8", "#1fd6ff", "#74ecff", "#c4f7ff", "#f2feff"],
       statusStops: { waiting: 2, working: 5 },
+    },
+    v3: {
+      label: "Frost v3",
+      heatColors: ["#3a5870", "#3878b8", "#2098d0", "#40c0e8", "#80e0f8", "#c8f4ff"],
+      statusStops: { waiting: 1, working: 5 },
     },
   },
   void: {
@@ -562,12 +573,22 @@ const THEME_VARIANTS = {
       heatColors: ["#534d63", "#46508a", "#9365ff", "#c257ff", "#ff4fe0", "#ff9ae8"],
       statusStops: { waiting: 3, working: 5 },
     },
+    v3: {
+      label: "Void v3",
+      heatColors: ["#2e2845", "#4030a8", "#6830d0", "#a020c0", "#d818a8", "#ff40c8"],
+      statusStops: { waiting: 1, working: 5 },
+    },
   },
   grass: {
     v1: {
       label: "Spore v1",
       heatColors: ["#4d563f", "#667b29", "#4baa3c", "#78d63a", "#b7ef45", "#ecff87"],
       statusStops: { waiting: 3, working: 5 },
+    },
+    v3: {
+      label: "Spore v3",
+      heatColors: ["#504830", "#b87820", "#c8a018", "#90c028", "#58d840", "#38e860"],
+      statusStops: { waiting: 1, working: 5 },
     },
   },
 };
@@ -674,6 +695,47 @@ export function getThemeTokens(theme, heatStage) {
     "--shell-glow-sidebar": glow.shell.sidebar,
     "--shell-glow-main": glow.shell.main,
   };
+}
+
+// Returns tokens with variant heatColors overriding the main theme's colors.
+// variant = null means v2 (main), "v1" or "v3" pulls from THEME_VARIANTS.
+export function getThemeTokensWithVariant(theme, heatStage, variant) {
+  if (!variant) return getThemeTokens(theme, heatStage);
+
+  const resolvedThemeName = normalizeTheme(theme);
+  const variants = THEME_VARIANTS[resolvedThemeName];
+  const variantConfig = variants && variants[variant];
+  if (!variantConfig) return getThemeTokens(theme, heatStage);
+
+  // Start with base tokens, then override heat colors + status colors
+  const base = getThemeTokens(theme, heatStage);
+  const heatColors = variantConfig.heatColors;
+  const statusStops = variantConfig.statusStops || THEMES[resolvedThemeName].statusStops;
+  const resolvedHeatStage = Math.max(0, Math.min(5, heatStage));
+
+  return {
+    ...base,
+    "--accent-working": heatColors[statusStops.working],
+    "--accent-working-rgb": hexToRgb(heatColors[statusStops.working]),
+    "--accent-waiting": heatColors[statusStops.waiting],
+    "--accent-waiting-rgb": hexToRgb(heatColors[statusStops.waiting]),
+    "--heat-0": heatColors[0], "--heat-0-rgb": hexToRgb(heatColors[0]),
+    "--heat-1": heatColors[1], "--heat-1-rgb": hexToRgb(heatColors[1]),
+    "--heat-2": heatColors[2], "--heat-2-rgb": hexToRgb(heatColors[2]),
+    "--heat-3": heatColors[3], "--heat-3-rgb": hexToRgb(heatColors[3]),
+    "--heat-4": heatColors[4], "--heat-4-rgb": hexToRgb(heatColors[4]),
+    "--heat-5": heatColors[5], "--heat-5-rgb": hexToRgb(heatColors[5]),
+    "--heat-current": heatColors[resolvedHeatStage],
+    "--heat-current-rgb": hexToRgb(heatColors[resolvedHeatStage]),
+  };
+}
+
+// Get variant keys available for a theme (for UI toggle buttons)
+export function getThemeVariantKeys(theme) {
+  const resolvedThemeName = normalizeTheme(theme);
+  const variants = THEME_VARIANTS[resolvedThemeName];
+  if (!variants) return null;
+  return ["v2", ...Object.keys(variants).sort()];
 }
 
 export { DEFAULT_THEME, THEMES, THEME_VARIANTS };

@@ -16,6 +16,7 @@ export default function ParticleCanvas({ location = "header", themeOverride, hea
   const lastTimeRef = useRef(0);
   const sizeRef = useRef({ w: 0, h: 0 });
   const heatRef = useRef(0);
+  const locationRef = useRef(location);
 
   const storeTheme = useForgeStore((s) => s.theme);
   const fxEnabled = useForgeStore((s) => s.fxEnabled);
@@ -24,6 +25,7 @@ export default function ParticleCanvas({ location = "header", themeOverride, hea
   const theme = themeOverride || storeTheme;
   const effectiveHeatStage = heatOverride != null ? heatOverride : storeHeat;
   heatRef.current = effectiveHeatStage;
+  locationRef.current = location;
 
   const active = fxEnabled && effectiveHeatStage >= 3;
 
@@ -52,7 +54,7 @@ export default function ParticleCanvas({ location = "header", themeOverride, hea
     sizeRef.current = { w: Math.round(rect.width), h: Math.round(rect.height) };
 
     return () => observer.disconnect();
-  }, []);
+  }, [active]);
 
   // RAF loop
   useEffect(() => {
@@ -98,7 +100,14 @@ export default function ParticleCanvas({ location = "header", themeOverride, hea
         ctx.clearRect(0, 0, w, h);
 
         const heat = heatRef.current;
-        const mult = HEAT_MULTIPLIERS[heat] || HEAT_MULTIPLIERS[4];
+        const baseMult = HEAT_MULTIPLIERS[heat] || HEAT_MULTIPLIERS[4];
+        // Child effects (sparks, ghosts, spores, twinkles):
+        // Heat 3: none anywhere
+        // Heat 4: header only
+        // Heat 5: everywhere
+        const isHeader = locationRef.current === "header";
+        const childScale = heat >= 5 ? 1.0 : (heat >= 4 && isHeader) ? 1.0 : 0;
+        const mult = { ...baseMult, childScale };
         emitter.update(dt, w, h, mult);
         emitter.render(ctx, w, h);
       }

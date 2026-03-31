@@ -10,7 +10,7 @@ import TerminalArea from "./components/TerminalArea";
 import useEffectiveHeatStage from "./hooks/useEffectiveHeatStage";
 import useHeatTick from "./hooks/useHeatTick";
 import useForgeStore, { storeToConfig } from "./store/useForgeStore";
-import { getThemeTokens } from "./utils/themes";
+import { getThemeTokensWithVariant } from "./utils/themes";
 import { MAX_READER_WIDTH, MIN_READER_WIDTH } from "./utils/workspace";
 
 function isEditableTarget(target) {
@@ -154,7 +154,8 @@ function App() {
   const setDocumentState = useForgeStore((state) => state.setDocumentState);
   const setReaderWidth = useForgeStore((state) => state.setReaderWidth);
   const effectiveHeat = useEffectiveHeatStage();
-  const themeTokens = useMemo(() => getThemeTokens(theme, effectiveHeat), [theme, effectiveHeat]);
+  const themeVariant = useForgeStore((state) => state.themeVariant);
+  const themeTokens = useMemo(() => getThemeTokensWithVariant(theme, effectiveHeat, themeVariant), [theme, effectiveHeat, themeVariant]);
 
   const activeGroup = groups.find((group) => group.id === activeGroupId) ?? null;
   const activeRootPath = activeGroup?.rootPath ?? null;

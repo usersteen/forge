@@ -156,6 +156,7 @@ const useForgeStore = create((set, get) => ({
 
   // Demo mode (ephemeral, not persisted)
   demoHeatStage: null,
+  themeVariant: null, // null = v2 (current main), "v1", "v3"
 
   // Guided tour (ephemeral, not persisted)
   tourActive: false,
@@ -939,7 +940,8 @@ const useForgeStore = create((set, get) => ({
   setReposRootPath: (path) => set({ reposRootPath: path || null }),
 
   setDemoHeatStage: (stage) => set({ demoHeatStage: stage }),
-  exitDemoMode: () => set({ demoHeatStage: null }),
+  setThemeVariant: (variant) => set({ themeVariant: variant }),
+  exitDemoMode: () => set({ demoHeatStage: null, themeVariant: null }),
 
   startTour: () => {
     const state = get();

@@ -1,6 +1,6 @@
-// Particle Engine V2 — Canvas 2D with object pooling and force-based physics
-// Replaces the CSS span-based particle system with smooth multi-color,
-// additive blending, and theme-specific child particle effects.
+// Particle Engine V3 — Canvas 2D with object pooling and force-based physics
+// V1 = CSS span-based (global.css keyframes), V2 = canvas demo (particle-demo.html)
+// V3 = production canvas integration with conservative tuning for V1 parity
 
 // ============================================================
 // SIMPLEX NOISE 2D (Stefan Gustavson, public domain)
@@ -157,6 +157,7 @@ export class Emitter {
     const rate = cfg.rate * (heatMult.rateScale || 1);
     const sizeScale = heatMult.sizeScale || 1;
     const turbScale = heatMult.turbulenceScale || 1;
+    this._childScale = heatMult.childScale != null ? heatMult.childScale : 1;
 
     // Emit core particles
     this.accumulator += rate * dt;
@@ -262,10 +263,11 @@ export class Emitter {
 
   // -- FORGE: Sparks fly off embers --
   _updateForgeSparks(p, dt, t, cfg) {
+    if (this._childScale <= 0) return;
     const burstWindows = [{ start: 0.10, end: 0.14 }, { start: 0.40, end: 0.44 }];
     for (const burst of burstWindows) {
       const prevT = (p.age - dt) / p.lifetime;
-      if (prevT < burst.start && t >= burst.start && Math.random() < 0.35) {
+      if (prevT < burst.start && t >= burst.start && Math.random() < 0.35 * this._childScale) {
         const count = 2 + Math.floor(Math.random() * 3);
         for (let s = 0; s < count; s++) {
           const sp = this.pool.spawn();
@@ -280,8 +282,8 @@ export class Emitter {
           sp.age = 0;
           sp.lifetime = 0.2 + Math.random() * 0.3;
           sp.seed = p.seed;
-          sp.size = 1.5;
-          sp.baseSize = 1.5;
+          sp.size = 0.9;
+          sp.baseSize = 0.9;
           sp.alpha = 1;
           sp.r = 255; sp.g = 220; sp.b = 80;
         }
@@ -296,17 +298,18 @@ export class Emitter {
     p.x += p.vx * dt;
     p.y += p.vy * dt;
     p.alpha = (1 - t) * (1 - t);
-    p.size = lerpStops(cfg.sparkSizeOverLife || [{ t: 0, value: 1.5 }, { t: 1, value: 0.2 }], t) * sizeScale;
+    p.size = lerpStops(cfg.sparkSizeOverLife || [{ t: 0, value: 0.9 }, { t: 1, value: 0.1 }], t) * sizeScale;
     const sc = lerpColorStops(cfg.sparkColorStops || cfg.colorStops, t);
     p.r = sc.r; p.g = sc.g; p.b = sc.b;
   }
 
   // -- VOID: Orb splits into two smaller ones, they drift apart chaotically, then rejoin --
   _updateVoidSplit(p, dt, t, cfg) {
+    if (this._childScale <= 0) return;
     const splitWindows = [{ start: 0.18, end: 0.22 }, { start: 0.55, end: 0.59 }];
     for (const burst of splitWindows) {
       const prevT = (p.age - dt) / p.lifetime;
-      if (prevT < burst.start && t >= burst.start && Math.random() < 0.45) {
+      if (prevT < burst.start && t >= burst.start && Math.random() < 0.45 * this._childScale) {
         const gp = this.pool.spawn();
         if (!gp) break;
         gp.type = 'ghost';
@@ -383,8 +386,8 @@ export class Emitter {
     ], t);
 
     p.size = lerpStops([
-      { t: 0, value: 0.3 }, { t: 0.1, value: 1.5 },
-      { t: 0.5, value: 1.2 }, { t: 0.85, value: 0.8 }, { t: 1, value: 0.2 },
+      { t: 0, value: 0.3 }, { t: 0.1, value: 1.1 },
+      { t: 0.5, value: 0.8 }, { t: 0.85, value: 0.5 }, { t: 1, value: 0.15 },
     ], t) * sizeScale * 0.65;
 
     // When ghost dies, un-flag parent
@@ -395,10 +398,11 @@ export class Emitter {
 
   // -- GRASS/SPORE: Radial spore puffs --
   _updateGrassSpores(p, dt, t, cfg) {
+    if (this._childScale <= 0) return;
     const burstWindows = [{ start: 0.20, end: 0.24 }, { start: 0.55, end: 0.59 }];
     for (const burst of burstWindows) {
       const prevT = (p.age - dt) / p.lifetime;
-      if (prevT < burst.start && t >= burst.start && Math.random() < 0.3) {
+      if (prevT < burst.start && t >= burst.start && Math.random() < 0.3 * this._childScale) {
         const count = 5 + Math.floor(Math.random() * 3);
         const baseAngle = Math.random() * Math.PI * 2;
         for (let s = 0; s < count; s++) {
@@ -436,8 +440,8 @@ export class Emitter {
       { t: 0.4, value: 0.6 }, { t: 1, value: 0 },
     ], t);
     p.size = lerpStops([
-      { t: 0, value: 0.8 }, { t: 0.15, value: 1.6 },
-      { t: 0.5, value: 1.2 }, { t: 1, value: 0.3 },
+      { t: 0, value: 0.5 }, { t: 0.15, value: 1.0 },
+      { t: 0.5, value: 0.7 }, { t: 1, value: 0.2 },
     ], t) * sizeScale * 0.6;
   }
 
@@ -455,7 +459,7 @@ export class Emitter {
     const flashT = (p.age * 4 + p.phase) % 1;
     const flash = flashT < 0.15 ? flashT / 0.15 : flashT < 0.3 ? 1 - (flashT - 0.15) / 0.15 : 0;
     p.alpha = flash * 0.9 * (1 - t);
-    p.size = (1.0 + flash * 2.0) * sizeScale;
+    p.size = (0.6 + flash * 1.2) * sizeScale;
     p.r = 255; p.g = 255; p.b = 255;
   }
 
@@ -571,6 +575,7 @@ export class Emitter {
 export class IceEmitter extends Emitter {
   update(dt, w, h, heatMult) {
     super.update(dt, w, h, heatMult);
+    if (this._childScale <= 0) return;
     const sizeScale = heatMult.sizeScale || 1;
 
     for (let i = 0; i < this.pool.max; i++) {
@@ -592,8 +597,8 @@ export class IceEmitter extends Emitter {
           tp.lifetime = 0.5 + Math.random() * 0.4;
           tp.seed = p.seed;
           tp.phase = Math.random() * Math.PI * 2;
-          tp.size = 1.5 * sizeScale;
-          tp.baseSize = 1.5 * sizeScale;
+          tp.size = 0.9 * sizeScale;
+          tp.baseSize = 0.9 * sizeScale;
           tp.alpha = 0;
           tp.r = 255; tp.g = 255; tp.b = 255;
         }

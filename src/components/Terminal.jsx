@@ -1028,16 +1028,67 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       }
     });
 
+    const writeBracketedPaste = (text, failureLabel = "paste into PTY") => {
+      if (!text || !ptyReady.current) return;
+      noteHumanInput();
+      const bracketed = `\x1b[200~${text}\x1b[201~`;
+      invoke("write_pty", { tabId, sessionId, data: bracketed }).catch((error) => {
+        if (isTearingDown) return;
+        console.error(`Failed to ${failureLabel}:`, error);
+        handlePtyDisconnect(
+          "Terminal session lost",
+          `Forge could not send pasted text to this shell. ${TERMINAL_RECOVERY_MESSAGE}`,
+          String(error)
+        );
+      });
+    };
+
+    const copySelectionToClipboard = () => {
+      const selection = term.getSelection();
+      if (!selection) return false;
+      invoke("write_clipboard_text", { text: selection }).catch((error) => {
+        if (isTearingDown) return;
+        console.error("Failed to copy selection to clipboard:", error);
+        showTransientNotice("Copy failed", "Forge could not write the selected text to the system clipboard.");
+      });
+      return true;
+    };
+
+    const pasteNativeClipboard = () => {
+      if (!ptyReady.current) return;
+      invoke("read_clipboard_payload")
+        .then((payload) => {
+          if (!payload) {
+            showTransientNotice("Clipboard empty", "There is no text or image data available to paste.");
+            return;
+          }
+          if (payload.kind === "image") {
+            writeBracketedPaste(payload.filePath ?? payload.file_path, "paste clipboard image path into PTY");
+            return;
+          }
+          if (payload.kind === "text") {
+            writeBracketedPaste(payload.text);
+            return;
+          }
+          console.warn("Unsupported clipboard payload:", payload);
+        })
+        .catch((error) => {
+          if (isTearingDown) return;
+          console.error("Failed to read clipboard:", error);
+          showTransientNotice("Paste failed", "Forge could not read the system clipboard.");
+        });
+    };
+
     term.attachCustomKeyEventHandler((e) => {
       if (e.type !== "keydown") return true;
+      const key = e.key.toLowerCase();
+      const hasPrimaryModifier = e.ctrlKey || e.metaKey;
 
       // Copy: Ctrl+Shift+C copies selection (terminal convention).
       // Plain Ctrl+C always passes through as interrupt (SIGINT).
-      // On macOS, Cmd+C is handled by the metaKey block below.
-      if (e.ctrlKey && e.shiftKey && e.key === "C") {
-        const selection = term.getSelection();
-        if (selection) {
-          navigator.clipboard.writeText(selection);
+      if (hasPrimaryModifier && e.shiftKey && key === "c") {
+        if (copySelectionToClipboard()) {
+          e.preventDefault();
           return false;
         }
         return true;
@@ -1045,7 +1096,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
 
       // Ctrl+C without shift — always let xterm send \x03 (interrupt).
       // Prevent the browser/webview from intercepting it as a copy shortcut.
-      if (e.ctrlKey && !e.shiftKey && e.key === "c") {
+      if (e.ctrlKey && !e.metaKey && !e.shiftKey && key === "c") {
         e.preventDefault();
         return true;
       }
@@ -1053,19 +1104,19 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       // Paste: Ctrl+Shift+V (terminal convention) or Ctrl+V — trigger a
       // native paste event so the paste listener can read clipboardData
       // (text + images) without WebKit permission prompts.
-      if (e.ctrlKey && (e.key === "v" || e.key === "V")) {
+      if (hasPrimaryModifier && key === "v") {
         e.preventDefault();
-        document.execCommand("paste");
+        pasteNativeClipboard();
         return false;
       }
 
       // Linebreak: Ctrl+Enter — send a raw newline without shell execution
-      if (e.ctrlKey && e.key === "Enter") {
+      if (hasPrimaryModifier && e.key === "Enter") {
         if (ptyReady.current) {
           noteHumanInput();
           invoke("write_pty", { tabId, sessionId, data: "\n" }).catch((error) => {
             if (isTearingDown) return;
-            console.error("Failed to send Ctrl+Enter to PTY:", error);
+            console.error("Failed to send modified Enter to PTY:", error);
             handlePtyDisconnect(
               "Terminal session lost",
               `Forge could not send input to this shell. ${TERMINAL_RECOVERY_MESSAGE}`,
@@ -1175,13 +1226,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
               const base64 = reader.result.split(",")[1];
               invoke("save_clipboard_image", { dataBase64: base64, mime: item.type })
                 .then((filePath) => {
-                  if (!ptyReady.current) return;
-                  noteHumanInput();
-                  const bracketed = `\x1b[200~${filePath}\x1b[201~`;
-                  invoke("write_pty", { tabId, sessionId, data: bracketed }).catch((error) => {
-                    if (isTearingDown) return;
-                    console.error("Failed to paste image path into PTY:", error);
-                  });
+                  writeBracketedPaste(filePath, "paste image path into PTY");
                 })
                 .catch((error) => {
                   console.error("Failed to save clipboard image:", error);
@@ -1196,17 +1241,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       // Fall back to plain text paste
       const text = e.clipboardData?.getData("text/plain");
       if (text) {
-        noteHumanInput();
-        const bracketed = `\x1b[200~${text}\x1b[201~`;
-        invoke("write_pty", { tabId, sessionId, data: bracketed }).catch((error) => {
-          if (isTearingDown) return;
-          console.error("Failed to paste into PTY:", error);
-          handlePtyDisconnect(
-            "Terminal session lost",
-            `Forge could not send pasted text to this shell. ${TERMINAL_RECOVERY_MESSAGE}`,
-            String(error)
-          );
-        });
+        writeBracketedPaste(text);
       }
     };
     pasteContainer.addEventListener("paste", handlePaste);

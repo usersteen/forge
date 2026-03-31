@@ -1,4 +1,6 @@
+use arboard::Clipboard;
 use base64::Engine;
+use image::{ColorType, ImageFormat};
 use portable_pty::{native_pty_system, CommandBuilder, MasterPty, PtySize};
 use serde::Serialize;
 use std::collections::HashMap;
@@ -37,6 +39,51 @@ struct PtyExitEvent {
 struct PtyErrorEvent {
     session_id: String,
     error: String,
+}
+
+#[derive(Serialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum ClipboardPayload {
+    Text { text: String },
+    Image {
+        #[serde(rename = "filePath")]
+        file_path: String,
+        mime: String,
+    },
+}
+
+fn clipboard_dir() -> std::path::PathBuf {
+    std::env::temp_dir().join("forge-clipboard")
+}
+
+fn save_clipboard_file(bytes: &[u8], ext: &str) -> Result<String, String> {
+    let tmp_dir = clipboard_dir();
+    std::fs::create_dir_all(&tmp_dir).map_err(|e| e.to_string())?;
+
+    let filename = format!("paste-{}.{}", uuid::Uuid::new_v4(), ext);
+    let path = tmp_dir.join(&filename);
+    std::fs::write(&path, bytes).map_err(|e| e.to_string())?;
+
+    Ok(path.to_string_lossy().to_string())
+}
+
+fn save_clipboard_rgba_image(bytes: &[u8], width: usize, height: usize) -> Result<String, String> {
+    let tmp_dir = clipboard_dir();
+    std::fs::create_dir_all(&tmp_dir).map_err(|e| e.to_string())?;
+
+    let filename = format!("paste-{}.png", uuid::Uuid::new_v4());
+    let path = tmp_dir.join(&filename);
+    image::save_buffer_with_format(
+        &path,
+        bytes,
+        width as u32,
+        height as u32,
+        ColorType::Rgba8,
+        ImageFormat::Png,
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(path.to_string_lossy().to_string())
 }
 
 #[tauri::command]
@@ -277,12 +324,35 @@ pub fn save_clipboard_image(data_base64: String, mime: String) -> Result<String,
         _ => "png",
     };
 
-    let tmp_dir = std::env::temp_dir().join("forge-clipboard");
-    std::fs::create_dir_all(&tmp_dir).map_err(|e| e.to_string())?;
+    save_clipboard_file(&bytes, ext)
+}
 
-    let filename = format!("paste-{}.{}", uuid::Uuid::new_v4(), ext);
-    let path = tmp_dir.join(&filename);
-    std::fs::write(&path, &bytes).map_err(|e| e.to_string())?;
+#[tauri::command]
+pub fn write_clipboard_text(text: String) -> Result<(), String> {
+    let mut clipboard = Clipboard::new().map_err(|e| e.to_string())?;
+    clipboard.set_text(text).map_err(|e| e.to_string())
+}
 
-    Ok(path.to_string_lossy().to_string())
+#[tauri::command]
+pub fn read_clipboard_payload() -> Result<Option<ClipboardPayload>, String> {
+    let mut clipboard = Clipboard::new().map_err(|e| e.to_string())?;
+
+    match clipboard.get_image() {
+        Ok(image) => {
+            let file_path = save_clipboard_rgba_image(&image.bytes, image.width, image.height)?;
+            return Ok(Some(ClipboardPayload::Image {
+                file_path,
+                mime: "image/png".to_string(),
+            }));
+        }
+        Err(arboard::Error::ContentNotAvailable) => {}
+        Err(error) => return Err(error.to_string()),
+    }
+
+    match clipboard.get_text() {
+        Ok(text) if !text.is_empty() => Ok(Some(ClipboardPayload::Text { text })),
+        Ok(_) => Ok(None),
+        Err(arboard::Error::ContentNotAvailable) => Ok(None),
+        Err(error) => Err(error.to_string()),
+    }
 }

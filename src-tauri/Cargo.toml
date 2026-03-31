@@ -26,3 +26,5 @@ tauri-plugin-log = "2"
 portable-pty = "0.8"
 uuid = { version = "1", features = ["v4"] }
 base64 = "0.22"
+arboard = "3.6"
+image = { version = "0.25", default-features = false, features = ["png"] }

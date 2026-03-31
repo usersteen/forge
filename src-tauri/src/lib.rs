@@ -19,6 +19,8 @@ pub fn run() {
             pty::resize_pty,
             pty::kill_pty,
             pty::save_clipboard_image,
+            pty::write_clipboard_text,
+            pty::read_clipboard_payload,
             config::load_config,
             config::save_config,
             config::list_repos,

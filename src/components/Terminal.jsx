@@ -521,9 +521,10 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       showPersistentNotice(title, message, detail);
     };
 
-    const inspectCodexSurface = (source, fallbackTitle = "") => {
+    const inspectCodexSurface = (source, fallbackTitle = "", options = {}) => {
+      const { allowDuringTitleMode = false } = options;
       if (detectorRef.current.provider !== "codex") return null;
-      if (hasCodexTitleStatus()) return null;
+      if (hasCodexTitleStatus() && !allowDuringTitleMode) return null;
 
       const { status, screenText } = inspectCodexScreen(termRef.current);
       if (!status) return null;
@@ -550,14 +551,20 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       clearCodexIdleTimeout();
       codexIdleTimeout = setTimeout(() => {
         if (detectorRef.current.provider !== "codex") return;
-        if (hasCodexTitleStatus()) return;
+        const titleModeActive = hasCodexTitleStatus();
 
-        const surfaceStatus = inspectCodexSurface("idle-timeout");
+        const surfaceStatus = inspectCodexSurface("idle-timeout", "", {
+          allowDuringTitleMode: true,
+        });
         if (surfaceStatus === "working") {
           scheduleCodexIdleCheck();
           return;
         }
         if (surfaceStatus === "waiting") {
+          return;
+        }
+        if (titleModeActive) {
+          scheduleCodexIdleCheck();
           return;
         }
 
@@ -605,6 +612,16 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
 
       if (detector.provider !== "codex") return;
 
+      scheduleCodexIdleCheck();
+
+      const snapshot = getTabSnapshot(useForgeStore.getState(), tabId);
+      const currentTabStatus = snapshot?.tab.status ?? prevStatusRef.current;
+
+      const surfaceStatus = inspectCodexSurface("output", summary, {
+        allowDuringTitleMode: true,
+      });
+      if (surfaceStatus) return;
+
       if (hasCodexTitleStatus()) {
         logCodexDebug("ignored-output-title-mode", {
           summary,
@@ -613,14 +630,6 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
         });
         return;
       }
-
-      scheduleCodexIdleCheck();
-
-      const snapshot = getTabSnapshot(useForgeStore.getState(), tabId);
-      const currentTabStatus = snapshot?.tab.status ?? prevStatusRef.current;
-
-      const surfaceStatus = inspectCodexSurface("output", summary);
-      if (surfaceStatus) return;
 
       if (summary && isRecentCodexEcho(summary)) {
         logCodexDebug("ignored-echo", {
@@ -667,6 +676,13 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       if (detector.provider === "unknown") {
         detector.provider = "codex";
         store.setTabProvider(tabId, "codex");
+      }
+
+      const surfaceStatus = inspectCodexSurface("bell", snapshot.tab.statusTitle || "Codex needs attention", {
+        allowDuringTitleMode: true,
+      });
+      if (surfaceStatus) {
+        return;
       }
 
       if (hasCodexTitleStatus()) {

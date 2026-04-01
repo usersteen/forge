@@ -777,7 +777,9 @@ html, body, #root {
   white-space: nowrap;
   color: var(--text-secondary);
   transition: background 0.1s, color 0.1s, border-bottom-color 0.18s ease;
-  min-width: 0;
+  flex: 1 1 0;
+  min-width: 80px;
+  max-width: 180px;
   touch-action: none;
 }
 

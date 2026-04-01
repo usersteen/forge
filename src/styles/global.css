@@ -2527,6 +2527,17 @@ body.reader-resizing {
   margin-top: 4px;
 }
 
+.settings-saved-flash {
+  color: var(--accent);
+  animation: settings-saved-fade 2s ease-out forwards;
+}
+
+@keyframes settings-saved-fade {
+  0% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 /* Settings extras */
 .settings-divider {
   border-top: 1px solid var(--border);

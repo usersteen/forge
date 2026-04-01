@@ -11,6 +11,11 @@ export default function WelcomeModal({ onClose, onStartTour }) {
   const [hideOnLaunch, setHideOnLaunch] = useState(!showWelcomeOnLaunch);
   const [localPath, setLocalPath] = useState(reposRootPath || "");
 
+  const commitPath = () => {
+    const trimmed = localPath.trim();
+    if (trimmed) setReposRootPath(trimmed);
+  };
+
   const handleHideChange = (event) => {
     const nextHideOnLaunch = event.target.checked;
     setHideOnLaunch(nextHideOnLaunch);
@@ -49,6 +54,8 @@ export default function WelcomeModal({ onClose, onStartTour }) {
             placeholder="e.g. C:\Users\you\GitHub"
             value={localPath}
             onChange={(e) => setLocalPath(e.target.value)}
+            onBlur={commitPath}
+            onKeyDown={(e) => { if (e.key === "Enter") commitPath(); }}
           />
           <span className="welcome-repos-hint">
             Parent folder where your repos live. Makes it quick to pick a repo when starting a new project.

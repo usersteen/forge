@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import useForgeStore from "../store/useForgeStore";
 import useEscapeKey from "../hooks/useEscapeKey";
 import { getThemeOptions, getThemeStatusColors } from "../utils/themes";
@@ -18,6 +18,18 @@ function GeneralTab() {
   const reposRootPath = useForgeStore((s) => s.reposRootPath);
   const setReposRootPath = useForgeStore((s) => s.setReposRootPath);
   const themeOptions = getThemeOptions();
+  const [reposSaved, setReposSaved] = useState(false);
+  const reposSavedTimer = useRef(null);
+  const initialReposPath = useRef(reposRootPath);
+
+  useEffect(() => {
+    if (reposRootPath === initialReposPath.current) return;
+    initialReposPath.current = reposRootPath;
+    setReposSaved(true);
+    clearTimeout(reposSavedTimer.current);
+    reposSavedTimer.current = setTimeout(() => setReposSaved(false), 2000);
+    return () => clearTimeout(reposSavedTimer.current);
+  }, [reposRootPath]);
 
   return (
     <>
@@ -96,7 +108,10 @@ function GeneralTab() {
           value={reposRootPath || ""}
           onChange={(e) => setReposRootPath(e.target.value)}
         />
-        <span className="settings-hint">Parent folder containing your repos. Shown as quick picks when creating a new project.</span>
+        <span className="settings-hint">
+          Parent folder containing your repos. Shown as quick picks when creating a new project.
+          {reposSaved && <span className="settings-saved-flash"> — Saved</span>}
+        </span>
       </div>
     </>
   );

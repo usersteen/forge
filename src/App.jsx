@@ -215,8 +215,11 @@ function App() {
           } else {
             const win = getCurrentWindow();
             const geometry = await captureWindowGeometry(win);
-            if (!geometry?.canPersist) return;
-            windowGeometry = geometry.window ?? lastSavedWindowRef.current;
+            // If geometry can't be captured (e.g. window too small during resize),
+            // still save everything else using the last known good geometry.
+            windowGeometry = geometry?.canPersist
+              ? (geometry.window ?? lastSavedWindowRef.current)
+              : lastSavedWindowRef.current;
           }
           const config = storeToConfig(state, windowGeometry);
           await invoke("save_config", { config });
@@ -240,8 +243,9 @@ function App() {
         if (!state.configLoaded) return;
         const win = getCurrentWindow();
         const geometry = await captureWindowGeometry(win);
-        if (!geometry?.canPersist) return;
-        const windowGeometry = geometry.window ?? lastSavedWindowRef.current;
+        const windowGeometry = geometry?.canPersist
+          ? (geometry.window ?? lastSavedWindowRef.current)
+          : lastSavedWindowRef.current;
         const config = storeToConfig(state, windowGeometry);
         await invoke("save_config", { config });
         lastSavedWindowRef.current = config.window ?? null;

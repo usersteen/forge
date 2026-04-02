@@ -171,7 +171,7 @@ function App() {
   const [refreshNonce, setRefreshNonce] = useState(0);
   const requestWorkspaceRefresh = () => setRefreshNonce((value) => value + 1);
   const mainSurfaceRef = useRef(null);
-  const lastSavedWindowRef = useRef(null);
+  const lastSavedWindowRef = useRef({ width: 1200, height: 800, x: 100, y: 100, maximized: false });
   const resizeStateRef = useRef({
     active: false,
     groupId: null,

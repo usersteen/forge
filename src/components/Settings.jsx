@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import useForgeStore from "../store/useForgeStore";
 import useEscapeKey from "../hooks/useEscapeKey";
 import { getThemeOptions, getThemeStatusColors } from "../utils/themes";
@@ -18,18 +18,13 @@ function GeneralTab() {
   const reposRootPath = useForgeStore((s) => s.reposRootPath);
   const setReposRootPath = useForgeStore((s) => s.setReposRootPath);
   const themeOptions = getThemeOptions();
-  const [reposSaved, setReposSaved] = useState(false);
-  const reposSavedTimer = useRef(null);
-  const initialReposPath = useRef(reposRootPath);
+  const [localReposPath, setLocalReposPath] = useState(reposRootPath || "");
+  const isDirty = localReposPath.trim() !== (reposRootPath || "");
 
-  useEffect(() => {
-    if (reposRootPath === initialReposPath.current) return;
-    initialReposPath.current = reposRootPath;
-    setReposSaved(true);
-    clearTimeout(reposSavedTimer.current);
-    reposSavedTimer.current = setTimeout(() => setReposSaved(false), 2000);
-    return () => clearTimeout(reposSavedTimer.current);
-  }, [reposRootPath]);
+  const saveReposPath = () => {
+    const trimmed = localReposPath.trim();
+    setReposRootPath(trimmed || null);
+  };
 
   return (
     <>
@@ -101,17 +96,25 @@ function GeneralTab() {
       </div>
       <div className="settings-row">
         <label>Repos Folder</label>
-        <input
-          className="new-project-path-input"
-          type="text"
-          placeholder="e.g. C:\Users\you\GitHub"
-          value={reposRootPath || ""}
-          onChange={(e) => setReposRootPath(e.target.value)}
-        />
-        <span className="settings-hint">
-          Parent folder containing your repos. Shown as quick picks when creating a new project.
-          {reposSaved && <span className="settings-saved-flash"> — Saved</span>}
-        </span>
+        <div className="settings-path-row">
+          <input
+            className="new-project-path-input"
+            type="text"
+            placeholder="e.g. C:\Users\you\GitHub"
+            value={localReposPath}
+            onChange={(e) => setLocalReposPath(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") saveReposPath(); }}
+          />
+          <button
+            type="button"
+            className="settings-path-save"
+            onClick={saveReposPath}
+            disabled={!isDirty}
+          >
+            {isDirty ? "Save" : "Saved"}
+          </button>
+        </div>
+        <span className="settings-hint">Parent folder containing your repos. Shown as quick picks when creating a new project.</span>
       </div>
     </>
   );

@@ -11,6 +11,8 @@ export default function WelcomeModal({ onClose, onStartTour }) {
   const [hideOnLaunch, setHideOnLaunch] = useState(!showWelcomeOnLaunch);
   const [localPath, setLocalPath] = useState(reposRootPath || "");
 
+  const isDirty = localPath.trim() !== (reposRootPath || "");
+
   const commitPath = () => {
     const trimmed = localPath.trim();
     if (trimmed) setReposRootPath(trimmed);
@@ -48,15 +50,24 @@ export default function WelcomeModal({ onClose, onStartTour }) {
 
         <div className="welcome-repos-row">
           <label className="welcome-repos-label">Repos Folder</label>
-          <input
-            className="new-project-path-input"
-            type="text"
-            placeholder="e.g. C:\Users\you\GitHub"
-            value={localPath}
-            onChange={(e) => setLocalPath(e.target.value)}
-            onBlur={commitPath}
-            onKeyDown={(e) => { if (e.key === "Enter") commitPath(); }}
-          />
+          <div className="settings-path-row">
+            <input
+              className="new-project-path-input"
+              type="text"
+              placeholder="e.g. C:\Users\you\GitHub"
+              value={localPath}
+              onChange={(e) => setLocalPath(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") commitPath(); }}
+            />
+            <button
+              type="button"
+              className="settings-path-save"
+              onClick={commitPath}
+              disabled={!isDirty}
+            >
+              {isDirty ? "Save" : "Saved"}
+            </button>
+          </div>
           <span className="welcome-repos-hint">
             Parent folder where your repos live. Makes it quick to pick a repo when starting a new project.
           </span>

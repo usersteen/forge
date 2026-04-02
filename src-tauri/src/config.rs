@@ -29,7 +29,8 @@ pub struct GroupConfig {
     pub id: String,
     pub name: String,
     pub tabs: Vec<TabConfig>,
-    pub active_tab_id: String,
+    #[serde(default)]
+    pub active_tab_id: Option<String>,
     #[serde(default)]
     pub root_path: Option<String>,
     #[serde(default = "default_true")]
@@ -48,6 +49,8 @@ pub struct GroupConfig {
     pub reader_width: Option<f64>,
     #[serde(default)]
     pub last_indexed_at: Option<u64>,
+    #[serde(default)]
+    pub worktree_parent_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Default, Clone)]
@@ -93,12 +96,16 @@ pub struct SettingsConfig {
     pub streak_timer: u64,
     #[serde(default = "default_cooldown_timer")]
     pub cooldown_timer: u64,
+    #[serde(default = "default_tab_recency_minutes")]
+    pub tab_recency_minutes: u64,
     #[serde(default)]
     pub favorite_repo_paths: Vec<String>,
     #[serde(default = "default_theme")]
     pub theme: String,
     #[serde(default = "default_true")]
     pub fx_enabled: bool,
+    #[serde(default = "default_sound_volume")]
+    pub sound_volume: u64,
     #[serde(default = "default_true")]
     pub show_welcome_on_launch: bool,
     #[serde(default)]
@@ -116,14 +123,24 @@ fn default_theme() -> String {
     "forge".to_string()
 }
 
+fn default_tab_recency_minutes() -> u64 {
+    5
+}
+
+fn default_sound_volume() -> u64 {
+    80
+}
+
 impl Default for SettingsConfig {
     fn default() -> Self {
         Self {
             streak_timer: 10000,
             cooldown_timer: 30000,
+            tab_recency_minutes: 5,
             favorite_repo_paths: Vec::new(),
             theme: default_theme(),
             fx_enabled: true,
+            sound_volume: 80,
             show_welcome_on_launch: true,
             repos_root_path: None,
         }
@@ -137,9 +154,9 @@ pub struct ForgeConfig {
     #[serde(default)]
     pub groups: Vec<GroupConfig>,
     #[serde(default)]
-    pub active_group_id: String,
+    pub active_group_id: Option<String>,
     #[serde(default)]
-    pub window: WindowConfig,
+    pub window: Option<WindowConfig>,
     #[serde(default)]
     pub settings: SettingsConfig,
 }

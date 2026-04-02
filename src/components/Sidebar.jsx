@@ -3,7 +3,8 @@ import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from 
 import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import useForgeStore from "../store/useForgeStore";
+import useForgeStore, { hasWorktreeChildren, removeWorktreeGroup } from "../store/useForgeStore";
+import AddWorktreeDialog from "./AddWorktreeDialog";
 import useInlineRename from "../hooks/useInlineRename";
 import useEffectiveHeatStage from "../hooks/useEffectiveHeatStage";
 import useFlashAnimation from "../hooks/useFlashAnimation";
@@ -33,6 +34,30 @@ function getSidebarDotClass(tab, isRecent) {
   return "";
 }
 
+function computeSidebarItems(groups) {
+  const childrenByParent = new Map();
+  const childIds = new Set();
+  for (const g of groups) {
+    if (g.worktreeParentId) {
+      childIds.add(g.id);
+      if (!childrenByParent.has(g.worktreeParentId)) childrenByParent.set(g.worktreeParentId, []);
+      childrenByParent.get(g.worktreeParentId).push(g);
+    }
+  }
+
+  const items = [];
+  for (const g of groups) {
+    if (childIds.has(g.id)) continue;
+    const children = childrenByParent.get(g.id);
+    if (children?.length) {
+      items.push({ type: "cluster", parent: g, children });
+    } else {
+      items.push({ type: "standalone", group: g });
+    }
+  }
+  return items;
+}
+
 function getGroupPriorityClass(group) {
   const interactiveTabs = group.tabs.filter((t) => t.type !== "server");
   const hasWaiting = interactiveTabs.some((t) => t.status === "waiting");
@@ -42,7 +67,7 @@ function getGroupPriorityClass(group) {
   return "";
 }
 
-function SortableGroup({ group, isActive, now, recencyThreshold, onSelect, onDoubleClick, onContextMenu, editingId, inputProps, onRemove }) {
+function SortableGroup({ group, isActive, now, recencyThreshold, onSelect, onDoubleClick, onContextMenu, editingId, inputProps, onRemove, branchName }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: group.id });
   const { elementRef: groupRef, handleAnimationEnd } = useFlashAnimation(group.waitingFlashKey);
   const style = {
@@ -67,9 +92,12 @@ function SortableGroup({ group, isActive, now, recencyThreshold, onSelect, onDou
         {editingId === group.id ? (
           <input className="sidebar-rename-input" {...inputProps} />
         ) : (
-          <div className="sidebar-group-title-row">
-            <span className="sidebar-group-name">{group.name}</span>
-          </div>
+          <>
+            <div className="sidebar-group-title-row">
+              <span className="sidebar-group-name">{group.name}</span>
+            </div>
+            {branchName && <div className="sidebar-branch-label">{branchName}</div>}
+          </>
         )}
         <div className="sidebar-group-dots">
           {group.tabs.map((tab) => (
@@ -105,6 +133,7 @@ export default function Sidebar() {
   const configLoaded = useForgeStore((s) => s.configLoaded);
   const showWelcomeOnLaunch = useForgeStore((s) => s.showWelcomeOnLaunch);
   const tabRecencyMinutes = useForgeStore((s) => s.tabRecencyMinutes);
+  const setDemoHeatStage = useForgeStore((s) => s.setDemoHeatStage);
 
   const hasWaitingTabs = groups.some((g) => g.tabs.some((t) => t.status === "waiting"));
   const now = useRecencyTick(hasWaitingTabs);
@@ -136,6 +165,7 @@ export default function Sidebar() {
   const storeTourStart = useForgeStore((s) => s.startTour);
   const storeTourEnd = useForgeStore((s) => s.endTour);
   const [contextMenu, setContextMenu] = useState(null);
+  const [worktreeDialog, setWorktreeDialog] = useState(null);
   const [newProjectMenu, setNewProjectMenu] = useState(null);
   const newProjectBtnRef = useRef(null);
   const closeInfo = useCallback(() => setShowInfo(false), []);
@@ -204,30 +234,49 @@ export default function Sidebar() {
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={groups.map((g) => g.id)} strategy={verticalListSortingStrategy}>
           <div className="sidebar-groups" data-tour="sidebar-groups">
-            {groups.map((group) => (
-              <SortableGroup
-                key={group.id}
-                group={group}
-                isActive={group.id === activeGroupId}
-                now={now}
-                recencyThreshold={recencyThreshold}
-                onSelect={() => setActiveGroup(group.id)}
-                onDoubleClick={() => startEditing(group.id, group.name)}
-                onContextMenu={(event) => {
-                  event.preventDefault();
-                  setActiveGroup(group.id);
-                  setContextMenu({
-                    groupId: group.id,
-                    groupName: group.name,
-                    x: event.clientX,
-                    y: event.clientY,
-                  });
-                }}
-                editingId={editingId}
-                inputProps={inputProps}
-                onRemove={() => removeGroup(group.id)}
-              />
-            ))}
+            {computeSidebarItems(groups).map((item) => {
+              const renderGroup = (group, branchName) => (
+                <SortableGroup
+                  key={group.id}
+                  group={group}
+                  isActive={group.id === activeGroupId}
+                  now={now}
+                  recencyThreshold={recencyThreshold}
+                  branchName={branchName}
+                  onSelect={() => setActiveGroup(group.id)}
+                  onDoubleClick={() => startEditing(group.id, group.name)}
+                  onContextMenu={(event) => {
+                    event.preventDefault();
+                    setActiveGroup(group.id);
+                    setContextMenu({
+                      groupId: group.id,
+                      groupName: group.name,
+                      gitBranch: group.gitBranch,
+                      worktreeParentId: group.worktreeParentId,
+                      x: event.clientX,
+                      y: event.clientY,
+                    });
+                  }}
+                  editingId={editingId}
+                  inputProps={inputProps}
+                  onRemove={() => removeGroup(group.id)}
+                />
+              );
+
+              if (item.type === "cluster") {
+                return (
+                  <div key={item.parent.id} className="sidebar-worktree-cluster">
+                    {renderGroup(item.parent, item.parent.gitBranch)}
+                    {item.children.map((child) => (
+                      <div key={child.id} className="sidebar-worktree-child">
+                        {renderGroup(child, child.gitBranch)}
+                      </div>
+                    ))}
+                  </div>
+                );
+              }
+              return renderGroup(item.group, null);
+            })}
           </div>
         </SortableContext>
       </DndContext>
@@ -266,6 +315,32 @@ export default function Sidebar() {
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
           </svg>
         </button>
+        {import.meta.env.DEV && (
+          <>
+            <button
+              className="sidebar-action-btn"
+              onClick={() => setDemoHeatStage(0)}
+              aria-label="Demo Mode"
+              title="Demo Mode"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="5 3 19 12 5 21 5 3"/>
+              </svg>
+            </button>
+            {ThemeLab && (
+              <button
+                className="sidebar-action-btn"
+                onClick={() => setShowThemeLab(true)}
+                aria-label="Theme Lab"
+                title="Theme Lab"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+                </svg>
+              </button>
+            )}
+          </>
+        )}
       </div>
       <ParticleCanvas location="sidebar" />
 
@@ -293,7 +368,7 @@ export default function Sidebar() {
       {tourActive && <GuidedTour onClose={closeTour} />}
       {showSettings && (
         <div className={tourActive ? "tour-elevated-panel" : ""}>
-          <Settings onClose={tourActive ? NOOP : closeSettings} onOpenThemeLab={tourActive ? undefined : (ThemeLab ? () => { setShowSettings(false); setShowThemeLab(true); } : undefined)} />
+          <Settings onClose={tourActive ? NOOP : closeSettings} />
         </div>
       )}
       {showThemeLab && ThemeLab && (
@@ -305,9 +380,33 @@ export default function Sidebar() {
         <ProjectContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
+          isGitRepo={!!contextMenu.gitBranch && !contextMenu.worktreeParentId}
+          isWorktree={!!contextMenu.worktreeParentId}
           onRename={() => startEditing(contextMenu.groupId, contextMenu.groupName)}
-          onRemove={() => removeGroup(contextMenu.groupId)}
+          onRemove={() => {
+            if (hasWorktreeChildren(contextMenu.groupId)) {
+              alert("Close worktree branches first.");
+            } else {
+              removeGroup(contextMenu.groupId);
+            }
+          }}
+          onAddWorktree={() => {
+            const group = groups.find((g) => g.id === contextMenu.groupId);
+            if (group) setWorktreeDialog({ groupId: group.id, rootPath: group.rootPath, x: contextMenu.x, y: contextMenu.y });
+          }}
+          onRemoveWorktree={() => {
+            removeWorktreeGroup(contextMenu.groupId).catch((err) => alert(err));
+          }}
           onClose={() => setContextMenu(null)}
+        />
+      )}
+      {worktreeDialog && (
+        <AddWorktreeDialog
+          x={worktreeDialog.x}
+          y={worktreeDialog.y}
+          groupId={worktreeDialog.groupId}
+          rootPath={worktreeDialog.rootPath}
+          onClose={() => setWorktreeDialog(null)}
         />
       )}
     </div>

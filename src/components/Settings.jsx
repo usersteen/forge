@@ -3,28 +3,19 @@ import useForgeStore from "../store/useForgeStore";
 import useEscapeKey from "../hooks/useEscapeKey";
 import { getThemeOptions, getThemeStatusColors } from "../utils/themes";
 
-const TABS = [
-  { id: "general", label: "General" },
+const CATEGORIES = [
+  { id: "appearance", label: "Appearance" },
+  { id: "sound", label: "Sound" },
   { id: "heat", label: "Heat" },
+  { id: "paths", label: "Paths" },
 ];
 
-function GeneralTab() {
+function AppearanceSection() {
   const theme = useForgeStore((s) => s.theme);
   const fxEnabled = useForgeStore((s) => s.fxEnabled);
-  const soundVolume = useForgeStore((s) => s.soundVolume);
   const setTheme = useForgeStore((s) => s.setTheme);
   const setFxEnabled = useForgeStore((s) => s.setFxEnabled);
-  const setSoundVolume = useForgeStore((s) => s.setSoundVolume);
-  const reposRootPath = useForgeStore((s) => s.reposRootPath);
-  const setReposRootPath = useForgeStore((s) => s.setReposRootPath);
   const themeOptions = getThemeOptions();
-  const [localReposPath, setLocalReposPath] = useState(reposRootPath || "");
-  const isDirty = localReposPath.trim() !== (reposRootPath || "");
-
-  const saveReposPath = () => {
-    const trimmed = localReposPath.trim();
-    setReposRootPath(trimmed || null);
-  };
 
   return (
     <>
@@ -56,31 +47,33 @@ function GeneralTab() {
           })}
         </div>
         <span className="settings-hint">
-          Sets the color palette for status dots and the heat ramp.
+          Sets the color palette for status dots, effects, and the heat ramp.
         </span>
       </div>
-      <div className="settings-row">
-        <label>Effects</label>
-        <div className="settings-chip-group">
-          <button
-            type="button"
-            className={`settings-chip${fxEnabled ? " settings-chip-active" : ""}`}
-            onClick={() => setFxEnabled(true)}
-          >
-            FX On
-          </button>
-          <button
-            type="button"
-            className={`settings-chip${!fxEnabled ? " settings-chip-active" : ""}`}
-            onClick={() => setFxEnabled(false)}
-          >
-            FX Off
-          </button>
+      <div className="settings-row-inline">
+        <div>
+          <label>Effects</label>
+          <span className="settings-hint">Particle effects and glow animations.</span>
         </div>
-        <span className="settings-hint">Toggles particle effects and glow animations.</span>
+        <button
+          type="button"
+          className={`settings-toggle${fxEnabled ? " settings-toggle-on" : ""}`}
+          onClick={() => setFxEnabled(!fxEnabled)}
+          aria-label={fxEnabled ? "Disable effects" : "Enable effects"}
+        />
       </div>
+    </>
+  );
+}
+
+function SoundSection() {
+  const soundVolume = useForgeStore((s) => s.soundVolume);
+  const setSoundVolume = useForgeStore((s) => s.setSoundVolume);
+
+  return (
+    <>
       <div className="settings-row">
-        <label>Sound Volume</label>
+        <label>Volume</label>
         <div className="settings-time-row">
           <input
             type="range"
@@ -94,33 +87,11 @@ function GeneralTab() {
         </div>
         <span className="settings-hint">Plays a sound when a tab starts waiting. Quieter for the active tab when Forge is focused.</span>
       </div>
-      <div className="settings-row">
-        <label>Repos Folder</label>
-        <div className="settings-path-row">
-          <input
-            className="new-project-path-input"
-            type="text"
-            placeholder="e.g. C:\Users\you\GitHub"
-            value={localReposPath}
-            onChange={(e) => setLocalReposPath(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") saveReposPath(); }}
-          />
-          <button
-            type="button"
-            className="settings-path-save"
-            onClick={saveReposPath}
-            disabled={!isDirty}
-          >
-            {isDirty ? "Save" : "Saved"}
-          </button>
-        </div>
-        <span className="settings-hint">Parent folder containing your repos. Shown as quick picks when creating a new project.</span>
-      </div>
     </>
   );
 }
 
-function HeatTab() {
+function HeatSection() {
   const streakTimer = useForgeStore((s) => s.streakTimer);
   const cooldownTimer = useForgeStore((s) => s.cooldownTimer);
   const setStreakTimer = useForgeStore((s) => s.setStreakTimer);
@@ -208,10 +179,46 @@ function HeatTab() {
   );
 }
 
-export default function Settings({ onClose, onOpenThemeLab }) {
+function PathsSection() {
+  const reposRootPath = useForgeStore((s) => s.reposRootPath);
+  const setReposRootPath = useForgeStore((s) => s.setReposRootPath);
+  const [localReposPath, setLocalReposPath] = useState(reposRootPath || "");
+
+  const save = () => {
+    const trimmed = localReposPath.trim();
+    setReposRootPath(trimmed || null);
+  };
+
+  return (
+    <>
+      <div className="settings-row">
+        <label>Repos Folder</label>
+        <input
+          className="new-project-path-input"
+          type="text"
+          placeholder="e.g. C:\Users\you\GitHub"
+          value={localReposPath}
+          onChange={(e) => setLocalReposPath(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") save(); }}
+          onBlur={save}
+        />
+        <span className="settings-hint">Parent folder containing your repos. Shown as quick picks when creating a new project.</span>
+      </div>
+    </>
+  );
+}
+
+const SECTIONS = {
+  appearance: AppearanceSection,
+  sound: SoundSection,
+  heat: HeatSection,
+  paths: PathsSection,
+};
+
+export default function Settings({ onClose }) {
   useEscapeKey(onClose);
-  const [activeTab, setActiveTab] = useState("general");
-  const setDemoHeatStage = useForgeStore((s) => s.setDemoHeatStage);
+  const [activeCategory, setActiveCategory] = useState("appearance");
+  const ActiveSection = SECTIONS[activeCategory];
 
   return (
     <div className="settings-overlay" onClick={onClose}>
@@ -220,35 +227,23 @@ export default function Settings({ onClose, onOpenThemeLab }) {
           <span>Settings</span>
           <button className="settings-close" onClick={onClose}>✕</button>
         </div>
-        <div className="settings-tab-bar">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              className={`settings-tab${activeTab === tab.id ? " settings-tab-active" : ""}`}
-              onClick={() => setActiveTab(tab.id)}
-            >
-              {tab.label}
-            </button>
-          ))}
+        <div className="settings-body">
+          <nav className="settings-nav">
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                className={`settings-nav-btn${activeCategory === cat.id ? " settings-nav-btn-active" : ""}`}
+                onClick={() => setActiveCategory(cat.id)}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </nav>
+          <div className="settings-content">
+            <ActiveSection />
+          </div>
         </div>
-        {activeTab === "general" && <GeneralTab />}
-        {activeTab === "heat" && <HeatTab />}
-        <div className="settings-divider" />
-        <button
-          className="settings-demo-btn"
-          onClick={() => { setDemoHeatStage(0); onClose(); }}
-        >
-          Demo Mode
-        </button>
-        {onOpenThemeLab && (
-          <button
-            className="settings-demo-btn"
-            onClick={onOpenThemeLab}
-          >
-            Theme Lab
-          </button>
-        )}
       </div>
     </div>
   );

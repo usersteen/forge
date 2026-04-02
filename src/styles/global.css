@@ -532,6 +532,22 @@ html, body, #root {
   color: var(--text-primary);
 }
 
+.sidebar-worktree-child {
+  padding-left: 16px;
+  margin-left: 8px;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-branch-label {
+  font-size: 10px;
+  opacity: 0.45;
+  font-family: var(--font-mono, monospace);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: -2px;
+}
+
 .sidebar-rename-input,
 .tab-rename-input {
   background: var(--bg-deep);
@@ -2318,21 +2334,22 @@ body.reader-resizing {
   background: var(--bg-sidebar);
   border: 1px solid var(--border);
   border-radius: 0;
-  padding: 20px;
-  min-width: 320px;
-  max-width: 400px;
+  width: min(560px, calc(100vw - 32px));
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.36);
 }
 
 .welcome-modal {
   width: min(460px, calc(100vw - 32px));
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.36);
+  padding: 20px;
 }
 
 .settings-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
   font-size: 15px;
   font-weight: 600;
 }
@@ -2350,32 +2367,49 @@ body.reader-resizing {
   color: var(--text-primary);
 }
 
-.settings-tab-bar {
+.settings-body {
   display: flex;
-  gap: 0;
-  margin-bottom: 16px;
-  border-bottom: 1px solid var(--border);
+  min-height: 300px;
 }
 
-.settings-tab {
+.settings-nav {
+  width: 140px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  padding: 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-nav-btn {
   background: none;
   border: none;
-  border-bottom: 2px solid transparent;
+  border-right: 2px solid transparent;
   color: var(--text-muted);
   font-size: 13px;
   font-family: inherit;
-  padding: 6px 14px;
+  padding: 7px 16px;
   cursor: pointer;
-  transition: color 0.12s ease, border-color 0.12s ease;
+  text-align: left;
+  transition: color 0.1s ease, background 0.1s ease;
 }
 
-.settings-tab:hover {
+.settings-nav-btn:hover {
   color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.03);
 }
 
-.settings-tab-active {
+.settings-nav-btn-active {
   color: var(--text-primary);
-  border-bottom-color: var(--accent-active);
+  background: var(--bg-active);
+  border-right-color: var(--accent-active);
+}
+
+.settings-content {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
 }
 
 .settings-description {
@@ -2522,6 +2556,57 @@ body.reader-resizing {
   line-height: 1;
 }
 
+.settings-row-inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.settings-row-inline label {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.settings-row-inline .settings-hint {
+  margin-top: 2px;
+}
+
+.settings-toggle {
+  width: 32px;
+  height: 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.1s ease, border-color 0.1s ease;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.settings-toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  background: var(--text-muted);
+  transition: transform 0.1s ease, background 0.1s ease;
+}
+
+.settings-toggle-on {
+  background: rgba(var(--accent-active-rgb), 0.25);
+  border-color: rgba(var(--accent-active-rgb), 0.42);
+}
+
+.settings-toggle-on::after {
+  transform: translateX(16px);
+  background: var(--text-primary);
+}
+
 .settings-hint {
   display: block;
   color: var(--text-muted);
@@ -2560,12 +2645,6 @@ body.reader-resizing {
   color: var(--text-muted);
   cursor: default;
   opacity: 0.5;
-}
-
-/* Settings extras */
-.settings-divider {
-  border-top: 1px solid var(--border);
-  margin: 12px 0;
 }
 
 /* Settings time inputs */
@@ -2610,24 +2689,6 @@ body.reader-resizing {
   height: 4px;
   accent-color: var(--accent-active);
   cursor: pointer;
-}
-
-/* Demo Mode button */
-.settings-demo-btn {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid var(--border);
-  color: var(--text-secondary);
-  padding: 6px 12px;
-  border-radius: 0;
-  cursor: pointer;
-  font-size: 12px;
-  font-family: inherit;
-  width: 100%;
-}
-
-.settings-demo-btn:hover {
-  background: var(--bg-active);
-  color: var(--text-primary);
 }
 
 /* Info panel */

@@ -134,6 +134,7 @@ export function withWorkspaceDefaults(group) {
     activeSurface: normalizeSurface(group?.active_surface, openDocuments),
     readerWidth: normalizeReaderWidth(group?.reader_width),
     lastIndexedAt: typeof group?.last_indexed_at === "number" ? group.last_indexed_at : null,
+    worktreeParentId: group?.worktree_parent_id || null,
   };
 }
 

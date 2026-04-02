@@ -1,4 +1,5 @@
 mod config;
+mod git;
 mod pty;
 mod workspace;
 
@@ -29,6 +30,11 @@ pub fn run() {
             workspace::read_workspace_file,
             workspace::write_workspace_file,
             workspace::collect_images,
+            git::git_repo_info,
+            git::git_list_worktrees,
+            git::git_add_worktree,
+            git::git_remove_worktree,
+            git::git_list_branches,
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

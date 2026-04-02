@@ -8,6 +8,7 @@ import Sidebar from "./components/Sidebar";
 import TabBar from "./components/TabBar";
 import TerminalArea from "./components/TerminalArea";
 import useEffectiveHeatStage from "./hooks/useEffectiveHeatStage";
+import useGitInfoRefresh from "./hooks/useGitInfoRefresh";
 import useHeatTick from "./hooks/useHeatTick";
 import useForgeStore, { storeToConfig } from "./store/useForgeStore";
 import { getThemeTokensWithVariant } from "./utils/themes";
@@ -178,6 +179,7 @@ function App() {
   });
 
   useHeatTick();
+  useGitInfoRefresh();
 
   useEffect(() => {
     (async () => {

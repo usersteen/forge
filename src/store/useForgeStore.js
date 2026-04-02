@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import { create } from "zustand";
 import { clampHeatStreak } from "../utils/heat";
 import { DEFAULT_THEME, normalizeTheme } from "../utils/themes";
@@ -96,6 +97,9 @@ function makeGroup(name = "Project 1") {
     activeSurface: "terminal",
     readerWidth: 0.4,
     lastIndexedAt: null,
+    worktreeParentId: null,
+    gitBranch: null,
+    gitCommonDir: null,
   };
 }
 
@@ -244,6 +248,10 @@ const useForgeStore = create((set, get) => ({
 
   removeGroup: (groupId) =>
     set((state) => {
+      // Block removal if this group has worktree children
+      const hasChildren = state.groups.some((g) => g.worktreeParentId === groupId);
+      if (hasChildren) return state;
+
       const remaining = state.groups.filter((group) => group.id !== groupId);
       if (remaining.length === 0) {
         const group = makeGroup();
@@ -1039,6 +1047,121 @@ const useForgeStore = create((set, get) => ({
   },
 }));
 
+// --- Worktree helpers ---
+
+function normalizeCmpPath(p) {
+  if (!p) return "";
+  const normalized = p.replace(/\\/g, "/");
+  return navigator.platform?.startsWith("Win") ? normalized.toLowerCase() : normalized;
+}
+
+export function resolveWorktreeNesting() {
+  const state = useForgeStore.getState();
+  const groups = state.groups;
+
+  // Group by gitCommonDir
+  const families = new Map();
+  for (const group of groups) {
+    if (!group.gitCommonDir) continue;
+    const key = normalizeCmpPath(group.gitCommonDir);
+    if (!families.has(key)) families.set(key, []);
+    families.get(key).push(group);
+  }
+
+  const updates = new Map(); // id -> { worktreeParentId, name? }
+  for (const members of families.values()) {
+    if (members.length < 2) {
+      // Single member — clear any stale worktreeParentId
+      for (const m of members) {
+        if (m.worktreeParentId) updates.set(m.id, { worktreeParentId: null });
+      }
+      continue;
+    }
+    // Pick parent: the non-worktree group, or first group
+    const parent = members.find((m) => m._isWorktree === false) || members[0];
+    for (const m of members) {
+      const desired = m.id === parent.id ? null : parent.id;
+      if (m.worktreeParentId !== desired) {
+        const patch = { worktreeParentId: desired };
+        // Auto-rename worktree children to their branch name (if not manually renamed)
+        if (desired && m.gitBranch && !m._manuallyRenamed) {
+          patch.name = m.gitBranch;
+        }
+        updates.set(m.id, patch);
+      }
+    }
+  }
+
+  if (updates.size === 0) return;
+
+  useForgeStore.setState((state) => ({
+    groups: state.groups.map((g) =>
+      updates.has(g.id) ? { ...g, ...updates.get(g.id) } : g
+    ),
+  }));
+}
+
+export async function refreshGitInfo(groupId) {
+  const group = useForgeStore.getState().groups.find((g) => g.id === groupId);
+  if (!group?.rootPath) return;
+
+  try {
+    const info = await invoke("git_repo_info", { path: group.rootPath });
+    useForgeStore.setState((state) => ({
+      groups: state.groups.map((g) =>
+        g.id === groupId
+          ? { ...g, gitBranch: info.branch, gitCommonDir: info.common_dir, _isWorktree: info.is_worktree }
+          : g
+      ),
+    }));
+    resolveWorktreeNesting();
+  } catch {
+    useForgeStore.setState((state) => ({
+      groups: state.groups.map((g) =>
+        g.id === groupId
+          ? { ...g, gitBranch: null, gitCommonDir: null, _isWorktree: false }
+          : g
+      ),
+    }));
+  }
+}
+
+export async function addWorktreeGroup(parentGroupId, worktreePath, branchName) {
+  const store = useForgeStore.getState();
+  store.addGroup(branchName, { rootPath: worktreePath });
+
+  // Find the newly added group (last one)
+  const newGroup = useForgeStore.getState().groups.at(-1);
+  if (newGroup) {
+    useForgeStore.setState((state) => ({
+      groups: state.groups.map((g) =>
+        g.id === newGroup.id ? { ...g, worktreeParentId: parentGroupId } : g
+      ),
+    }));
+    await refreshGitInfo(newGroup.id);
+  }
+}
+
+export async function removeWorktreeGroup(groupId) {
+  const state = useForgeStore.getState();
+  const group = state.groups.find((g) => g.id === groupId);
+  if (!group) return;
+
+  const parent = state.groups.find((g) => g.id === group.worktreeParentId);
+  const repoPath = parent?.rootPath || group.rootPath;
+
+  await invoke("git_remove_worktree", {
+    repoPath,
+    worktreePath: group.rootPath,
+  });
+
+  state.removeGroup(groupId);
+}
+
+export function hasWorktreeChildren(groupId) {
+  return useForgeStore.getState().groups.some((g) => g.worktreeParentId === groupId);
+}
+
 export function storeToConfig(state, windowGeometry) {
   // During tour, persist the saved (real) state, not the demo state
   const groups = state.tourActive && state.tourSavedState
@@ -1049,7 +1172,7 @@ export function storeToConfig(state, windowGeometry) {
     : state.activeGroupId;
 
   return {
-    schema_version: 4,
+    schema_version: 5,
     groups: groups.map((group) => ({
       id: group.id,
       name: group.name,
@@ -1075,6 +1198,7 @@ export function storeToConfig(state, windowGeometry) {
       active_surface: group.activeSurface,
       reader_width: group.readerWidth,
       last_indexed_at: group.lastIndexedAt,
+      worktree_parent_id: group.worktreeParentId || null,
     })),
     active_group_id: activeGroupId,
     window: windowGeometry,

@@ -3287,3 +3287,593 @@ body.reader-resizing {
 .tour-mock-doc-line-muted {
   opacity: 0;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   V1 CSS Particle Engine — @keyframes + span-based embers
+   Restored from pre-canvas commit for demo mode V1/V2 comparison
+   ═══════════════════════════════════════════════════════════════ */
+
+.forge-ember {
+  position: absolute;
+  bottom: calc(-2px - (4px * var(--size, 1)));
+  width: calc(3px * var(--size, 1));
+  height: calc(3px * var(--size, 1));
+  border-radius: 50%;
+  background: var(--heat-4);
+  pointer-events: none;
+  animation: ember-rise 1.8s ease-out infinite;
+}
+
+@keyframes ember-rise {
+  0% {
+    opacity: 1;
+    transform: translateY(0) translateX(0) scale(1);
+    box-shadow: 0 0 calc(6px * var(--size, 1)) calc(2px * var(--size, 1)) rgba(var(--heat-4-rgb), 0.4);
+  }
+  30% {
+    opacity: 0.9;
+    transform: translateY(calc(var(--ember-rise-h, -20px) * 0.3)) translateX(var(--sway, 0px)) scale(0.85);
+    box-shadow: 0 0 calc(5px * var(--size, 1)) calc(1px * var(--size, 1)) rgba(var(--heat-4-rgb), 0.3);
+  }
+  55% {
+    opacity: 0.6;
+    transform: translateY(calc(var(--ember-rise-h, -20px) * 0.55)) translateX(0px) scale(0.65);
+    box-shadow: 0 0 calc(3px * var(--size, 1)) calc(1px * var(--size, 1)) rgba(var(--heat-4-rgb), 0.15);
+  }
+  80% {
+    opacity: 0.3;
+    transform: translateY(calc(var(--ember-rise-h, -20px) * 0.8)) translateX(calc(var(--sway, 0px) * -0.6)) scale(0.45);
+    box-shadow: 0 0 calc(2px * var(--size, 1)) 0px rgba(var(--heat-4-rgb), 0.05);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(var(--ember-rise-h, -20px)) translateX(calc(var(--sway, 0px) * 0.3)) scale(0.3);
+    box-shadow: 0 0 0 0 rgba(var(--heat-4-rgb), 0);
+  }
+}
+
+@keyframes ember-rise-tall {
+  0% {
+    opacity: 1;
+    transform: translateY(0) translateX(0) scale(1);
+    box-shadow: 0 0 calc(6px * var(--size, 1)) calc(2px * var(--size, 1)) rgba(var(--heat-4-rgb), 0.4);
+  }
+  30% {
+    opacity: 0.9;
+    transform: translateY(calc(var(--ember-rise-h, -80px) * 0.3)) translateX(var(--sway, 0px)) scale(0.85);
+    box-shadow: 0 0 calc(5px * var(--size, 1)) calc(1px * var(--size, 1)) rgba(var(--heat-4-rgb), 0.3);
+  }
+  55% {
+    opacity: 0.6;
+    transform: translateY(calc(var(--ember-rise-h, -80px) * 0.55)) translateX(0px) scale(0.65);
+    box-shadow: 0 0 calc(3px * var(--size, 1)) calc(1px * var(--size, 1)) rgba(var(--heat-4-rgb), 0.15);
+  }
+  80% {
+    opacity: 0.3;
+    transform: translateY(calc(var(--ember-rise-h, -80px) * 0.8)) translateX(calc(var(--sway, 0px) * -0.6)) scale(0.45);
+    box-shadow: 0 0 calc(2px * var(--size, 1)) 0px rgba(var(--heat-4-rgb), 0.05);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(var(--ember-rise-h, -80px)) translateX(calc(var(--sway, 0px) * 0.3)) scale(0.3);
+    box-shadow: 0 0 0 0 rgba(var(--heat-4-rgb), 0);
+  }
+}
+
+.forge-ember-tall {
+  position: absolute;
+  bottom: calc(-2px - (4px * var(--size, 1)));
+  width: calc(4px * var(--size, 1));
+  height: calc(4px * var(--size, 1));
+  border-radius: 50%;
+  background: var(--heat-4);
+  pointer-events: none;
+  animation: ember-rise-tall 2.5s ease-out infinite;
+  will-change: transform, opacity;
+}
+
+/* Header embers — always the hottest element */
+[data-heat="4"] .forge-ember { --ember-rise-h: -65px; animation-duration: 2.5s; }
+[data-heat="5"] .forge-ember { --ember-rise-h: -120px; animation-duration: 3.2s; }
+
+/* Tab bar embers — unified intensity with sidebar, adapted for short/wide shape */
+[data-heat="4"] .forge-ember-wide { --ember-rise-h: -45px; animation-duration: 2.0s; }
+[data-heat="5"] .forge-ember-wide { --ember-rise-h: -80px; animation-duration: 2.5s; }
+
+/* Sidebar tall embers — faster at each stage */
+[data-heat="4"] .forge-ember-tall {
+  --ember-rise-h: -55vh;
+  animation-duration: 7s;
+}
+
+[data-heat="5"] .forge-ember-tall {
+  --ember-rise-h: -80vh;
+  animation-duration: 6s;
+}
+
+.forge-ember-wide {
+  position: absolute;
+  bottom: calc(-2px - (4px * var(--size, 1)));
+  width: calc(3px * var(--size, 1));
+  height: calc(3px * var(--size, 1));
+  border-radius: 50%;
+  background: var(--heat-4);
+  pointer-events: none;
+  animation: ember-rise 2s ease-out infinite;
+}
+
+@keyframes ice-drift {
+  0% {
+    opacity: 0.95;
+    transform: translateY(0) translateX(0) scale(1) rotate(45deg);
+    box-shadow: 0 0 calc(5px * var(--size, 1)) calc(1px * var(--size, 1)) rgba(var(--heat-4-rgb), 0.2);
+  }
+  40% {
+    opacity: 0.78;
+    transform: translateY(calc(var(--ember-rise-h, -20px) * 0.38)) translateX(calc(var(--sway, 0px) * 0.18)) scale(0.88) rotate(45deg);
+  }
+  76% {
+    opacity: 0.42;
+    transform: translateY(calc(var(--ember-rise-h, -20px) * 0.78)) translateX(calc(var(--sway, 0px) * 0.04)) scale(0.7) rotate(45deg);
+    box-shadow: 0 0 calc(3px * var(--size, 1)) 0 rgba(var(--heat-4-rgb), 0.08);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(var(--ember-rise-h, -20px)) translateX(calc(var(--sway, 0px) * 0.02)) scale(0.42) rotate(45deg);
+    box-shadow: 0 0 0 0 rgba(var(--heat-4-rgb), 0);
+  }
+}
+
+@keyframes void-pulse {
+  0% {
+    opacity: 0.15;
+    transform: translateY(0) translateX(0) scale(0.8);
+    box-shadow: 0 0 calc(3px * var(--size, 1)) calc(1px * var(--size, 1)) rgba(var(--heat-4-rgb), 0.15);
+  }
+  18% {
+    opacity: 0.65;
+    transform: translateY(calc(var(--ember-rise-h, -20px) * 0.18)) translateX(calc(var(--sway, 0px) * 0.6)) scale(1.05);
+    box-shadow: 0 0 calc(4px * var(--size, 1)) calc(1px * var(--size, 1)) rgba(var(--heat-4-rgb), 0.2);
+  }
+  45% {
+    opacity: 0.98;
+    transform: translateY(calc(var(--ember-rise-h, -20px) * 0.78)) translateX(var(--void-drift, 0px)) scale(0.95);
+    box-shadow: 0 0 calc(6px * var(--size, 1)) calc(2px * var(--size, 1)) rgba(var(--heat-4-rgb), 0.2);
+  }
+  72% {
+    opacity: 0.55;
+    transform: translateY(calc(var(--ember-rise-h, -20px) * 0.26)) translateX(calc(var(--void-drift, 0px) * -0.25)) scale(0.65);
+    box-shadow: 0 0 calc(3px * var(--size, 1)) 0 rgba(var(--heat-4-rgb), 0.1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(calc(var(--ember-rise-h, -20px) * 0.52 + var(--void-sink, 10px))) translateX(calc(var(--sway, 0px) * -0.2)) scale(0.3);
+    box-shadow: 0 0 0 0 rgba(var(--heat-4-rgb), 0);
+  }
+}
+
+@keyframes grass-float {
+  0% {
+    opacity: 0.82;
+    transform: translateY(0) translateX(0) scale(0.9);
+    box-shadow: 0 0 calc(4px * var(--size, 1)) calc(1px * var(--size, 1)) rgba(var(--heat-4-rgb), 0.18);
+  }
+  20% {
+    opacity: 0.88;
+    transform: translateY(calc(var(--ember-rise-h, -20px) * 0.18)) translateX(calc(var(--grass-drift, var(--sway, 0px)) * 0.5)) scale(1.05);
+  }
+  45% {
+    opacity: 0.78;
+    transform: translateY(calc(var(--ember-rise-h, -20px) * 0.42)) translateX(calc(var(--grass-drift, var(--sway, 0px)) * -0.3)) scale(0.85);
+    box-shadow: 0 0 calc(5px * var(--size, 1)) calc(1px * var(--size, 1)) rgba(var(--heat-4-rgb), 0.15);
+  }
+  70% {
+    opacity: 0.55;
+    transform: translateY(calc(var(--ember-rise-h, -20px) * 0.7)) translateX(calc(var(--grass-drift, var(--sway, 0px)) * 0.2)) scale(0.92);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(var(--ember-rise-h, -20px)) translateX(calc(var(--sway, 0px) * -0.1)) scale(0.4);
+    box-shadow: 0 0 0 0 rgba(var(--heat-4-rgb), 0);
+  }
+}
+
+@keyframes ice-sparkle {
+  0%, 22%, 100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(45deg) scale(0.2);
+    box-shadow: 0 0 0 rgba(255, 255, 255, 0);
+  }
+  28% {
+    opacity: 0.95;
+    transform: translate(-50%, -50%) rotate(45deg) scale(0.75);
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.8), 0 0 14px rgba(var(--heat-4-rgb), 0.45);
+  }
+  38% {
+    opacity: 0.25;
+    transform: translate(-50%, -50%) rotate(45deg) scale(0.38);
+    box-shadow: 0 0 4px rgba(255, 255, 255, 0.35);
+  }
+  58% {
+    opacity: 0.8;
+    transform: translate(-50%, -50%) rotate(45deg) scale(0.65);
+    box-shadow: 0 0 6px rgba(255, 255, 255, 0.75), 0 0 12px rgba(var(--heat-3-rgb), 0.28);
+  }
+  72% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(45deg) scale(0.15);
+    box-shadow: 0 0 0 rgba(255, 255, 255, 0);
+  }
+}
+
+@keyframes ice-halo {
+  0%, 18%, 100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.2);
+  }
+  32% {
+    opacity: 0.5;
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+  50% {
+    opacity: 0.18;
+    transform: translate(-50%, -50%) scale(1.9);
+  }
+}
+
+@keyframes forge-spark-flash {
+  0%, 10%, 43%, 100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1);
+    box-shadow:
+      0 0 2px 0 rgba(255, 200, 60, 0),
+      0 0 2px 0 rgba(255, 180, 40, 0),
+      0 0 2px 0 rgba(255, 160, 30, 0),
+      0 0 1px 0 rgba(255, 140, 20, 0);
+  }
+  12% {
+    opacity: 0.7;
+    transform: translate(-50%, -50%) scale(1);
+    box-shadow:
+      0 0 3px 1px rgba(255, 200, 60, 0.6),
+      0 0 3px 1px rgba(255, 180, 40, 0.55),
+      0 0 3px 1px rgba(255, 160, 30, 0.5),
+      0 0 2px 0 rgba(255, 140, 20, 0.45);
+  }
+  15% {
+    opacity: 0.5;
+    transform: translate(-50%, -50%) scale(1);
+    box-shadow:
+      var(--forge-spark-spread, 10px) calc(var(--forge-spark-spread, 10px) * -0.6) 1px 0 rgba(255, 200, 60, 0.5),
+      calc(var(--forge-spark-spread, 10px) * -0.8) calc(var(--forge-spark-spread, 10px) * -0.9) 1px 0 rgba(255, 180, 40, 0.45),
+      calc(var(--forge-spark-spread, 10px) * 0.5) var(--forge-spark-spread, 10px) 1px 0 rgba(255, 160, 30, 0.4),
+      calc(var(--forge-spark-spread, 10px) * -1.1) calc(var(--forge-spark-spread, 10px) * 0.3) 1px 0 rgba(255, 140, 20, 0.35);
+  }
+  17% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1);
+    box-shadow:
+      calc(var(--forge-spark-spread, 10px) * 1.4) calc(var(--forge-spark-spread, 10px) * -0.84) 1px 0 rgba(255, 200, 60, 0),
+      calc(var(--forge-spark-spread, 10px) * -1.12) calc(var(--forge-spark-spread, 10px) * -1.26) 1px 0 rgba(255, 180, 40, 0),
+      calc(var(--forge-spark-spread, 10px) * 0.7) calc(var(--forge-spark-spread, 10px) * 1.4) 1px 0 rgba(255, 160, 30, 0),
+      calc(var(--forge-spark-spread, 10px) * -1.54) calc(var(--forge-spark-spread, 10px) * 0.42) 1px 0 rgba(255, 140, 20, 0);
+  }
+  44% {
+    opacity: 0.6;
+    transform: translate(-50%, -50%) scale(1);
+    box-shadow:
+      0 0 3px 1px rgba(255, 200, 60, 0.5),
+      0 0 3px 1px rgba(255, 180, 40, 0.45),
+      0 0 3px 1px rgba(255, 160, 30, 0.4),
+      0 0 2px 0 rgba(255, 140, 20, 0.35);
+  }
+  47% {
+    opacity: 0.4;
+    transform: translate(-50%, -50%) scale(1);
+    box-shadow:
+      calc(var(--forge-spark-spread, 10px) * 0.8) calc(var(--forge-spark-spread, 10px) * -0.48) 1px 0 rgba(255, 200, 60, 0.4),
+      calc(var(--forge-spark-spread, 10px) * -0.64) calc(var(--forge-spark-spread, 10px) * -0.72) 1px 0 rgba(255, 180, 40, 0.35),
+      calc(var(--forge-spark-spread, 10px) * 0.4) calc(var(--forge-spark-spread, 10px) * 0.8) 1px 0 rgba(255, 160, 30, 0.3),
+      calc(var(--forge-spark-spread, 10px) * -0.88) calc(var(--forge-spark-spread, 10px) * 0.24) 1px 0 rgba(255, 140, 20, 0.25);
+  }
+  49% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1);
+    box-shadow:
+      calc(var(--forge-spark-spread, 10px) * 1.12) calc(var(--forge-spark-spread, 10px) * -0.67) 1px 0 rgba(255, 200, 60, 0),
+      calc(var(--forge-spark-spread, 10px) * -0.9) calc(var(--forge-spark-spread, 10px) * -1.0) 1px 0 rgba(255, 180, 40, 0),
+      calc(var(--forge-spark-spread, 10px) * 0.56) calc(var(--forge-spark-spread, 10px) * 1.12) 1px 0 rgba(255, 160, 30, 0),
+      calc(var(--forge-spark-spread, 10px) * -1.23) calc(var(--forge-spark-spread, 10px) * 0.34) 1px 0 rgba(255, 140, 20, 0);
+  }
+}
+
+@keyframes forge-spark-center {
+  0%, 10%, 20%, 43%, 52%, 100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.1);
+    box-shadow: 0 0 0 rgba(255, 200, 60, 0);
+  }
+  12% {
+    opacity: 0.6;
+    transform: translate(-50%, -50%) scale(0.8);
+    box-shadow: 0 0 3px rgba(255, 200, 60, 0.5), 0 0 6px rgba(255, 140, 20, 0.25);
+  }
+  18% {
+    opacity: 0.2;
+    transform: translate(-50%, -50%) scale(0.5);
+    box-shadow: 0 0 2px rgba(255, 200, 60, 0.15);
+  }
+  44% {
+    opacity: 0.5;
+    transform: translate(-50%, -50%) scale(0.7);
+    box-shadow: 0 0 3px rgba(255, 200, 60, 0.4), 0 0 5px rgba(255, 140, 20, 0.2);
+  }
+  50% {
+    opacity: 0.15;
+    transform: translate(-50%, -50%) scale(0.4);
+    box-shadow: 0 0 1px rgba(255, 200, 60, 0.1);
+  }
+}
+
+@keyframes void-split {
+  0%, 12% {
+    opacity: 0.9;
+    transform: translate(-50%, -50%);
+  }
+  25% {
+    opacity: 0.9;
+    transform: translate(calc(-50% + var(--void-split-a-x, 16px) * 0.5), calc(-50% + var(--void-split-a-y, 0px) * 0.5));
+  }
+  40%, 55% {
+    opacity: 0.9;
+    transform: translate(calc(-50% + var(--void-split-a-x, 16px)), calc(-50% + var(--void-split-a-y, 0px)));
+  }
+  70% {
+    opacity: 0.9;
+    transform: translate(calc(-50% + var(--void-split-a-x, 16px) * 0.5), calc(-50% + var(--void-split-a-y, 0px) * 0.5));
+  }
+  85%, 100% {
+    opacity: 0.9;
+    transform: translate(-50%, -50%);
+  }
+}
+
+@keyframes grass-firefly-glow {
+  0% {
+    opacity: 0.15;
+    transform: translate(-50%, -50%) scale(0.9);
+    box-shadow: 0 0 2px rgba(var(--heat-4-rgb), 0.1);
+  }
+  30% {
+    opacity: 0.7;
+    transform: translate(-50%, -50%) scale(1.1);
+    box-shadow: 0 0 8px rgba(var(--heat-4-rgb), 0.4), 0 0 14px rgba(var(--heat-5-rgb), 0.15);
+  }
+  50% {
+    opacity: 0.2;
+    transform: translate(-50%, -50%) scale(0.95);
+    box-shadow: 0 0 3px rgba(var(--heat-4-rgb), 0.12);
+  }
+  75% {
+    opacity: 0.55;
+    transform: translate(-50%, -50%) scale(1.05);
+    box-shadow: 0 0 6px rgba(var(--heat-4-rgb), 0.3), 0 0 10px rgba(var(--heat-5-rgb), 0.1);
+  }
+  100% {
+    opacity: 0.15;
+    transform: translate(-50%, -50%) scale(0.9);
+    box-shadow: 0 0 2px rgba(var(--heat-4-rgb), 0.1);
+  }
+}
+
+@keyframes grass-dandelion-puff {
+  0%, 18%, 100% {
+    opacity: 0;
+    box-shadow:
+      0 0 0 0 rgba(var(--heat-5-rgb), 0),
+      0 0 0 0 rgba(var(--heat-4-rgb), 0),
+      0 0 0 0 rgba(var(--heat-5-rgb), 0),
+      0 0 0 0 rgba(var(--heat-4-rgb), 0),
+      0 0 0 0 rgba(var(--heat-3-rgb), 0),
+      0 0 0 0 rgba(var(--heat-3-rgb), 0);
+    transform: translate(-50%, -50%) scale(0.2);
+  }
+  30% {
+    opacity: 0.9;
+    box-shadow:
+      var(--grass-puff-0-x, 12px) var(--grass-puff-0-y, -12px) 4px 1px rgba(var(--heat-5-rgb), 0.85),
+      var(--grass-puff-1-x, -8px) var(--grass-puff-1-y, -14px) 4px 1px rgba(var(--heat-4-rgb), 0.75),
+      var(--grass-puff-2-x, -14px) var(--grass-puff-2-y, 0px) 4px 1px rgba(var(--heat-5-rgb), 0.65),
+      var(--grass-puff-3-x, -8px) var(--grass-puff-3-y, 12px) 4px 1px rgba(var(--heat-4-rgb), 0.6),
+      var(--grass-puff-4-x, 8px) var(--grass-puff-4-y, 14px) 3px 1px rgba(var(--heat-3-rgb), 0.55),
+      var(--grass-puff-5-x, 14px) var(--grass-puff-5-y, 0px) 3px 1px rgba(var(--heat-3-rgb), 0.65);
+    transform: translate(-50%, -50%) scale(1);
+  }
+  55% {
+    opacity: 0.55;
+    box-shadow:
+      calc(var(--grass-puff-0-x, 12px) * 1.7) calc(var(--grass-puff-0-y, -12px) * 1.7) 5px 0 rgba(var(--heat-5-rgb), 0.5),
+      calc(var(--grass-puff-1-x, -8px) * 1.7) calc(var(--grass-puff-1-y, -14px) * 1.7) 5px 0 rgba(var(--heat-4-rgb), 0.45),
+      calc(var(--grass-puff-2-x, -14px) * 1.7) calc(var(--grass-puff-2-y, 0px) * 1.7) 5px 0 rgba(var(--heat-5-rgb), 0.4),
+      calc(var(--grass-puff-3-x, -8px) * 1.7) calc(var(--grass-puff-3-y, 12px) * 1.7) 5px 0 rgba(var(--heat-4-rgb), 0.35),
+      calc(var(--grass-puff-4-x, 8px) * 1.7) calc(var(--grass-puff-4-y, 14px) * 1.7) 4px 0 rgba(var(--heat-3-rgb), 0.3),
+      calc(var(--grass-puff-5-x, 14px) * 1.7) calc(var(--grass-puff-5-y, 0px) * 1.7) 4px 0 rgba(var(--heat-3-rgb), 0.35);
+    transform: translate(-50%, -50%) scale(0.7);
+  }
+  80% {
+    opacity: 0;
+    box-shadow:
+      calc(var(--grass-puff-0-x, 12px) * 2.4) calc(var(--grass-puff-0-y, -12px) * 2.4) 3px 0 rgba(var(--heat-5-rgb), 0),
+      calc(var(--grass-puff-1-x, -8px) * 2.4) calc(var(--grass-puff-1-y, -14px) * 2.4) 3px 0 rgba(var(--heat-4-rgb), 0),
+      calc(var(--grass-puff-2-x, -14px) * 2.4) calc(var(--grass-puff-2-y, 0px) * 2.4) 3px 0 rgba(var(--heat-5-rgb), 0),
+      calc(var(--grass-puff-3-x, -8px) * 2.4) calc(var(--grass-puff-3-y, 12px) * 2.4) 3px 0 rgba(var(--heat-4-rgb), 0),
+      calc(var(--grass-puff-4-x, 8px) * 2.4) calc(var(--grass-puff-4-y, 14px) * 2.4) 3px 0 rgba(var(--heat-3-rgb), 0),
+      calc(var(--grass-puff-5-x, 14px) * 2.4) calc(var(--grass-puff-5-y, 0px) * 2.4) 3px 0 rgba(var(--heat-3-rgb), 0);
+    transform: translate(-50%, -50%) scale(0.3);
+  }
+}
+
+[data-fx="on"][data-theme="forge"] .forge-ember::before,
+[data-fx="on"][data-theme="forge"] .forge-ember-wide::before,
+[data-fx="on"][data-theme="forge"] .forge-ember-tall::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: rgba(255, 220, 80, 1);
+  transform: translate(-50%, -50%);
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: forge-spark-flash 2.25s linear infinite;
+  animation-delay: calc(var(--size, 1) * -0.55s);
+  animation-play-state: var(--forge-spark-play, paused);
+}
+
+[data-fx="on"][data-theme="forge"] .forge-ember::after,
+[data-fx="on"][data-theme="forge"] .forge-ember-wide::after,
+[data-fx="on"][data-theme="forge"] .forge-ember-tall::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(255, 240, 200, 1);
+  transform: translate(-50%, -50%);
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: forge-spark-center 2.25s linear infinite;
+  animation-delay: calc(var(--size, 1) * -0.55s);
+  animation-play-state: var(--forge-spark-play, paused);
+}
+
+[data-fx="on"][data-theme="ice"] .forge-ember::before,
+[data-fx="on"][data-theme="ice"] .forge-ember-wide::before,
+[data-fx="on"][data-theme="ice"] .forge-ember-tall::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(6px * var(--size, 1));
+  height: calc(6px * var(--size, 1));
+  background:
+    linear-gradient(transparent 44%, rgba(255, 255, 255, 0.98) 44%, rgba(255, 255, 255, 0.98) 56%, transparent 56%),
+    linear-gradient(90deg, transparent 44%, rgba(255, 255, 255, 0.98) 44%, rgba(255, 255, 255, 0.98) 56%, transparent 56%);
+  border-radius: 2px;
+  transform: translate(-50%, -50%) rotate(45deg);
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: ice-sparkle 2.2s linear infinite;
+  animation-delay: calc(var(--size, 1) * -0.9s);
+}
+
+[data-fx="on"][data-theme="ice"] .forge-ember::after,
+[data-fx="on"][data-theme="ice"] .forge-ember-wide::after,
+[data-fx="on"][data-theme="ice"] .forge-ember-tall::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(8px * var(--size, 1));
+  height: calc(8px * var(--size, 1));
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  animation: ice-halo 2.2s ease-out infinite;
+  animation-delay: calc(var(--size, 1) * -0.7s);
+}
+
+[data-fx="on"][data-theme="void"] .forge-ember::before,
+[data-fx="on"][data-theme="void"] .forge-ember-wide::before,
+[data-fx="on"][data-theme="void"] .forge-ember-tall::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(3px * var(--size, 1));
+  height: calc(3px * var(--size, 1));
+  border-radius: 50%;
+  background: var(--heat-4);
+  opacity: 0;
+  animation: void-split 3.5s ease-in-out infinite;
+  animation-delay: calc(var(--size, 1) * -0.65s);
+}
+
+[data-fx="on"][data-theme="grass"] .forge-ember::before,
+[data-fx="on"][data-theme="grass"] .forge-ember-wide::before,
+[data-fx="on"][data-theme="grass"] .forge-ember-tall::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(5px * var(--size, 1));
+  height: calc(5px * var(--size, 1));
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(var(--heat-5-rgb), 0.6) 0%, rgba(var(--heat-4-rgb), 0.25) 50%, rgba(var(--heat-4-rgb), 0) 72%);
+  transform: translate(-50%, -50%);
+  opacity: 0.15;
+  animation: grass-firefly-glow 3.5s ease-in-out infinite;
+  animation-delay: calc(var(--size, 1) * -0.8s);
+  animation-play-state: var(--grass-glow-play, paused);
+}
+
+[data-fx="on"][data-theme="grass"] .forge-ember::after,
+[data-fx="on"][data-theme="grass"] .forge-ember-wide::after,
+[data-fx="on"][data-theme="grass"] .forge-ember-tall::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(2px * var(--size, 1));
+  height: calc(2px * var(--size, 1));
+  border-radius: 50%;
+  opacity: 0;
+  animation: grass-dandelion-puff 3.2s ease-out infinite;
+  animation-delay: calc(var(--size, 1) * -0.35s);
+  animation-play-state: var(--grass-special-play, paused);
+}
+
+[data-theme="ice"] .forge-ember,
+[data-theme="ice"] .forge-ember-wide,
+[data-theme="ice"] .forge-ember-tall {
+  animation-name: ice-drift;
+  border-radius: 1px;
+}
+
+[data-theme="void"] .forge-ember,
+[data-theme="void"] .forge-ember-wide,
+[data-theme="void"] .forge-ember-tall {
+  animation-name: void-pulse;
+}
+
+[data-theme="grass"] .forge-ember,
+[data-theme="grass"] .forge-ember-wide,
+[data-theme="grass"] .forge-ember-tall {
+  animation-name: grass-float;
+}
+
+[data-theme="ice"][data-heat="4"] .forge-ember { --ember-rise-h: -52px; animation-duration: 4.2s; }
+[data-theme="ice"][data-heat="5"] .forge-ember { --ember-rise-h: -88px; animation-duration: 5.1s; }
+[data-theme="ice"][data-heat="4"] .forge-ember-wide { --ember-rise-h: -32px; animation-duration: 3.5s; }
+[data-theme="ice"][data-heat="5"] .forge-ember-wide { --ember-rise-h: -54px; animation-duration: 4.2s; }
+[data-theme="ice"][data-heat="4"] .forge-ember-tall { --ember-rise-h: -42vh; animation-duration: 10s; }
+[data-theme="ice"][data-heat="5"] .forge-ember-tall { --ember-rise-h: -56vh; animation-duration: 9.4s; }
+
+[data-theme="void"][data-heat="4"] .forge-ember { --ember-rise-h: -66px; animation-duration: 3.4s; }
+[data-theme="void"][data-heat="5"] .forge-ember { --ember-rise-h: -98px; animation-duration: 4.2s; }
+[data-theme="void"][data-heat="4"] .forge-ember-wide { --ember-rise-h: -48px; animation-duration: 3s; }
+[data-theme="void"][data-heat="5"] .forge-ember-wide { --ember-rise-h: -78px; animation-duration: 3.7s; }
+[data-theme="void"][data-heat="4"] .forge-ember-tall { --ember-rise-h: -50vh; animation-duration: 8.8s; }
+[data-theme="void"][data-heat="5"] .forge-ember-tall { --ember-rise-h: -68vh; animation-duration: 8.1s; }
+
+[data-theme="grass"][data-heat="4"] .forge-ember { --ember-rise-h: -64px; animation-duration: 3.2s; }
+[data-theme="grass"][data-heat="5"] .forge-ember { --ember-rise-h: -110px; animation-duration: 4.1s; }
+[data-theme="grass"][data-heat="4"] .forge-ember-wide { --ember-rise-h: -44px; animation-duration: 2.8s; }
+[data-theme="grass"][data-heat="5"] .forge-ember-wide { --ember-rise-h: -76px; animation-duration: 3.6s; }
+[data-theme="grass"][data-heat="4"] .forge-ember-tall { --ember-rise-h: -54vh; animation-duration: 8s; }
+[data-theme="grass"][data-heat="5"] .forge-ember-tall { --ember-rise-h: -72vh; animation-duration: 7.6s; }

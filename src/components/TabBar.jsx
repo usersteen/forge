@@ -10,7 +10,7 @@ import useRecencyTick from "../hooks/useRecencyTick";
 import NewTabMenu from "./NewTabMenu";
 import ProjectExplorer from "./ProjectExplorer";
 import TabContextMenu from "./TabContextMenu";
-import ParticleCanvas from "./ParticleCanvas";
+import ParticleLayer from "./ParticleLayer";
 
 
 const appWindow = getCurrentWindow();
@@ -222,7 +222,7 @@ export default function TabBar({ onRefreshWorkspace }) {
         appWindow.startDragging();
       }}
     >
-      <ParticleCanvas location="tabbar" />
+      <ParticleLayer location="tabbar" />
       <div className="tab-bar-leading" ref={repoPanelRef}>
         <button
           className={`repo-trigger ${repoOpen ? "repo-trigger-active" : ""}`}

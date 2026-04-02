@@ -8,7 +8,7 @@ import AddWorktreeDialog from "./AddWorktreeDialog";
 import useInlineRename from "../hooks/useInlineRename";
 import useEffectiveHeatStage from "../hooks/useEffectiveHeatStage";
 import useFlashAnimation from "../hooks/useFlashAnimation";
-import ParticleCanvas from "./ParticleCanvas";
+import ParticleLayer from "./ParticleLayer";
 import useRecencyTick from "../hooks/useRecencyTick";
 import { getThemeHeatColor } from "../utils/themes";
 import ForgeWordmark from "./ForgeWordmark";
@@ -225,7 +225,7 @@ export default function Sidebar() {
   return (
     <div className="sidebar" data-tour="sidebar">
       <div className={headerClasses} data-tour="sidebar-header" onMouseDown={() => appWindow.startDragging()}>
-        <ParticleCanvas location="header" />
+        <ParticleLayer location="header" />
 
         <div className={`sidebar-logo${logoHeatClass}`}>
           <ForgeWordmark fill={logoFill} />
@@ -342,7 +342,7 @@ export default function Sidebar() {
           </>
         )}
       </div>
-      <ParticleCanvas location="sidebar" />
+      <ParticleLayer location="sidebar" />
 
       {newProjectMenu && (
         <NewProjectMenu

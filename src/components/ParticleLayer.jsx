@@ -1,6 +1,8 @@
+import { lazy, Suspense } from "react";
 import useForgeStore from "../store/useForgeStore";
-import EmberLayer from "./EmberLayer";
 import ParticleCanvas from "./ParticleCanvas";
+
+const EmberLayer = lazy(() => import("./EmberLayer"));
 
 // Unified wrapper that switches between V1 (CSS spans) and V2 (Canvas 2D)
 // based on the particleVersion store state. Production defaults to V2.
@@ -9,7 +11,11 @@ export default function ParticleLayer({ location = "header", themeOverride, heat
   const particleVersion = useForgeStore((s) => s.particleVersion);
 
   if (particleVersion === "v1") {
-    return <EmberLayer location={location} themeOverride={themeOverride} heatOverride={heatOverride} />;
+    return (
+      <Suspense fallback={null}>
+        <EmberLayer location={location} themeOverride={themeOverride} heatOverride={heatOverride} />
+      </Suspense>
+    );
   }
 
   return <ParticleCanvas location={location} themeOverride={themeOverride} heatOverride={heatOverride} />;

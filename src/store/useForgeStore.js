@@ -70,6 +70,7 @@ function makeTab(name = "Terminal 1", cwd = null, options = {}) {
     cwd,
     status: "idle",
     statusTitle: "",
+    waitingReason: null,
     type,
     provider: resolveInitialTabProvider(options.provider, options.launchCommand, name),
     manuallyRenamed: false,
@@ -351,6 +352,10 @@ const useForgeStore = create((set, get) => ({
         if (tabIndex === -1) return group;
         const oldTab = group.tabs[tabIndex];
         const newWaiting = oldTab.status !== "waiting" && status === "waiting";
+        const waitingReason =
+          status === "waiting"
+            ? (options.waitingReason ?? (newWaiting ? null : oldTab.waitingReason))
+            : null;
         const triggerWaitingAttention = options.triggerWaitingAttention ?? true;
         const shouldFlashWaiting = newWaiting && triggerWaitingAttention;
         const waitingSince = status === "waiting" ? (oldTab.waitingSince ?? Date.now()) : null;
@@ -362,7 +367,7 @@ const useForgeStore = create((set, get) => ({
         const lastEngagedAt =
           status === "working" && oldTab.status === "waiting" ? Date.now() : oldTab.lastEngagedAt;
         const updatedTab = {
-          ...oldTab, status, statusTitle: title, waitingSince, heatWaitingSince, lastEngagedAt,
+          ...oldTab, status, statusTitle: title, waitingReason, waitingSince, heatWaitingSince, lastEngagedAt,
           waitingFlashKey: shouldFlashWaiting ? (oldTab.waitingFlashKey ?? 0) + 1 : (oldTab.waitingFlashKey ?? 0),
         };
         const tabs = group.tabs.slice();
@@ -969,6 +974,7 @@ const useForgeStore = create((set, get) => ({
     const waitingTab = {
       ...makeTab("Waiting", null, { provider: "claude" }),
       status: "waiting",
+      waitingReason: "userInput",
     };
     const workingTab = {
       ...makeTab("Working", null, { provider: "codex" }),

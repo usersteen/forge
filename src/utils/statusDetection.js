@@ -32,6 +32,10 @@ const CODEX_NONINTERACTIVE_SUBCOMMANDS = new Set([
 ]);
 
 const AGENT_WAITING_TITLE_PREFIX = /^\u2733\uFE0F?/u;
+const CODEX_INTERRUPTED_LINE_PATTERN = /\bconversation interrupted\b/i;
+const CODEX_CONNECTION_ISSUE_PATTERN = /\b(?:connection|network|request)\s+(?:interrupted|lost|failed)\b/i;
+const CODEX_GENERIC_ERROR_PATTERN = /\bsomething went wrong\b/i;
+const CODEX_FEEDBACK_PATTERN = /\b\/feedback\b/i;
 
 function stripAgentTitlePrefix(title) {
   return title
@@ -55,6 +59,32 @@ export function summarizeStatusText(text, fallback = "") {
 
   if (!line) return fallback;
   return line.slice(0, 120);
+}
+
+export function detectCodexAttentionText(text) {
+  if (typeof text !== "string" || !text) return "";
+
+  const lines = text
+    .replace(/\r/g, "\n")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const matchedLine = lines.find(
+    (line) =>
+      CODEX_INTERRUPTED_LINE_PATTERN.test(line) ||
+      CODEX_CONNECTION_ISSUE_PATTERN.test(line)
+  );
+  if (matchedLine) {
+    return summarizeStatusText(matchedLine, "Codex needs attention");
+  }
+
+  const joined = lines.join(" ");
+  if (CODEX_GENERIC_ERROR_PATTERN.test(joined) && CODEX_FEEDBACK_PATTERN.test(joined)) {
+    return summarizeStatusText(joined, "Codex needs attention");
+  }
+
+  return "";
 }
 
 export function looksLikeCodexSession(text) {

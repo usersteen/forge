@@ -293,7 +293,7 @@ export default function Sidebar() {
       </button>
       <div className="sidebar-actions">
         <button
-          className={`sidebar-action-btn ${showWelcome ? "sidebar-action-btn-highlighted" : ""}`}
+          className="sidebar-action-btn"
           onClick={openInfo}
           aria-label="Open Forge info"
           data-tour="info-btn"
@@ -305,7 +305,7 @@ export default function Sidebar() {
           </svg>
         </button>
         <button
-          className={`sidebar-action-btn ${showWelcome ? "sidebar-action-btn-highlighted" : ""}`}
+          className="sidebar-action-btn"
           onClick={openSettings}
           aria-label="Open Forge settings"
           data-tour="settings-btn"

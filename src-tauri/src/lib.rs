@@ -30,6 +30,7 @@ pub fn run() {
             workspace::read_workspace_file,
             workspace::write_workspace_file,
             workspace::collect_images,
+            workspace::open_in_file_manager,
             git::git_repo_info,
             git::git_list_worktrees,
             git::git_add_worktree,

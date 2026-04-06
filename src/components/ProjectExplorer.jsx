@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import useForgeStore from "../store/useForgeStore";
 import ParticleLayer from "./ParticleLayer";
 import { normalizeRootPath } from "../utils/workspace";
+
+const IS_MACOS = navigator.platform.startsWith("Mac");
 
 const STAR_POINTS = "12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2";
 
@@ -161,6 +164,13 @@ export default function ProjectExplorer({ open, onClose, onRefresh, tourElevated
         <div className="repo-browser-header-actions">
           {activeGroup.rootPath ? (
             <>
+              <button
+                type="button"
+                className="repo-browser-action"
+                onClick={() => invoke("open_in_file_manager", { path: activeGroup.rootPath })}
+              >
+                {IS_MACOS ? "Finder" : "Explorer"}
+              </button>
               <button type="button" className="repo-browser-action" onClick={onRefresh}>
                 Refresh
               </button>

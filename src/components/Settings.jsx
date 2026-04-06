@@ -92,20 +92,35 @@ function SoundSection() {
 }
 
 function HeatSection() {
-  const streakTimer = useForgeStore((s) => s.streakTimer);
-  const cooldownTimer = useForgeStore((s) => s.cooldownTimer);
+  const storeStreakTimer = useForgeStore((s) => s.streakTimer);
+  const storeCooldownTimer = useForgeStore((s) => s.cooldownTimer);
+  const storeTabRecency = useForgeStore((s) => s.tabRecencyMinutes);
   const setStreakTimer = useForgeStore((s) => s.setStreakTimer);
   const setCooldownTimer = useForgeStore((s) => s.setCooldownTimer);
-  const tabRecencyMinutes = useForgeStore((s) => s.tabRecencyMinutes);
   const setTabRecencyMinutes = useForgeStore((s) => s.setTabRecencyMinutes);
 
-  const streakMin = Math.floor(streakTimer / 60000);
-  const streakSec = Math.floor((streakTimer % 60000) / 1000);
-  const cooldownMin = Math.floor(cooldownTimer / 60000);
-  const cooldownSec = Math.floor((cooldownTimer % 60000) / 1000);
+  const [localStreak, setLocalStreak] = useState(storeStreakTimer);
+  const [localCooldown, setLocalCooldown] = useState(storeCooldownTimer);
+  const [localRecency, setLocalRecency] = useState(storeTabRecency);
 
-  const updateStreak = (min, sec) => setStreakTimer((min * 60 + sec) * 1000);
-  const updateCooldown = (min, sec) => setCooldownTimer((min * 60 + sec) * 1000);
+  const isDirty =
+    localStreak !== storeStreakTimer ||
+    localCooldown !== storeCooldownTimer ||
+    localRecency !== storeTabRecency;
+
+  const save = () => {
+    setStreakTimer(localStreak);
+    setCooldownTimer(localCooldown);
+    setTabRecencyMinutes(localRecency);
+  };
+
+  const streakMin = Math.floor(localStreak / 60000);
+  const streakSec = Math.floor((localStreak % 60000) / 1000);
+  const cooldownMin = Math.floor(localCooldown / 60000);
+  const cooldownSec = Math.floor((localCooldown % 60000) / 1000);
+
+  const updateStreak = (min, sec) => setLocalStreak((min * 60 + sec) * 1000);
+  const updateCooldown = (min, sec) => setLocalCooldown((min * 60 + sec) * 1000);
 
   return (
     <>
@@ -168,13 +183,21 @@ function HeatSection() {
             className="settings-time-input"
             min={1}
             max={60}
-            value={tabRecencyMinutes}
-            onChange={(e) => setTabRecencyMinutes(Number(e.target.value))}
+            value={localRecency}
+            onChange={(e) => setLocalRecency(Number(e.target.value))}
           />
           <span className="settings-time-label">min</span>
         </div>
         <span className="settings-hint">How long a waiting tab keeps its glow after your last interaction</span>
       </div>
+      <button
+        type="button"
+        className="settings-path-save"
+        onClick={save}
+        disabled={!isDirty}
+      >
+        {isDirty ? "Save" : "Saved"}
+      </button>
     </>
   );
 }
@@ -182,26 +205,53 @@ function HeatSection() {
 function PathsSection() {
   const reposRootPath = useForgeStore((s) => s.reposRootPath);
   const setReposRootPath = useForgeStore((s) => s.setReposRootPath);
-  const [localReposPath, setLocalReposPath] = useState(reposRootPath || "");
+  const [localPath, setLocalPath] = useState(reposRootPath || "");
+  const [editing, setEditing] = useState(!reposRootPath);
+  const isDirty = localPath.trim() !== (reposRootPath || "");
 
-  const save = () => {
-    const trimmed = localReposPath.trim();
-    setReposRootPath(trimmed || null);
+  const commitPath = () => {
+    const trimmed = localPath.trim();
+    if (trimmed) {
+      setReposRootPath(trimmed);
+      setEditing(false);
+    } else {
+      setReposRootPath(null);
+    }
   };
 
   return (
     <>
       <div className="settings-row">
         <label>Repos Folder</label>
-        <input
-          className="new-project-path-input"
-          type="text"
-          placeholder="e.g. C:\Users\you\GitHub"
-          value={localReposPath}
-          onChange={(e) => setLocalReposPath(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") save(); }}
-          onBlur={save}
-        />
+        {editing ? (
+          <>
+            <div className="settings-path-row">
+              <input
+                className="new-project-path-input"
+                type="text"
+                placeholder="e.g. C:\Users\you\GitHub"
+                value={localPath}
+                onChange={(e) => setLocalPath(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") commitPath(); }}
+              />
+              <button
+                type="button"
+                className="settings-path-save"
+                onClick={commitPath}
+                disabled={!isDirty}
+              >
+                {isDirty ? "Save" : "Saved"}
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="welcome-repo-display">
+            <span className="welcome-repo-path">{reposRootPath}</span>
+            <button type="button" className="welcome-repo-change" onClick={() => setEditing(true)}>
+              Change
+            </button>
+          </div>
+        )}
         <span className="settings-hint">Parent folder containing your repos. Shown as quick picks when creating a new project.</span>
       </div>
     </>

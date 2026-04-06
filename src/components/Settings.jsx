@@ -3,11 +3,49 @@ import useForgeStore from "../store/useForgeStore";
 import useEscapeKey from "../hooks/useEscapeKey";
 import { getThemeOptions, getThemeStatusColors } from "../utils/themes";
 
+function AppearanceIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 0-5H12a2 2 0 0 1 0-4h4a5 5 0 0 0 0-10z" />
+      <circle cx="7.5" cy="10.5" r="1" />
+      <circle cx="12" cy="7.5" r="1" />
+      <circle cx="16.5" cy="10.5" r="1" />
+    </svg>
+  );
+}
+
+function SoundIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polygon points="11 5 6 9 3 9 3 15 6 15 11 19 11 5" />
+      <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+      <path d="M18.5 5.5a9 9 0 0 1 0 13" />
+    </svg>
+  );
+}
+
+function HeatIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 3c1.2 3.1 4.5 4.7 4.5 8.4A4.5 4.5 0 0 1 12 15.9a4.5 4.5 0 0 1-4.5-4.5C7.5 7.7 10.8 6.1 12 3z" />
+      <path d="M9.5 14.5A3.5 3.5 0 1 0 16 17c0-1.6-1.2-2.7-2.4-3.8-.7.8-1.1 1.5-1.1 2.3 0 1-.7 1.8-1.7 1.8-.5 0-.9-.1-1.3-.4z" />
+    </svg>
+  );
+}
+
+function PathsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H10l2 2h6.5A2.5 2.5 0 0 1 21 9.5v7A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5v-9z" />
+    </svg>
+  );
+}
+
 const CATEGORIES = [
-  { id: "appearance", label: "Appearance" },
-  { id: "sound", label: "Sound" },
-  { id: "heat", label: "Heat" },
-  { id: "paths", label: "Paths" },
+  { id: "appearance", label: "Appearance", icon: AppearanceIcon },
+  { id: "sound", label: "Sound", icon: SoundIcon },
+  { id: "heat", label: "Heat", icon: HeatIcon },
+  { id: "paths", label: "Paths", icon: PathsIcon },
 ];
 
 function AppearanceSection() {
@@ -286,7 +324,10 @@ export default function Settings({ onClose }) {
                 className={`settings-nav-btn${activeCategory === cat.id ? " settings-nav-btn-active" : ""}`}
                 onClick={() => setActiveCategory(cat.id)}
               >
-                {cat.label}
+                <span className="settings-nav-icon" aria-hidden="true">
+                  <cat.icon />
+                </span>
+                <span>{cat.label}</span>
               </button>
             ))}
           </nav>

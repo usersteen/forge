@@ -440,7 +440,7 @@ html, body, #root {
   padding: 10px 16px;
   cursor: pointer;
   border-right: 3px solid transparent;
-  transition: background 0.1s, border-right-color 0.18s ease;
+  transition: background 0.1s, border-right-color 0.18s ease, transform 0.14s ease;
   touch-action: none;
 }
 
@@ -793,7 +793,7 @@ html, body, #root {
   border-bottom: 3px solid transparent;
   white-space: nowrap;
   color: var(--text-secondary);
-  transition: background 0.1s, color 0.1s, border-bottom-color 0.18s ease;
+  transition: background 0.1s, color 0.1s, border-bottom-color 0.18s ease, transform 0.14s ease;
   flex: 1 1 0;
   min-width: 80px;
   max-width: 180px;
@@ -2517,7 +2517,7 @@ body.reader-resizing {
 }
 
 .settings-nav {
-  width: 140px;
+  width: 160px;
   flex-shrink: 0;
   border-right: 1px solid var(--border);
   padding: 12px 0;
@@ -2533,15 +2533,32 @@ body.reader-resizing {
   color: var(--text-muted);
   font-size: 13px;
   font-family: inherit;
-  padding: 7px 16px;
+  padding: 8px 16px;
   cursor: pointer;
   text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   transition: color 0.1s ease, background 0.1s ease;
 }
 
 .settings-nav-btn:hover {
   color: var(--text-secondary);
   background: rgba(255, 255, 255, 0.03);
+}
+
+.settings-nav-icon {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.settings-nav-icon svg {
+  width: 16px;
+  height: 16px;
 }
 
 .settings-nav-btn-active {
@@ -4013,3 +4030,51 @@ body.reader-resizing {
 [data-theme="grass"][data-heat="5"] .forge-ember-wide { --ember-rise-h: -76px; animation-duration: 3.6s; }
 [data-theme="grass"][data-heat="4"] .forge-ember-tall { --ember-rise-h: -54vh; animation-duration: 8s; }
 [data-theme="grass"][data-heat="5"] .forge-ember-tall { --ember-rise-h: -72vh; animation-duration: 7.6s; }
+
+/* === Press Feel System ===
+   Tier 1: Primary surfaces (tabs, sidebar rows) — heavier compress
+   Tier 2: All <button> elements + div-based interactive surfaces — lighter compress
+   Opt-out: close buttons, window controls, toggles, disabled states
+*/
+
+/* Tier 2 base: add transform transition to all non-excluded buttons */
+button:not(.window-control):not(.window-minimize):not(.window-maximize):not(.window-fullscreen):not(.window-close):not(.settings-toggle) {
+  transition: background 0.1s, color 0.1s, border-color 0.1s, transform 0.14s ease;
+}
+
+/* Tier 1: Primary surface press */
+.tab:active,
+.sidebar-group:active {
+  transform: scale(0.985);
+  transition-duration: 0.04s;
+}
+
+/* Tier 2: Universal button press */
+button:active:not(.tab-close):not(.sidebar-group-close):not(.document-tab-close):not(.document-viewer-tab-close):not(.settings-close):not(.tour-tooltip-close):not(.window-control):not(.window-minimize):not(.window-maximize):not(.window-fullscreen):not(.window-close):not(.settings-toggle):not(:disabled) {
+  transform: scale(0.97);
+  transition-duration: 0.04s;
+}
+
+/* Tier 2: Div-based interactive surfaces press */
+.quick-tab-item:active,
+.quick-tab-subitem:active:not(.quick-tab-subitem-disabled),
+.tab-context-item:active,
+.settings-nav-btn:active,
+.settings-chip:active {
+  transform: scale(0.97);
+  transition-duration: 0.04s;
+}
+
+/* Accessibility: disable press transforms for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .tab:active,
+  .sidebar-group:active,
+  button:active,
+  .quick-tab-item:active,
+  .quick-tab-subitem:active,
+  .tab-context-item:active,
+  .settings-nav-btn:active,
+  .settings-chip:active {
+    transform: none !important;
+  }
+}

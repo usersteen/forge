@@ -1,6 +1,0 @@
-     Running DevCommand (`cargo  run --no-default-features --color always --`)
-        Info Watching C:\Users\tenis\OneDrive\Documents\GitHub\forge-v2\src-tauri for changes...
-[1m[92m   Compiling[0m app v0.5.31 (C:\Users\tenis\OneDrive\Documents\GitHub\forge-v2\src-tauri)
-[1m[96m    Building[0m [=======================> ] 431/434: app(bui…[1m[96m    Building[0m [=======================> ] 432/434: app     [1m[96m    Building[0m [=======================> ] 433/434: app(bin)                                                            [1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`dev` profile [unoptimized + debuginfo]]8;;\ target(s) in 10.78s
-[1m[92m     Running[0m `target\debug\app.exe`
-^C

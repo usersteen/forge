@@ -893,6 +893,13 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
         command,
         recentText: codexDebugRef.current.recentText,
       });
+      const store = useForgeStore.getState();
+      const snapshot = getTabSnapshot(store, tabId);
+      if (snapshot?.tab.status === "waiting") {
+        applyDetectedStatus("working", summarizeStatusText(command, "Codex"), {
+          notifyWaiting: false,
+        });
+      }
       scheduleCodexIdleCheck();
     };
 
@@ -1283,7 +1290,6 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       }
 
       applyDetectedStatus(nextStatus, nextLabel || title, {
-        heatEligibleWaiting: !(provider === "codex" && nextStatus === "waiting"),
         waitingReason: nextStatus === "waiting" ? "userInput" : null,
       });
     });

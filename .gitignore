@@ -4,6 +4,8 @@ target/
 .cargo/
 .claude/
 .codex-app-server-schema/
+.codex-*.log
+.codex-*.err.log
 tmp/
 OPEN_SOURCE_PLAN.md
 dev-server.log

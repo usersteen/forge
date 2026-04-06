@@ -111,6 +111,10 @@ class ParticlePool {
         splitAngle: 0,
         splitDist: 0,
         hasGhost: false,
+        swaySign: 1,
+        prevX: 0, prevY: 0,
+        prev2X: 0, prev2Y: 0,
+        glintTimer: 0,
       });
     }
   }
@@ -149,6 +153,10 @@ export class Emitter {
     this.pool = new ParticlePool(poolSize);
     this.accumulator = 0;
     this.time = 0;
+    this._gustTimer = 0;
+    this._gustActive = 0;
+    this._gustDir = 0;
+    this._pollenAccum = 0;
   }
 
   update(dt, w, h, heatMult) {
@@ -158,6 +166,7 @@ export class Emitter {
     const sizeScale = heatMult.sizeScale || 1;
     const turbScale = heatMult.turbulenceScale || 1;
     this._childScale = heatMult.childScale != null ? heatMult.childScale : 1;
+    const theme = cfg.theme;
 
     // Emit core particles
     this.accumulator += rate * dt;
@@ -168,6 +177,41 @@ export class Emitter {
       this._initCore(p, cfg, w, h, sizeScale);
     }
 
+    // Grass: pollen dust (ambient background particles)
+    if (theme === 'grass') {
+      this._pollenAccum += 3 * dt;
+      while (this._pollenAccum >= 1) {
+        this._pollenAccum -= 1;
+        const pp = this.pool.spawn();
+        if (!pp) break;
+        pp.type = 'pollen';
+        pp.x = Math.random() * w;
+        pp.y = Math.random() * h;
+        pp.vx = (Math.random() - 0.5) * 3;
+        pp.vy = 0.5 + Math.random();
+        pp.age = 0;
+        pp.lifetime = 5 + Math.random() * 3;
+        pp.seed = Math.random() * 1000;
+        pp.size = 0.4 + Math.random() * 0.3;
+        pp.baseSize = pp.size;
+        pp.alpha = 0;
+        const col = lerpColorStops(cfg.colorStops, 0.7);
+        pp.r = col.r; pp.g = col.g; pp.b = col.b;
+      }
+    }
+
+    // Grass: wind gusts (periodic burst affecting all particles)
+    if (theme === 'grass') {
+      if (!this._gustTimer) this._gustTimer = 2 + Math.random() * 3;
+      this._gustTimer -= dt;
+      if (this._gustTimer <= 0) {
+        this._gustActive = 0.3 + Math.random() * 0.2;
+        this._gustDir = (Math.random() - 0.5) * 40;
+        this._gustTimer = 4 + Math.random() * 3;
+      }
+      if (this._gustActive > 0) this._gustActive -= dt;
+    }
+
     // Update all particles
     const turbAmp = cfg.turbulenceAmplitude * turbScale;
     const turbFreq = cfg.turbulenceFrequency;
@@ -176,7 +220,6 @@ export class Emitter {
     const dragVal = cfg.drag;
     const windX = typeof cfg.windX === 'function' ? cfg.windX(this.time) : (cfg.windX || 0);
     const windY = typeof cfg.windY === 'function' ? cfg.windY(this.time) : (cfg.windY || 0);
-    const theme = cfg.theme;
 
     for (let i = 0; i < this.pool.max; i++) {
       const p = this.pool.particles[i];
@@ -197,11 +240,22 @@ export class Emitter {
           p.vx += noise2D(p.x * turbFreq + p.seed, this.time * turbSpeed) * turbAmp * dt;
           p.vy += noise2D(p.y * turbFreq + p.seed + 100, this.time * turbSpeed) * turbAmp * dt;
         }
+        // Sway (forge V1-style lateral drift)
+        if (cfg.swayOverLife) {
+          p.vx += lerpStops(cfg.swayOverLife, t) * p.swaySign * dt;
+        }
         p.vx += windX * dt;
         p.vy += windY * dt;
+        // Wind gusts (grass theme)
+        if (this._gustActive > 0) {
+          p.vx += this._gustDir * dt;
+        }
         const df = Math.max(0, 1 - dragVal * dt);
         p.vx *= df;
         p.vy *= df;
+        // Save previous position for trails
+        p.prev2X = p.prevX; p.prev2Y = p.prevY;
+        p.prevX = p.x; p.prevY = p.y;
         p.x += p.vx * dt;
         p.y += p.vy * dt;
 
@@ -219,6 +273,53 @@ export class Emitter {
         p.size = p.hasGhost ? p.baseSize * 0.6 : p.baseSize;
         p.alpha = lerpStops(cfg.alphaOverLife, t);
 
+        // Ice frost bloom: color shifts toward white near end of life
+        if (theme === 'ice' && t > 0.85) {
+          const bloomF = Math.sin(((t - 0.85) / 0.15) * Math.PI) * 0.6;
+          p.r = Math.round(p.r + (220 - p.r) * bloomF);
+          p.g = Math.round(p.g + (240 - p.g) * bloomF);
+          p.b = Math.round(p.b + (255 - p.b) * bloomF);
+        }
+        // Ice refraction glint: rare bright white flash
+        if (theme === 'ice') {
+          if (p.glintTimer > 0) {
+            p.glintTimer -= dt;
+            p.r = 255; p.g = 255; p.b = 255;
+            p.alpha = Math.min(1.0, p.alpha + 0.5);
+          } else if (t > 0.25 && t < 0.55 && Math.random() < 0.004) {
+            p.glintTimer = 0.06;
+          }
+        }
+        // Void gravitational lensing + size sync
+        if (theme === 'void') {
+          for (let j = i + 1; j < this.pool.max; j++) {
+            const q = this.pool.particles[j];
+            if (!q.active || q.type !== 'core') continue;
+            const dx = q.x - p.x, dy = q.y - p.y;
+            const distSq = dx * dx + dy * dy;
+            if (distSq < 900 && distSq > 4) {
+              const dist = Math.sqrt(distSq);
+              const force = 2.5 / dist;
+              const fx = (dx / dist) * force * dt;
+              const fy = (dy / dist) * force * dt;
+              p.vx += fx; p.vy += fy;
+              q.vx -= fx; q.vy -= fy;
+              // Size sync: nearby orbs nudge sizes toward each other
+              if (distSq < 400) {
+                const avgSize = (p.size + q.size) * 0.5;
+                p.size += (avgSize - p.size) * 0.3 * dt;
+                q.size += (avgSize - q.size) * 0.3 * dt;
+              }
+            }
+          }
+        }
+        // Grass settling: particles near bottom slow down and fade
+        if (theme === 'grass' && p.y > h * 0.9) {
+          const settleF = Math.max(0, 1 - 5.0 * dt);
+          p.vx *= settleF; p.vy *= settleF;
+          p.alpha *= 0.97;
+        }
+
         // Theme-specific child spawning
         if (theme === 'forge') this._updateForgeSparks(p, dt, t, cfg);
         else if (theme === 'void') this._updateVoidSplit(p, dt, t, cfg);
@@ -235,6 +336,21 @@ export class Emitter {
       }
       else if (p.type === 'twinkle') {
         this._updateTwinkle(p, dt, t, cfg, sizeScale);
+      }
+      else if (p.type === 'halo') {
+        this._updateHalo(p, dt, t, cfg, sizeScale);
+      }
+      else if (p.type === 'pollen') {
+        p.vy += 0.5 * dt;
+        p.vx += noise2D(p.x * 0.005 + p.seed, this.time * 0.2) * 3 * dt;
+        const pollenDf = Math.max(0, 1 - 0.5 * dt);
+        p.vx *= pollenDf; p.vy *= pollenDf;
+        if (this._gustActive > 0) p.vx += this._gustDir * dt;
+        p.x += p.vx * dt; p.y += p.vy * dt;
+        p.alpha = lerpStops([
+          { t: 0, value: 0 }, { t: 0.1, value: 0.25 },
+          { t: 0.5, value: 0.3 }, { t: 0.9, value: 0.15 }, { t: 1, value: 0 },
+        ], t);
       }
     }
   }
@@ -259,16 +375,20 @@ export class Emitter {
     p.alpha = 0;
     p.parentSeed = -1;
     p.hasGhost = false;
+    p.swaySign = (p.seed > 500) ? 1 : -1;
+    p.prevX = p.x; p.prevY = p.y;
+    p.prev2X = p.x; p.prev2Y = p.y;
+    p.glintTimer = 0;
   }
 
   // -- FORGE: Sparks fly off embers --
   _updateForgeSparks(p, dt, t, cfg) {
     if (this._childScale <= 0) return;
-    const burstWindows = [{ start: 0.10, end: 0.14 }, { start: 0.40, end: 0.44 }];
+    const burstWindows = [{ start: 0.12, end: 0.16 }, { start: 0.45, end: 0.49 }];
     for (const burst of burstWindows) {
       const prevT = (p.age - dt) / p.lifetime;
-      if (prevT < burst.start && t >= burst.start && Math.random() < 0.35 * this._childScale) {
-        const count = 2 + Math.floor(Math.random() * 3);
+      if (prevT < burst.start && t >= burst.start && Math.random() < 0.15 * this._childScale) {
+        const count = 1 + Math.floor(Math.random() * 2);
         for (let s = 0; s < count; s++) {
           const sp = this.pool.spawn();
           if (!sp) break;
@@ -286,6 +406,8 @@ export class Emitter {
           sp.baseSize = 0.9;
           sp.alpha = 1;
           sp.r = 255; sp.g = 220; sp.b = 80;
+          sp.prevX = sp.x; sp.prevY = sp.y;
+          sp.prev2X = sp.x; sp.prev2Y = sp.y;
         }
       }
     }
@@ -295,6 +417,8 @@ export class Emitter {
     p.vx *= Math.max(0, 1 - 4.0 * dt);
     p.vy *= Math.max(0, 1 - 4.0 * dt);
     p.vy += 10 * dt;
+    p.prev2X = p.prevX; p.prev2Y = p.prevY;
+    p.prevX = p.x; p.prevY = p.y;
     p.x += p.vx * dt;
     p.y += p.vy * dt;
     p.alpha = (1 - t) * (1 - t);
@@ -322,7 +446,6 @@ export class Emitter {
         gp.splitAngle = p.splitAngle + Math.random() * Math.PI;
         gp.splitDist = p.splitDist * (0.5 + Math.random() * 0.5);
         gp.phase = Math.random() * Math.PI * 2;
-        // Initial ejection velocity away from parent
         const ejectSpeed = 20 + Math.random() * 25;
         gp.vx = Math.cos(gp.splitAngle) * ejectSpeed;
         gp.vy = Math.sin(gp.splitAngle) * ejectSpeed;
@@ -336,7 +459,6 @@ export class Emitter {
   }
 
   _updateGhost(p, dt, t, cfg, sizeScale) {
-    // Find parent to track its position and apply spring force
     let parent = null;
     for (let j = 0; j < this.pool.max; j++) {
       const c = this.pool.particles[j];
@@ -346,40 +468,34 @@ export class Emitter {
       }
     }
 
-    // Chaotic noise-based movement
     const turbAmp = cfg.turbulenceAmplitude * 1.5;
     const turbFreq = cfg.turbulenceFrequency * 1.2;
     p.vx += noise2D(p.x * turbFreq + p.seed, this.time * cfg.turbulenceSpeed * 1.3) * turbAmp * dt;
     p.vy += noise2D(p.y * turbFreq + p.seed + 100, this.time * cfg.turbulenceSpeed * 1.3) * turbAmp * dt;
 
-    // Spring force pulling back to parent (strengthens over time)
     if (parent) {
       const dx = parent.x - p.x;
       const dy = parent.y - p.y;
-      // Weak early (allow separation), strong late (pull back to rejoin)
       const springStrength = lerpStops([
-        { t: 0, value: -2 },   // initial repulsion
-        { t: 0.25, value: 0 },  // neutral
-        { t: 0.5, value: 3 },   // gentle pull
-        { t: 0.8, value: 12 },  // strong pull back
-        { t: 1.0, value: 20 },  // snap back
+        { t: 0, value: -2 },
+        { t: 0.25, value: 0 },
+        { t: 0.5, value: 3 },
+        { t: 0.8, value: 12 },
+        { t: 1.0, value: 20 },
       ], t);
       p.vx += dx * springStrength * dt;
       p.vy += dy * springStrength * dt;
     }
 
-    // Drag
     const df = Math.max(0, 1 - cfg.drag * 0.8 * dt);
     p.vx *= df;
     p.vy *= df;
     p.x += p.vx * dt;
     p.y += p.vy * dt;
 
-    // Color from parent palette
     const col = lerpColorStops(cfg.colorStops, t * 0.6);
     p.r = col.r; p.g = col.g; p.b = col.b;
 
-    // Alpha: fade in, hold, fade out as it rejoins
     p.alpha = lerpStops([
       { t: 0, value: 0 }, { t: 0.08, value: 0.75 },
       { t: 0.4, value: 0.65 }, { t: 0.75, value: 0.45 }, { t: 1, value: 0 },
@@ -390,20 +506,19 @@ export class Emitter {
       { t: 0.5, value: 0.8 }, { t: 0.85, value: 0.5 }, { t: 1, value: 0.15 },
     ], t) * sizeScale * 0.65;
 
-    // When ghost dies, un-flag parent
     if (t >= 0.98 && parent) {
       parent.hasGhost = false;
     }
   }
 
-  // -- GRASS/SPORE: Radial spore puffs --
+  // -- GRASS/SPORE: Sporadic radial spore puffs with gravity --
   _updateGrassSpores(p, dt, t, cfg) {
     if (this._childScale <= 0) return;
-    const burstWindows = [{ start: 0.20, end: 0.24 }, { start: 0.55, end: 0.59 }];
+    const burstWindows = [{ start: 0.30, end: 0.34 }];
     for (const burst of burstWindows) {
       const prevT = (p.age - dt) / p.lifetime;
-      if (prevT < burst.start && t >= burst.start && Math.random() < 0.3 * this._childScale) {
-        const count = 5 + Math.floor(Math.random() * 3);
+      if (prevT < burst.start && t >= burst.start && Math.random() < 0.12 * this._childScale) {
+        const count = 7 + Math.floor(Math.random() * 2);
         const baseAngle = Math.random() * Math.PI * 2;
         for (let s = 0; s < count; s++) {
           const sp = this.pool.spawn();
@@ -411,15 +526,15 @@ export class Emitter {
           sp.type = 'spore';
           sp.x = p.x;
           sp.y = p.y;
-          const angle = baseAngle + (s / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
-          const speed = 20 + Math.random() * 30;
+          const angle = baseAngle + (s / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
+          const speed = 15 + Math.random() * 25;
           sp.vx = Math.cos(angle) * speed;
           sp.vy = Math.sin(angle) * speed;
           sp.age = 0;
-          sp.lifetime = 0.6 + Math.random() * 0.5;
+          sp.lifetime = 1.2 + Math.random() * 1.0;
           sp.seed = p.seed + s;
-          sp.size = 1;
-          sp.baseSize = 1;
+          sp.size = 0.8;
+          sp.baseSize = 0.8;
           sp.alpha = 0;
           sp.r = p.r; sp.g = p.g; sp.b = p.b;
         }
@@ -428,9 +543,11 @@ export class Emitter {
   }
 
   _updateSpore(p, dt, t, cfg, sizeScale) {
-    p.vx *= Math.max(0, 1 - 2.0 * dt);
-    p.vy *= Math.max(0, 1 - 2.0 * dt);
-    p.vy -= 5 * dt;
+    p.vx *= Math.max(0, 1 - 1.2 * dt);
+    p.vy *= Math.max(0, 1 - 1.2 * dt);
+    p.vy += 15 * dt;  // strong downward gravity
+    p.vx += Math.sin(this.time * 0.5) * 2 * dt;
+    if (this._gustActive > 0) p.vx += this._gustDir * 0.5 * dt;
     p.x += p.vx * dt;
     p.y += p.vy * dt;
     const col = lerpColorStops(cfg.colorStops, t * 0.5);
@@ -446,7 +563,6 @@ export class Emitter {
   }
 
   _updateTwinkle(p, dt, t, cfg, sizeScale) {
-    // Find parent crystal to track
     for (let j = 0; j < this.pool.max; j++) {
       const c = this.pool.particles[j];
       if (c.active && c.type === 'core' && c.seed === p.parentSeed) {
@@ -455,12 +571,34 @@ export class Emitter {
         break;
       }
     }
-    // Sharp flash pattern
-    const flashT = (p.age * 4 + p.phase) % 1;
-    const flash = flashT < 0.15 ? flashT / 0.15 : flashT < 0.3 ? 1 - (flashT - 0.15) / 0.15 : 0;
-    p.alpha = flash * 0.9 * (1 - t);
-    p.size = (0.6 + flash * 1.2) * sizeScale;
+    // Rhythmic sine pulse (1.5 Hz, smooth)
+    const flash = 0.5 + 0.5 * Math.sin((p.age * 1.5 + p.phase) * Math.PI * 2);
+    p.alpha = flash * 0.8 * (1 - t);
+    p.size = (0.6 + flash * 1.0) * sizeScale;
     p.r = 255; p.g = 255; p.b = 255;
+  }
+
+  // -- ICE: Expanding halo ring on sparkle --
+  _updateHalo(p, dt, t, cfg, sizeScale) {
+    let found = false;
+    for (let j = 0; j < this.pool.max; j++) {
+      const c = this.pool.particles[j];
+      if (c.active && c.type === 'core' && c.seed === p.parentSeed) {
+        p.x = c.x; p.y = c.y;
+        found = true;
+        break;
+      }
+    }
+    if (!found) { p.active = false; return; }
+    p.size = lerpStops([
+      { t: 0, value: 0.5 }, { t: 0.32, value: 2.8 },
+      { t: 0.5, value: 4.8 }, { t: 1.0, value: 5.5 },
+    ], t) * sizeScale;
+    p.alpha = lerpStops([
+      { t: 0, value: 0 }, { t: 0.18, value: 0 }, { t: 0.32, value: 0.45 },
+      { t: 0.5, value: 0.15 }, { t: 1.0, value: 0 },
+    ], t);
+    p.r = 200; p.g = 240; p.b = 255;
   }
 
   // Pre-render: sync cached RGB strings to avoid per-particle template allocation in render loop
@@ -484,16 +622,37 @@ export class Emitter {
     this._syncRgbStrings();
     ctx.globalCompositeOperation = 'lighter';
 
+    // Forge ember trail pass (behind glow)
+    if (theme === 'forge') {
+      for (let i = 0; i < this.pool.max; i++) {
+        const p = this.pool.particles[i];
+        if (!p.active || p.alpha < 0.01 || p.type !== 'core') continue;
+        ctx.globalAlpha = p.alpha * glowA * 0.4;
+        ctx.fillStyle = p.rgbStr;
+        ctx.beginPath();
+        ctx.arc(p.prevX, p.prevY, Math.max(0.3, p.size * 0.6), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
     // Glow pass
     if (glowR > 0 && glowA > 0) {
       for (let i = 0; i < this.pool.max; i++) {
         const p = this.pool.particles[i];
-        if (!p.active || p.alpha < 0.01) continue;
+        if (!p.active || p.alpha < 0.01 || p.type === 'pollen') continue;
         ctx.globalAlpha = p.alpha * glowA;
         ctx.fillStyle = p.rgbStr;
         ctx.beginPath();
         ctx.arc(p.x, p.y, Math.max(0.5, p.size * glowR), 0, Math.PI * 2);
         ctx.fill();
+        // Forge heat shimmer: oscillating wide glow on bright embers
+        if (theme === 'forge' && p.type === 'core' && p.alpha > 0.5) {
+          const shimmerR = p.size * (2.5 + Math.sin(this.time * 3 + p.seed) * 1.5);
+          ctx.globalAlpha = 0.04;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, Math.max(1, shimmerR), 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
     }
 
@@ -510,8 +669,8 @@ export class Emitter {
           ctx.globalAlpha = p.alpha * 0.5;
           ctx.fillStyle = 'rgb(255,255,255)';
           const arm = p.size * 1.8;
-          ctx.fillRect(p.x - 0.4, p.y - arm, 0.8, arm * 2);
-          ctx.fillRect(p.x - arm, p.y - 0.4, arm * 2, 0.8);
+          ctx.fillRect(p.x - 0.25, p.y - arm, 0.5, arm * 2);
+          ctx.fillRect(p.x - arm, p.y - 0.25, arm * 2, 0.5);
         }
       }
       else if (theme === 'void' && p.type === 'ghost') {
@@ -529,6 +688,29 @@ export class Emitter {
       }
       else if (p.type === 'twinkle') {
         this._drawStar4(ctx, p.x, p.y, p.size);
+      }
+      else if (p.type === 'halo') {
+        ctx.globalAlpha = p.alpha;
+        ctx.strokeStyle = p.rgbStr;
+        ctx.lineWidth = 0.6;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, Math.max(0.5, p.size), 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      else if (p.type === 'spark') {
+        // Spark trails: ghost positions behind the spark
+        ctx.globalAlpha = p.alpha * 0.2;
+        ctx.beginPath();
+        ctx.arc(p.prev2X, p.prev2Y, Math.max(0.2, p.size * 0.5), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = p.alpha * 0.5;
+        ctx.beginPath();
+        ctx.arc(p.prevX, p.prevY, Math.max(0.2, p.size * 0.7), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = p.alpha;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, Math.max(0.3, p.size), 0, Math.PI * 2);
+        ctx.fill();
       }
       else {
         ctx.beginPath();
@@ -570,7 +752,7 @@ export class Emitter {
 }
 
 // ============================================================
-// ICE EMITTER (extends Emitter with twinkle spawning)
+// ICE EMITTER (extends Emitter with twinkle + halo spawning)
 // ============================================================
 export class IceEmitter extends Emitter {
   update(dt, w, h, heatMult) {
@@ -586,7 +768,7 @@ export class IceEmitter extends Emitter {
 
       const twinkleWindows = [{ start: 0.15, end: 0.19 }, { start: 0.55, end: 0.59 }];
       for (const tw of twinkleWindows) {
-        if (prevT < tw.start && t >= tw.start && Math.random() < 0.4) {
+        if (prevT < tw.start && t >= tw.start && Math.random() < 0.25) {
           const tp = this.pool.spawn();
           if (!tp) break;
           tp.type = 'twinkle';
@@ -601,6 +783,20 @@ export class IceEmitter extends Emitter {
           tp.baseSize = 0.9 * sizeScale;
           tp.alpha = 0;
           tp.r = 255; tp.g = 255; tp.b = 255;
+          // Spawn halo ring alongside twinkle
+          const hp = this.pool.spawn();
+          if (hp) {
+            hp.type = 'halo';
+            hp.parentSeed = p.seed;
+            hp.x = p.x; hp.y = p.y;
+            hp.vx = 0; hp.vy = 0;
+            hp.age = 0;
+            hp.lifetime = 0.8 + Math.random() * 0.3;
+            hp.seed = p.seed;
+            hp.size = 0.5; hp.baseSize = 0.5;
+            hp.alpha = 0;
+            hp.r = 200; hp.g = 240; hp.b = 255;
+          }
         }
       }
     }

@@ -6,10 +6,10 @@ import { getThemeOptions, getThemeStatusColors } from "../utils/themes";
 function AppearanceIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 0-5H12a2 2 0 0 1 0-4h4a5 5 0 0 0 0-10z" />
-      <circle cx="7.5" cy="10.5" r="1" />
-      <circle cx="12" cy="7.5" r="1" />
-      <circle cx="16.5" cy="10.5" r="1" />
+      <path d="M19 3h-4a2 2 0 0 0-2 2v12a4 4 0 0 0 8 0V5a2 2 0 0 0-2-2z" />
+      <path d="M13 7.35l-2-2a2 2 0 0 0-2.828 0L5.344 8.178a2 2 0 0 0 0 2.828l9 9" />
+      <path d="M7.3 13H5a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h12" />
+      <path d="M17 17h.01" />
     </svg>
   );
 }
@@ -27,8 +27,7 @@ function SoundIcon() {
 function HeatIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 3c1.2 3.1 4.5 4.7 4.5 8.4A4.5 4.5 0 0 1 12 15.9a4.5 4.5 0 0 1-4.5-4.5C7.5 7.7 10.8 6.1 12 3z" />
-      <path d="M9.5 14.5A3.5 3.5 0 1 0 16 17c0-1.6-1.2-2.7-2.4-3.8-.7.8-1.1 1.5-1.1 2.3 0 1-.7 1.8-1.7 1.8-.5 0-.9-.1-1.3-.4z" />
+      <path d="M12 10.941C14.333 7.633 12.167 3.118 11 2c0 3.395-2.235 5.299-3.667 6.706C5.903 10.114 5 12 5 14.294 5 17.998 8.134 21 12 21s7-3.002 7-6.706c0-1.712-1.232-4.403-2.333-5.588-2.084 3.353-3.257 3.353-4.667 2.235z" />
     </svg>
   );
 }

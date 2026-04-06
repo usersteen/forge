@@ -5,17 +5,10 @@
 // Personalities: Forge=exciting/powerful, Frost=focused/sharp, Void=cool/imaginative, Spore=sweet/sour
 
 import { hexToRGB } from './particleEngine';
+import { getThemeHeatColors } from './themes';
 
-const HEAT_COLORS = {
-  forge: ["#475569", "#f59e0b", "#ea580c", "#dc2626", "#ef4444", "#ff4d4d"],
-  ice:   ["#4B6272", "#2098FF", "#00B8E0", "#00D4D4", "#70F0E8", "#D8FFFC"],
-  void:  ["#3D3554", "#5855E0", "#8840E8", "#C830D0", "#F020A0", "#FF40B0"],
-  grass: ["#5C553A", "#E08830", "#C8B020", "#80B830", "#40C048", "#34D058"],
-};
-
-function buildColorStops(theme) {
-  const hc = HEAT_COLORS[theme];
-  const c = hc.map(hexToRGB);
+function buildColorStops(theme, variant = null) {
+  const c = getThemeHeatColors(theme, variant).map(hexToRGB);
   return [
     { t: 0.0,  ...c[5] },
     { t: 0.15, ...c[4] },
@@ -169,16 +162,18 @@ const LOCATION_OVERRIDES = {
   documentTabs: {},
 };
 
-export function getParticleConfig(theme, location) {
+export function getParticleConfig(theme, location, variant = null) {
   const base = THEME_CONFIGS[theme];
-  if (!base) return THEME_CONFIGS.forge;
+  if (!base) return { ...THEME_CONFIGS.forge, colorStops: buildColorStops('forge', variant) };
 
   const locOverrides = LOCATION_OVERRIDES[location];
   const themeOverrides = locOverrides && locOverrides[theme];
-  if (!themeOverrides) return base;
+  const colorStops = buildColorStops(theme, variant);
+  if (!themeOverrides) return { ...base, colorStops };
 
   return {
     ...base,
+    colorStops,
     spawnArea: { ...base.spawnArea, ...themeOverrides },
   };
 }

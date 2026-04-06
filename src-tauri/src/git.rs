@@ -1,6 +1,11 @@
 use serde::Serialize;
 use std::path::Path;
 use std::process::Command;
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 #[derive(Serialize)]
 pub struct GitRepoInfo {
@@ -23,9 +28,12 @@ pub struct BranchInfo {
 }
 
 fn run_git(path: &str, args: &[&str]) -> Result<String, String> {
-    let output = Command::new("git")
-        .current_dir(path)
-        .args(args)
+    let mut command = Command::new("git");
+    command.current_dir(path).args(args);
+    #[cfg(target_os = "windows")]
+    command.creation_flags(CREATE_NO_WINDOW);
+
+    let output = command
         .output()
         .map_err(|e| format!("Failed to run git: {}", e))?;
 

@@ -6,7 +6,8 @@ import { getThemeHeatColors } from "../utils/themes";
 export default function InfoPanel({ onClose, onStartTour }) {
   useEscapeKey(onClose);
   const theme = useForgeStore((s) => s.theme);
-  const heatColors = getThemeHeatColors(theme);
+  const themeVariant = useForgeStore((s) => s.themeVariant);
+  const heatColors = getThemeHeatColors(theme, themeVariant);
 
   return (
     <div className="settings-overlay" onClick={onClose}>

@@ -31,11 +31,12 @@ const CODEX_NONINTERACTIVE_SUBCOMMANDS = new Set([
   "help",
 ]);
 
-const AGENT_WAITING_TITLE_PREFIX = /^\u2733\uFE0F?/u;
+const AGENT_WAITING_TITLE_PREFIX = /^[\u2733\u273b\u273d]\uFE0F?/u;
 
 function stripAgentTitlePrefix(title) {
   return title
-    .replace(/^[\u2800-\u28ff\u2733\uFE0F]+\s*/u, "")
+    .trimStart()
+    .replace(/^[\u2800-\u28ff\u2733\u273b\u273d\uFE0F]+\s*/u, "")
     .replace(/^[\s:|.-]+/u, "")
     .trim();
 }
@@ -86,20 +87,50 @@ export function getCodexLaunchMode(command) {
   return "interactive";
 }
 
+export function getAgentLaunchPreset(command) {
+  const codexLaunchMode = getCodexLaunchMode(command);
+  if (codexLaunchMode === "interactive") {
+    return {
+      provider: "codex",
+      status: "waiting",
+      title: "Codex ready",
+    };
+  }
+
+  if (codexLaunchMode) {
+    return {
+      provider: "codex",
+      status: "working",
+      title: summarizeStatusText(command, "Codex"),
+    };
+  }
+
+  if (isClaudeLaunchCommand(command)) {
+    return {
+      provider: "claude",
+      status: "working",
+      title: summarizeStatusText(command, "Claude"),
+    };
+  }
+
+  return null;
+}
+
 export function parseAgentStatusTitle(title) {
   if (typeof title !== "string" || !title) return null;
 
-  const firstChar = title.codePointAt(0);
+  const normalizedTitle = title.trimStart();
+  const firstChar = normalizedTitle.codePointAt(0);
   let status = null;
   if (firstChar >= 0x2800 && firstChar <= 0x28ff) {
     status = "working";
-  } else if (AGENT_WAITING_TITLE_PREFIX.test(title)) {
+  } else if (AGENT_WAITING_TITLE_PREFIX.test(normalizedTitle)) {
     status = "waiting";
   }
 
   if (!status) return null;
   return {
     status,
-    label: stripAgentTitlePrefix(title),
+    label: stripAgentTitlePrefix(normalizedTitle),
   };
 }

@@ -613,21 +613,37 @@ export function getThemeConfig(theme) {
   return THEMES[normalizeTheme(theme)];
 }
 
-export function getThemeHeatColors(theme) {
-  return getThemeConfig(theme).heatColors;
+function getThemeVariantConfig(theme, variant) {
+  if (!variant) return null;
+  const resolvedThemeName = normalizeTheme(theme);
+  const variants = THEME_VARIANTS[resolvedThemeName];
+  return variants?.[variant] ?? null;
 }
 
-export function getThemeStatusColors(theme) {
+function getResolvedThemePalette(theme, variant) {
   const resolvedTheme = getThemeConfig(theme);
-  const heatColors = resolvedTheme.heatColors;
+  const variantConfig = getThemeVariantConfig(theme, variant);
   return {
-    waiting: heatColors[resolvedTheme.statusStops.waiting],
-    working: heatColors[resolvedTheme.statusStops.working],
+    heatColors: variantConfig?.heatColors ?? resolvedTheme.heatColors,
+    statusStops: variantConfig?.statusStops ?? resolvedTheme.statusStops,
+    variantConfig,
   };
 }
 
-export function getThemeHeatColor(theme, heatStage) {
-  const colors = getThemeHeatColors(theme);
+export function getThemeHeatColors(theme, variant = null) {
+  return getResolvedThemePalette(theme, variant).heatColors;
+}
+
+export function getThemeStatusColors(theme, variant = null) {
+  const { heatColors, statusStops } = getResolvedThemePalette(theme, variant);
+  return {
+    waiting: heatColors[statusStops.waiting],
+    working: heatColors[statusStops.working],
+  };
+}
+
+export function getThemeHeatColor(theme, heatStage, variant = null) {
+  const colors = getThemeHeatColors(theme, variant);
   return colors[Math.max(0, Math.min(colors.length - 1, heatStage))];
 }
 
@@ -700,17 +716,10 @@ export function getThemeTokens(theme, heatStage) {
 // Returns tokens with variant heatColors overriding the main theme's colors.
 // variant = null means v2 (main), "v1" or "v3" pulls from THEME_VARIANTS.
 export function getThemeTokensWithVariant(theme, heatStage, variant) {
-  if (!variant) return getThemeTokens(theme, heatStage);
-
-  const resolvedThemeName = normalizeTheme(theme);
-  const variants = THEME_VARIANTS[resolvedThemeName];
-  const variantConfig = variants && variants[variant];
+  const { heatColors, statusStops, variantConfig } = getResolvedThemePalette(theme, variant);
   if (!variantConfig) return getThemeTokens(theme, heatStage);
 
-  // Start with base tokens, then override heat colors + status colors
   const base = getThemeTokens(theme, heatStage);
-  const heatColors = variantConfig.heatColors;
-  const statusStops = variantConfig.statusStops || THEMES[resolvedThemeName].statusStops;
   const resolvedHeatStage = Math.max(0, Math.min(5, heatStage));
 
   return {

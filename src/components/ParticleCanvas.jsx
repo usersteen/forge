@@ -3,6 +3,7 @@ import useForgeStore from "../store/useForgeStore";
 import useEffectiveHeatStage from "../hooks/useEffectiveHeatStage";
 import { Emitter, IceEmitter } from "../utils/particleEngine";
 import { getParticleConfig, HEAT_MULTIPLIERS } from "../utils/particleThemes";
+import EmberLayer from "./EmberLayer";
 
 function createEmitter(config, poolSize) {
   if (config.theme === "ice") return new IceEmitter(config, poolSize);
@@ -19,6 +20,7 @@ export default function ParticleCanvas({ location = "header", themeOverride, hea
   const locationRef = useRef(location);
 
   const storeTheme = useForgeStore((s) => s.theme);
+  const particleVersion = useForgeStore((s) => s.particleVersion);
   const fxEnabled = useForgeStore((s) => s.fxEnabled);
   const storeHeat = useEffectiveHeatStage();
 
@@ -126,6 +128,9 @@ export default function ParticleCanvas({ location = "header", themeOverride, hea
   }, [active]);
 
   if (!active) return null;
+  if (particleVersion === "v1") {
+    return <EmberLayer location={location} themeOverride={themeOverride} heatOverride={heatOverride} />;
+  }
 
   return (
     <canvas

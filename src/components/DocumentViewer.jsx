@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 import useForgeStore from "../store/useForgeStore";
-import ParticleCanvas from "./ParticleCanvas";
+import ParticleLayer from "./ParticleLayer";
 import { renderMarkdown } from "../utils/markdown";
 
 
@@ -333,7 +333,7 @@ export default function DocumentViewer() {
     >
       <div className="document-viewer-header">
         <div className="document-viewer-tab-bar">
-          <ParticleCanvas location="documentTabs" />
+          <ParticleLayer location="documentTabs" />
           <div className="document-viewer-tabs">
             {activeGroup.openDocuments.map((document) => (
               <div

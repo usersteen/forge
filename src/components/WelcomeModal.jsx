@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import useForgeStore from "../store/useForgeStore";
 import useEscapeKey from "../hooks/useEscapeKey";
 import ForgeWordmark from "./ForgeWordmark";
-import ParticleCanvas from "./ParticleCanvas";
+import ParticleLayer from "./ParticleLayer";
 import { getThemeHeatColor, getThemeTokens } from "../utils/themes";
 
 const WELCOME_HEAT = 3;
@@ -65,7 +65,7 @@ export default function WelcomeModal({ onClose, onStartTour }) {
     <div className="settings-overlay" onClick={handleClose}>
       <div className="welcome-modal" style={modalVars} onClick={(event) => event.stopPropagation()}>
         <div className="welcome-header" style={headerVars}>
-          <ParticleCanvas location="header" heatOverride={WELCOME_HEAT} />
+          <ParticleLayer location="header" heatOverride={WELCOME_HEAT} />
           <div className="welcome-wordmark">
             <ForgeWordmark fill={logoFill} />
           </div>

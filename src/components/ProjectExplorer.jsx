@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import useForgeStore from "../store/useForgeStore";
-import ParticleCanvas from "./ParticleCanvas";
+import ParticleLayer from "./ParticleLayer";
 import { normalizeRootPath } from "../utils/workspace";
 
 const STAR_POINTS = "12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2";
@@ -156,7 +156,7 @@ export default function ProjectExplorer({ open, onClose, onRefresh, tourElevated
       onPointerDown={(event) => event.stopPropagation()}
     >
       <div className="repo-browser-header">
-        <ParticleCanvas location="repoBrowser" />
+        <ParticleLayer location="repoBrowser" />
         <div className="repo-browser-title">Repository</div>
         <div className="repo-browser-header-actions">
           {activeGroup.rootPath ? (

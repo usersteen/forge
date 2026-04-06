@@ -8,6 +8,7 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import useForgeStore from "../store/useForgeStore";
 import {
+  detectCodexAttentionText,
   extractPlainText,
   isClaudeLaunchCommand,
   getCodexLaunchMode,
@@ -85,20 +86,25 @@ function readTerminalTail(term, lineCount = CODEX_SCREEN_TAIL_LINES) {
 function inspectCodexScreen(term) {
   const screenText = readTerminalTail(term);
   if (!screenText) {
-    return { screenText: "", status: null };
+    return { screenText: "", status: null, title: "" };
   }
 
   const hasWaitingFooter = CODEX_WAITING_FOOTER_PATTERNS.some((pattern) => pattern.test(screenText));
   const hasChoiceList = CODEX_WAITING_OPTION_PATTERN.test(screenText);
   if (hasWaitingFooter || (hasChoiceList && /press enter|esc to go back/i.test(screenText))) {
-    return { screenText, status: "waiting" };
+    return { screenText, status: "waiting", title: "" };
   }
 
   if (CODEX_WORKING_FOOTER_PATTERN.test(screenText)) {
-    return { screenText, status: "working" };
+    return { screenText, status: "working", title: "" };
   }
 
-  return { screenText, status: null };
+  const attentionTitle = detectCodexAttentionText(screenText);
+  if (attentionTitle) {
+    return { screenText, status: "waiting", title: attentionTitle };
+  }
+
+  return { screenText, status: null, title: "" };
 }
 
 function normalizeServerHost(host) {
@@ -474,7 +480,12 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
     };
 
     const applyDetectedStatus = (status, title = "", options = {}) => {
-      const { countResponse = true, notifyWaiting = true, heatEligibleWaiting = status === "waiting" } = options;
+      const {
+        countResponse = true,
+        notifyWaiting = true,
+        heatEligibleWaiting = status === "waiting",
+        waitingReason: requestedWaitingReason,
+      } = options;
       const store = useForgeStore.getState();
       const snapshot = getTabSnapshot(store, tabId);
       if (!snapshot) return;
@@ -483,17 +494,27 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       const prevStatus = prevStatusRef.current;
       const currentTitle = statusTitleRef.current || tab.statusTitle || "";
       const nextTitle = title || currentTitle;
+      const nextWaitingReason =
+        status === "waiting"
+          ? (requestedWaitingReason ?? tab.waitingReason ?? null)
+          : null;
       const shouldPromoteHeatWaiting =
         status === "waiting" && heatEligibleWaiting && !tab.heatWaitingSince;
       const shouldSyncTitle = nextTitle !== currentTitle || nextTitle !== (tab.statusTitle || "");
       statusTitleRef.current = nextTitle;
-      if (status === prevStatus && !shouldPromoteHeatWaiting && !shouldSyncTitle) return;
+      if (
+        status === prevStatus &&
+        nextWaitingReason === tab.waitingReason &&
+        !shouldPromoteHeatWaiting &&
+        !shouldSyncTitle
+      ) return;
 
       if (detectorRef.current.provider === "codex") {
         logCodexDebug("status-change", {
           from: prevStatus,
           to: status,
           title: nextTitle,
+          waitingReason: nextWaitingReason,
           recentText: codexDebugRef.current.recentText,
         });
       }
@@ -516,6 +537,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       store.setTabStatus(tabId, status, nextTitle, {
         heatEligibleWaiting,
         triggerWaitingAttention: shouldAnnounceWaiting && !shouldDelayCodexWaitingAnnouncement,
+        waitingReason: nextWaitingReason,
       });
 
       if (shouldAnnounceWaiting) {
@@ -541,10 +563,13 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       if (detectorRef.current.provider !== "codex") return null;
       if (hasCodexTitleStatus() && !allowDuringTitleMode) return null;
 
-      const { status, screenText } = inspectCodexScreen(termRef.current);
+      const { status, screenText, title: detectedTitle } = inspectCodexScreen(termRef.current);
       if (!status) return null;
 
-      const title = fallbackTitle || summarizeStatusText(screenText, status === "working" ? "Codex working" : "Codex needs input");
+      const title =
+        detectedTitle ||
+        fallbackTitle ||
+        summarizeStatusText(screenText, status === "working" ? "Codex working" : "Codex needs input");
 
       logCodexDebug("surface-check", {
         source,
@@ -557,7 +582,12 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       if (status === "waiting") {
         recentCodexReplyAtRef.current = 0;
       }
-      applyDetectedStatus(status, title);
+      applyDetectedStatus(status, title, {
+        waitingReason:
+          status === "waiting"
+            ? (detectedTitle ? "interrupted" : "userInput")
+            : null,
+      });
       return status;
     };
 
@@ -585,7 +615,10 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
 
         detectorRef.current.awaitingUser = true;
         recentCodexReplyAtRef.current = 0;
-        applyDetectedStatus("waiting", "Codex ready", { notifyWaiting: false });
+        applyDetectedStatus("waiting", "Codex ready", {
+          notifyWaiting: false,
+          waitingReason: "ready",
+        });
       }, CODEX_IDLE_TIMEOUT_MS);
     };
 
@@ -621,11 +654,26 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
         applyDetectedStatus("waiting", summary || "Codex ready", {
           notifyWaiting: false,
           heatEligibleWaiting: false,
+          waitingReason: "ready",
         });
         return;
       }
 
       if (detector.provider !== "codex") return;
+
+      const attentionTitle = detectCodexAttentionText(plainText);
+      if (attentionTitle) {
+        clearCodexIdleTimeout();
+        detector.awaitingUser = true;
+        recentCodexReplyAtRef.current = 0;
+        logCodexDebug("attention-output", {
+          summary,
+          title: attentionTitle,
+          recentText,
+        });
+        applyDetectedStatus("waiting", attentionTitle, { waitingReason: "interrupted" });
+        return;
+      }
 
       scheduleCodexIdleCheck();
 
@@ -721,7 +769,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       detector.awaitingUser = true;
       recentCodexReplyAtRef.current = 0;
       const title = statusTitleRef.current || snapshot.tab.statusTitle || "Codex needs attention";
-      applyDetectedStatus("waiting", title);
+      applyDetectedStatus("waiting", title, { waitingReason: "userInput" });
     };
 
     const updateInputBuffer = (data) => {
@@ -786,6 +834,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
           applyDetectedStatus("waiting", "Codex ready", {
             notifyWaiting: false,
             heatEligibleWaiting: false,
+            waitingReason: "ready",
           });
         } else {
           applyDetectedStatus("working", summarizeStatusText(command, "Codex"));
@@ -847,7 +896,10 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       applyDetectedStatus(
         status,
         title || (status === "waiting" ? "Codex needs attention" : "Codex working"),
-        options
+        {
+          waitingReason: status === "waiting" ? "userInput" : null,
+          ...options,
+        }
       );
     };
 
@@ -1218,6 +1270,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
 
       applyDetectedStatus(nextStatus, nextLabel || title, {
         heatEligibleWaiting: !(provider === "codex" && nextStatus === "waiting"),
+        waitingReason: nextStatus === "waiting" ? "userInput" : null,
       });
     });
 

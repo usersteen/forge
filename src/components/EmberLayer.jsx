@@ -3,6 +3,7 @@ import useForgeStore from "../store/useForgeStore";
 import useEffectiveHeatStage from "../hooks/useEffectiveHeatStage";
 import { getEmberStyle } from "../utils/heat";
 
+// V1 CSS particle engine using span-based embers for demo comparisons.
 const EMBER_CONFIGS = {
   3: [15, 35, 60, 82],
   4: [5, 15, 25, 36, 47, 58, 68, 78, 88, 95],

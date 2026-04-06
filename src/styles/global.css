@@ -2351,7 +2351,6 @@ body.reader-resizing {
   from { opacity: 0; transform: scale(0.96) translateY(8px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
-
 .welcome-header {
   display: flex;
   justify-content: space-between;
@@ -3457,7 +3456,6 @@ body.reader-resizing {
 [data-heat="5"] .forge-ember { --ember-rise-h: -120px; animation-duration: 3.2s; }
 [data-heat="4"] .forge-ember-wide { --ember-rise-h: -45px; animation-duration: 2.0s; }
 [data-heat="5"] .forge-ember-wide { --ember-rise-h: -80px; animation-duration: 2.5s; }
-
 [data-heat="4"] .forge-ember-tall {
   --ember-rise-h: -55vh;
   animation-duration: 7s;

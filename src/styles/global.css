@@ -2404,6 +2404,23 @@ body.reader-resizing {
   box-shadow: var(--header-glow-shadow);
 }
 
+.welcome-header::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--heat-current);
+  opacity: 0;
+  transition: opacity 0.5s ease-out;
+  z-index: 2;
+}
+
+[data-fx="on"] .welcome-header::after {
+  opacity: 0.7;
+}
+
 .welcome-wordmark {
   display: flex;
   align-items: center;
@@ -2417,29 +2434,53 @@ body.reader-resizing {
   width: auto;
 }
 
-.welcome-header canvas,
-.welcome-header .forge-ember-layer {
-  transform: scale(0.55);
-  transform-origin: center center;
+.welcome-header .settings-close {
+  position: relative;
+  z-index: 1;
+}
+
+.welcome-version {
+  color: var(--text-muted);
+  font-size: 11px;
+  opacity: 0.6;
 }
 
 [data-fx="on"] .welcome-wordmark {
   filter: var(--logo-glow-filter);
 }
 
-.welcome-close {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: 18px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0 2px;
-  position: relative;
-  z-index: 1;
+.welcome-repo-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
 }
 
-.welcome-close:hover {
+.welcome-repo-path {
+  color: var(--text-secondary);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.welcome-repo-change {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 0;
+  flex-shrink: 0;
+  font-family: inherit;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.welcome-repo-change:hover {
+  background: var(--bg-active);
   color: var(--text-primary);
 }
 

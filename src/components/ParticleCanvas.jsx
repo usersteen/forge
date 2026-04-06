@@ -50,9 +50,11 @@ export default function ParticleCanvas({ location = "header", themeOverride, hea
         sizeRef.current = { w: Math.round(width), h: Math.round(height) };
       }
     });
-    observer.observe(parent);
+    // Observe the canvas itself, not the parent — parent's contentRect excludes
+    // padding, but the canvas (position:absolute;inset:0) fills the padding box.
+    observer.observe(canvas);
     // Initialize immediately
-    const rect = parent.getBoundingClientRect();
+    const rect = canvas.getBoundingClientRect();
     sizeRef.current = { w: Math.round(rect.width), h: Math.round(rect.height) };
 
     return () => observer.disconnect();

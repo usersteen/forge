@@ -16,6 +16,7 @@ export default function WelcomeModal({ onClose, onStartTour }) {
   const theme = useForgeStore((state) => state.theme);
   const [hideOnLaunch, setHideOnLaunch] = useState(!showWelcomeOnLaunch);
   const [localPath, setLocalPath] = useState(reposRootPath || "");
+  const [editing, setEditing] = useState(!reposRootPath);
 
   const isDirty = localPath.trim() !== (reposRootPath || "");
 
@@ -45,7 +46,10 @@ export default function WelcomeModal({ onClose, onStartTour }) {
 
   const commitPath = () => {
     const trimmed = localPath.trim();
-    if (trimmed) setReposRootPath(trimmed);
+    if (trimmed) {
+      setReposRootPath(trimmed);
+      setEditing(false);
+    }
   };
 
   const handleHideChange = (event) => {
@@ -68,9 +72,10 @@ export default function WelcomeModal({ onClose, onStartTour }) {
           <ParticleLayer location="header" heatOverride={WELCOME_HEAT} />
           <div className="welcome-wordmark">
             <ForgeWordmark fill={logoFill} />
+            <span className="welcome-version">v{__APP_VERSION__}</span>
           </div>
-          <button type="button" className="welcome-close" onClick={handleClose}>
-            x
+          <button type="button" className="settings-close" onClick={handleClose}>
+            ✕
           </button>
         </div>
 
@@ -79,32 +84,41 @@ export default function WelcomeModal({ onClose, onStartTour }) {
             Multi-session terminal manager for AI coding agents.
           </p>
 
-          {!reposRootPath && (
-            <div className="welcome-repos-row">
-              <label className="welcome-repos-label">Repos Folder</label>
-              <div className="settings-path-row">
-                <input
-                  className="new-project-path-input"
-                  type="text"
-                  placeholder="e.g. C:\Users\you\GitHub"
-                  value={localPath}
-                  onChange={(e) => setLocalPath(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") commitPath(); }}
-                />
-                <button
-                  type="button"
-                  className="settings-path-save"
-                  onClick={commitPath}
-                  disabled={!isDirty}
-                >
-                  {isDirty ? "Save" : "Saved"}
+          <div className="welcome-repos-row">
+            <label className="welcome-repos-label">Repos Folder</label>
+            {editing ? (
+              <>
+                <div className="settings-path-row">
+                  <input
+                    className="new-project-path-input"
+                    type="text"
+                    placeholder="e.g. C:\Users\you\GitHub"
+                    value={localPath}
+                    onChange={(e) => setLocalPath(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") commitPath(); }}
+                  />
+                  <button
+                    type="button"
+                    className="settings-path-save"
+                    onClick={commitPath}
+                    disabled={!isDirty}
+                  >
+                    {isDirty ? "Save" : "Saved"}
+                  </button>
+                </div>
+                <span className="welcome-repos-hint">
+                  Parent folder where your repos live. Makes it quick to pick a repo when starting a new project.
+                </span>
+              </>
+            ) : (
+              <div className="welcome-repo-display">
+                <span className="welcome-repo-path">{reposRootPath}</span>
+                <button type="button" className="welcome-repo-change" onClick={() => setEditing(true)}>
+                  Change
                 </button>
               </div>
-              <span className="welcome-repos-hint">
-                Parent folder where your repos live. Makes it quick to pick a repo when starting a new project.
-              </span>
-            </div>
-          )}
+            )}
+          </div>
 
           <div className="welcome-actions">
             {onStartTour && (

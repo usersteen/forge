@@ -281,7 +281,7 @@ html, body, #root {
   position: absolute;
   top: 8px;
   bottom: 8px;
-  right: 0;
+  right: -3px;
   width: 3px;
   background: linear-gradient(
     180deg,
@@ -1399,7 +1399,8 @@ body.reader-resizing {
 }
 
 .repo-browser-header {
-  padding: 12px 14px;
+  flex-shrink: 0;
+  padding: 8px 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1420,13 +1421,13 @@ body.reader-resizing {
 .repo-browser-header-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .repo-browser-bind-row,
 .repo-browser-path-row {
   flex-shrink: 0;
-  padding: 12px 14px;
+  padding: 8px 14px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -1438,15 +1439,9 @@ body.reader-resizing {
 
 .repo-browser-path-row {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.repo-browser-path-label {
-  color: var(--text-muted);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
 }
 
 .repo-browser-input {
@@ -1472,14 +1467,14 @@ body.reader-resizing {
 
 .repo-browser-action,
 .repo-browser-clear {
-  height: 32px;
+  height: 28px;
   border-radius: 0;
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.04);
   color: var(--text-secondary);
-  padding: 0 10px;
+  padding: 0 12px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 11px;
   font-family: inherit;
   transition: background 0.1s, color 0.1s, border-color 0.1s;
 }
@@ -1534,16 +1529,21 @@ body.reader-resizing {
 }
 
 .repo-browser-path {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   color: var(--text-muted);
   font-size: 12px;
   line-height: 1.4;
-  word-break: break-word;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .repo-browser-path-actions {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
 .repo-browser-note,
@@ -1577,7 +1577,7 @@ body.reader-resizing {
 
 .repo-browser-children {
   margin-left: 18px;
-  border-left: 1px solid rgba(148, 163, 184, 0.12);
+  border-left: 1px solid rgba(148, 163, 184, 0.08);
 }
 
 .repo-browser-node {
@@ -1617,6 +1617,25 @@ body.reader-resizing {
 
 .repo-browser-node-directory .repo-browser-node-name {
   color: var(--text-primary);
+  font-weight: 500;
+}
+
+.repo-browser-icon {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.repo-browser-node-directory .repo-browser-icon {
+  color: var(--text-primary);
+  opacity: 0.7;
+}
+
+.repo-browser-node-inert {
+  opacity: 0.4;
+}
+
+.repo-browser-node-inert:hover {
+  opacity: 0.6;
 }
 
 .repo-browser-node-name {

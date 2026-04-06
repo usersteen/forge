@@ -857,6 +857,20 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
         return;
       }
 
+      if (detector.provider === "claude") {
+        detector.awaitingUser = false;
+        const store = useForgeStore.getState();
+        const snapshot = getTabSnapshot(store, tabId);
+        if (!snapshot) return;
+
+        if (snapshot.tab.status === "waiting") {
+          applyDetectedStatus("working", summarizeStatusText(command, "Claude"), {
+            notifyWaiting: false,
+          });
+        }
+        return;
+      }
+
       if (detector.provider !== "codex") return;
 
       if (isCodexExitCommand(command)) {

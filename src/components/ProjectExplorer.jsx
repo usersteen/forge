@@ -16,6 +16,55 @@ function StarIcon({ filled }) {
   );
 }
 
+function FolderIcon({ open }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" className="repo-browser-icon">
+      {open ? (
+        <path d="M1.5 12.5V4a1 1 0 0 1 1-1h3l1.5 1.5h5a1 1 0 0 1 1 1v.5M1.5 12.5h11.5a1 1 0 0 0 1-1L12 7H2L.5 11.5a1 1 0 0 0 1 1z" />
+      ) : (
+        <path d="M1.5 4a1 1 0 0 1 1-1h3l1.5 1.5h5a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1V4z" />
+      )}
+    </svg>
+  );
+}
+
+function FileIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" className="repo-browser-icon">
+      <path d="M9.5 1.5H4.5a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V4.5z" />
+      <polyline points="9.5 1.5 9.5 4.5 12.5 4.5" />
+    </svg>
+  );
+}
+
+function ImageIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" className="repo-browser-icon">
+      <rect x="2" y="2" width="12" height="12" rx="1" />
+      <circle cx="5.5" cy="5.5" r="1" />
+      <path d="M14 10.5l-3-3-7 7" />
+    </svg>
+  );
+}
+
+function MarkdownIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" className="repo-browser-icon">
+      <path d="M9.5 1.5H4.5a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V4.5z" />
+      <polyline points="9.5 1.5 9.5 4.5 12.5 4.5" />
+      <path d="M5.5 8.5v3l1.25-1.25L8 11.5v-3" strokeWidth="1.3" />
+    </svg>
+  );
+}
+
+function fileIcon(fileType) {
+  switch (fileType) {
+    case "markdown": return <MarkdownIcon />;
+    case "image": return <ImageIcon />;
+    default: return <FileIcon />;
+  }
+}
+
 
 function TreeNode({ node, depth, expandedPaths, setExpandedPaths, selectedPath, onOpenFile }) {
   const isDirectory = node.kind === "directory";
@@ -39,10 +88,12 @@ function TreeNode({ node, depth, expandedPaths, setExpandedPaths, selectedPath, 
     flipExpanded();
   };
 
+  const isViewable = !isDirectory && ["markdown", "text", "image"].includes(node.file_type);
+
   return (
     <div className="repo-browser-node-block">
       <div
-        className={`repo-browser-node ${isSelected ? "repo-browser-node-selected" : ""} ${isDirectory ? "repo-browser-node-directory" : ""}`}
+        className={`repo-browser-node ${isSelected ? "repo-browser-node-selected" : ""} ${isDirectory ? "repo-browser-node-directory" : ""} ${!isDirectory && !isViewable ? "repo-browser-node-inert" : ""}`}
         style={{ paddingLeft: `${depth * 14 + 12}px` }}
         onClick={() => {
           if (isDirectory) {
@@ -64,6 +115,7 @@ function TreeNode({ node, depth, expandedPaths, setExpandedPaths, selectedPath, 
         ) : (
           <span className="repo-browser-file-spacer" />
         )}
+        {isDirectory ? <FolderIcon open={isExpanded} /> : fileIcon(node.file_type)}
         <span className="repo-browser-node-name">{node.name}</span>
       </div>
       {isDirectory && isExpanded && node.children?.length > 0 ? (
@@ -216,7 +268,6 @@ export default function ProjectExplorer({ open, onClose, onRefresh, tourElevated
         </div>
       ) : activeGroup.rootPath ? (
         <div className="repo-browser-path-row">
-          <div className="repo-browser-path-label">Root path</div>
           <div className="repo-browser-path" title={activeGroup.rootPath}>
             {activeGroup.rootPath}
           </div>

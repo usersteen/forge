@@ -183,6 +183,18 @@ const useForgeStore = create((set, get) => ({
       theme: DEFAULT_THEME,
       fxEnabled: true,
       showWelcomeOnLaunch: true,
+      streak: 0,
+      lastStreakTime: null,
+      heatPauseStartedAt: null,
+      heatPauseSources: {},
+      demoHeatStage: null,
+      themeVariant: null,
+      particleVersion: null,
+      tourActive: false,
+      tourStep: 0,
+      tourExpandedPanel: null,
+      tourSavedState: null,
+      tourOriginalTheme: null,
       configLoaded: true,
     });
   },
@@ -225,6 +237,18 @@ const useForgeStore = create((set, get) => ({
       streakTimer: config.settings?.streak_timer ?? 10000,
       cooldownTimer: config.settings?.cooldown_timer ?? 30000,
       tabRecencyMinutes: config.settings?.tab_recency_minutes ?? 5,
+      streak: 0,
+      lastStreakTime: null,
+      heatPauseStartedAt: null,
+      heatPauseSources: {},
+      demoHeatStage: null,
+      themeVariant: null,
+      particleVersion: null,
+      tourActive: false,
+      tourStep: 0,
+      tourExpandedPanel: null,
+      tourSavedState: null,
+      tourOriginalTheme: null,
       configLoaded: true,
     });
   },
@@ -849,23 +873,34 @@ const useForgeStore = create((set, get) => ({
       return { activeGroupId: state.groups[previousIndex].id };
     }),
 
-  recordResponse: (tabId) => {
-    const state = get();
-    let heatWaitingSince = null;
-    for (const group of state.groups) {
-      const tab = group.tabs.find((entry) => entry.id === tabId);
-      if (tab) {
+  recordResponse: (tabId) =>
+    set((state) => {
+      let heatWaitingSince = null;
+      let foundGroupId = null;
+
+      for (const group of state.groups) {
+        const tab = group.tabs.find((entry) => entry.id === tabId);
+        if (!tab) continue;
         heatWaitingSince = tab.heatWaitingSince;
+        foundGroupId = group.id;
         break;
       }
-    }
-    if (!heatWaitingSince) return;
-    const fast = Date.now() - heatWaitingSince <= state.streakTimer;
-    set({
-      streak: fast ? clampHeatStreak(state.streak + 1) : clampHeatStreak(state.streak),
-      lastStreakTime: Date.now(),
-    });
-  },
+
+      if (!heatWaitingSince || !foundGroupId) return state;
+
+      const now = Date.now();
+      const fast = now - heatWaitingSince <= state.streakTimer;
+      return {
+        groups: mapGroups(state.groups, foundGroupId, (group) => ({
+          ...group,
+          tabs: group.tabs.map((tab) =>
+            tab.id === tabId ? { ...tab, heatWaitingSince: null } : tab
+          ),
+        })),
+        streak: fast ? clampHeatStreak(state.streak + 1) : clampHeatStreak(state.streak),
+        lastStreakTime: now,
+      };
+    }),
 
   startHeatPause: (sourceId, now = Date.now()) =>
     set((state) => {

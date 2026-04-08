@@ -12,6 +12,7 @@ import {
   classifyCodexSessionCommand,
   detectCodexAttentionText,
   extractPlainText,
+  getClaudeLaunchMode,
   isClaudeLaunchCommand,
   getCodexLaunchMode,
   isCodexExitCommand,
@@ -858,14 +859,24 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
 
       if (isClaudeLaunchCommand(command)) {
         clearCodexIdleTimeout();
+        const claudeLaunchMode = getClaudeLaunchMode(command);
         detector.provider = "claude";
-        detector.awaitingUser = false;
+        detector.awaitingUser = claudeLaunchMode === "interactive";
         resetCodexTitleStatus();
         const store = useForgeStore.getState();
         store.setTabProvider(tabId, "claude");
         const snapshot = getTabSnapshot(store, tabId);
         if (snapshot?.tab.type !== "server") {
           store.setTabAutoName(tabId, "Claude");
+        }
+        if (claudeLaunchMode === "interactive") {
+          applyDetectedStatus("waiting", "Claude ready", {
+            notifyWaiting: false,
+            heatEligibleWaiting: false,
+            waitingReason: "ready",
+          });
+        } else {
+          applyDetectedStatus("working", summarizeStatusText(command, "Claude"));
         }
         return;
       }

@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { create } from "zustand";
 import { clampHeatStreak } from "../utils/heat";
+import { getAgentLaunchPreset } from "../utils/statusDetection";
 import { DEFAULT_THEME, normalizeTheme } from "../utils/themes";
 import {
   classifyWorkspacePath,
@@ -88,18 +89,23 @@ function normalizeLoadedTabProvider(tabConfig, schemaVersion) {
 
 function makeTab(name = "Terminal 1", cwd = null, options = {}) {
   const type = normalizeTabType(options.type);
+  const launchPreset = getAgentLaunchPreset(options.launchCommand);
+  const initialStatus = launchPreset?.status ?? "idle";
+  const initialStatusTitle = launchPreset?.title ?? "";
+  const initialWaitingReason = initialStatus === "waiting" ? "ready" : null;
+  const initialWaitingSince = initialStatus === "waiting" ? Date.now() : null;
   return {
     id: crypto.randomUUID(),
     name,
     cwd,
-    status: "idle",
-    statusTitle: "",
-    waitingReason: null,
+    status: initialStatus,
+    statusTitle: initialStatusTitle,
+    waitingReason: initialWaitingReason,
     type,
     provider: resolveInitialTabProvider(options.provider, options.launchCommand, name),
     manuallyRenamed: false,
     suggestedServerName: "",
-    waitingSince: null,
+    waitingSince: initialWaitingSince,
     heatWaitingSince: null,
     lastEngagedAt: null,
     launchCommand: options.launchCommand || null,

@@ -23,6 +23,13 @@ import GuidedTour from "./GuidedTour";
 
 const appWindow = getCurrentWindow();
 
+function getTabRecencyAnchor(tab) {
+  if (tab.status === "waiting") {
+    return tab.lastEngagedAt || tab.waitingSince || null;
+  }
+  return tab.lastEngagedAt || null;
+}
+
 function WorktreeCloseBlockedModal({ groupName, childNames, onClose }) {
   useEffect(() => {
     const handleKey = (event) => {
@@ -108,7 +115,10 @@ function getGroupPriorityClass(group, now, recencyThreshold) {
   const waitingTabs = interactiveTabs.filter((t) => t.status === "waiting");
   if (waitingTabs.length) {
     const hasRecentWaiting = waitingTabs.some(
-      (tab) => tab.lastEngagedAt && now - tab.lastEngagedAt < recencyThreshold
+      (tab) => {
+        const anchor = getTabRecencyAnchor(tab);
+        return anchor ? now - anchor < recencyThreshold : false;
+      }
     );
     return hasRecentWaiting ? "sidebar-group-waiting sidebar-group-waiting-hot" : "sidebar-group-waiting sidebar-group-waiting-cold";
   }
@@ -176,7 +186,8 @@ function SortableGroup({
             {isDetailed ? (
               <div className="sidebar-tab-list" aria-label={`${group.name} tabs`}>
                 {visibleTabs.map((tab) => {
-                  const isRecent = tab.lastEngagedAt && now - tab.lastEngagedAt < recencyThreshold;
+                  const anchor = getTabRecencyAnchor(tab);
+                  const isRecent = anchor ? now - anchor < recencyThreshold : false;
                   const isActiveTab = tab.id === group.activeTabId;
                   return (
                     <button
@@ -203,7 +214,13 @@ function SortableGroup({
             ) : (
               <div className="sidebar-group-dots">
                 {group.tabs.map((tab) => (
-                  <span key={tab.id} className={`sidebar-dot ${getSidebarDotClass(tab, tab.lastEngagedAt && now - tab.lastEngagedAt < recencyThreshold)}`} />
+                  <span
+                    key={tab.id}
+                    className={`sidebar-dot ${getSidebarDotClass(tab, (() => {
+                      const anchor = getTabRecencyAnchor(tab);
+                      return anchor ? now - anchor < recencyThreshold : false;
+                    })())}`}
+                  />
                 ))}
               </div>
             )}

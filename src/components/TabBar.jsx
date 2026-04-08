@@ -16,6 +16,12 @@ import ParticleLayer from "./ParticleLayer";
 const appWindow = getCurrentWindow();
 const IS_MACOS = navigator.platform.startsWith("Mac");
 
+function getTabRecencyAnchor(tab) {
+  if (tab.status === "waiting") {
+    return tab.lastEngagedAt || tab.waitingSince || null;
+  }
+  return tab.lastEngagedAt || null;
+}
 
 function getStatusDotClass(tab, isRecent) {
   if (tab.type === "server") {
@@ -144,7 +150,10 @@ export default function TabBar({ onRefreshWorkspace }) {
   const hasWaitingTabs = activeGroup?.tabs.some((t) => t.status === "waiting") ?? false;
   const now = useRecencyTick(hasWaitingTabs);
   const recencyThreshold = tabRecencyMinutes * 60000;
-  const isTabRecent = (tab) => tab.lastEngagedAt && now - tab.lastEngagedAt < recencyThreshold;
+  const isTabRecent = (tab) => {
+    const anchor = getTabRecencyAnchor(tab);
+    return anchor ? now - anchor < recencyThreshold : false;
+  };
 
   const onCommit = useCallback(
     (id, name) => renameTab(activeGroupId, id, name),

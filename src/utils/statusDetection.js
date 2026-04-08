@@ -138,6 +138,18 @@ export function classifyClaudeSessionCommand(command) {
   return normalized.startsWith("/") ? "ui" : "prompt";
 }
 
+export function getClaudeLaunchMode(command) {
+  if (!isClaudeLaunchCommand(command)) return null;
+
+  const tokens = command.trim().split(/\s+/).slice(1);
+  for (const token of tokens) {
+    if (!token) continue;
+    return token.startsWith("-") ? "interactive" : "task";
+  }
+
+  return "interactive";
+}
+
 export function getCodexLaunchMode(command) {
   if (!isCodexLaunchCommand(command)) return null;
 
@@ -169,7 +181,16 @@ export function getAgentLaunchPreset(command) {
     };
   }
 
-  if (isClaudeLaunchCommand(command)) {
+  const claudeLaunchMode = getClaudeLaunchMode(command);
+  if (claudeLaunchMode === "interactive") {
+    return {
+      provider: "claude",
+      status: "waiting",
+      title: "Claude ready",
+    };
+  }
+
+  if (claudeLaunchMode) {
     return {
       provider: "claude",
       status: "working",

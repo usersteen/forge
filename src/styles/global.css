@@ -111,6 +111,11 @@ html, body, #root {
   background: var(--accent-waiting);
 }
 
+.status-dot.waiting.waiting-cold,
+.sidebar-dot.waiting.waiting-cold {
+  background: var(--heat-0);
+}
+
 .status-dot.server-running, .sidebar-dot.server-running {
   background: var(--accent-server);
 }
@@ -457,8 +462,12 @@ html, body, #root {
   color: var(--text-primary);
 }
 
-.sidebar-group-active.sidebar-group-waiting {
+.sidebar-group-active.sidebar-group-waiting-hot {
   border-right-color: var(--accent-waiting) !important;
+}
+
+.sidebar-group-active.sidebar-group-waiting-cold {
+  border-right-color: var(--heat-0) !important;
 }
 
 .sidebar-group-active.sidebar-group-working {
@@ -867,8 +876,12 @@ html, body, #root {
   background: var(--bg-active);
 }
 
-.tab-active.tab-waiting {
+.tab-active.tab-waiting-hot {
   border-bottom-color: var(--accent-waiting) !important;
+}
+
+.tab-active.tab-waiting-cold {
+  border-bottom-color: var(--heat-0) !important;
 }
 
 .tab-active.tab-working {

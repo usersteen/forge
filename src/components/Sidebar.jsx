@@ -58,10 +58,15 @@ function computeSidebarItems(groups) {
   return items;
 }
 
-function getGroupPriorityClass(group) {
+function getGroupPriorityClass(group, now, recencyThreshold) {
   const interactiveTabs = group.tabs.filter((t) => t.type !== "server");
-  const hasWaiting = interactiveTabs.some((t) => t.status === "waiting");
-  if (hasWaiting) return "sidebar-group-waiting";
+  const waitingTabs = interactiveTabs.filter((t) => t.status === "waiting");
+  if (waitingTabs.length) {
+    const hasRecentWaiting = waitingTabs.some(
+      (tab) => tab.lastEngagedAt && now - tab.lastEngagedAt < recencyThreshold
+    );
+    return hasRecentWaiting ? "sidebar-group-waiting sidebar-group-waiting-hot" : "sidebar-group-waiting sidebar-group-waiting-cold";
+  }
   const hasWorking = interactiveTabs.some((t) => t.status === "working");
   if (hasWorking) return "sidebar-group-working";
   return "";
@@ -82,7 +87,7 @@ function SortableGroup({ group, isActive, now, recencyThreshold, onSelect, onDou
       style={style}
       {...attributes}
       {...listeners}
-      className={`sidebar-group ${isActive ? "sidebar-group-active" : ""} ${getGroupPriorityClass(group)}`}
+      className={`sidebar-group ${isActive ? "sidebar-group-active" : ""} ${getGroupPriorityClass(group, now, recencyThreshold)}`}
       onClick={onSelect}
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}

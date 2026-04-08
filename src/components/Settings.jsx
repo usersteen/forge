@@ -225,7 +225,7 @@ function HeatSection() {
           />
           <span className="settings-time-label">min</span>
         </div>
-        <span className="settings-hint">How long a waiting tab keeps its glow after your last interaction</span>
+        <span className="settings-hint">How long a waiting tab stays hot before cooling to the theme's cold color</span>
       </div>
       <button
         type="button"

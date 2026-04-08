@@ -28,6 +28,15 @@ function getStatusDotClass(tab, isRecent) {
   return "status-dot idle";
 }
 
+function getTabStateClass(tab, isRecent) {
+  if (tab.type === "server") return "";
+  if (tab.status === "waiting") {
+    return isRecent ? "tab-waiting tab-waiting-hot" : "tab-waiting tab-waiting-cold";
+  }
+  if (tab.status === "working") return "tab-working";
+  return "";
+}
+
 function getProviderBadge(tab) {
   if (tab.type === "server") return null;
   if (tab.provider === "claude") {
@@ -59,8 +68,7 @@ function SortableTab({ tab, isActive, isRecent, onSelect, onDoubleClick, onConte
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
-  const statusClass =
-    tab.type === "server" ? "" : tab.status === "waiting" ? "tab-waiting" : tab.status === "working" ? "tab-working" : "";
+  const statusClass = getTabStateClass(tab, isRecent);
   const providerBadge = getProviderBadge(tab);
   const showProviderBadge = isActive && providerBadge;
 

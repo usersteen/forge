@@ -579,21 +579,19 @@ fn now_unix_seconds() -> u64 {
 
 #[tauri::command]
 pub fn open_in_file_manager(path: String) -> Result<(), String> {
-    let dir = Path::new(&path);
-    if !dir.exists() {
-        return Err(format!("Path does not exist: {}", path));
-    }
+    let canonical_path = canonicalize_root(&path)?;
     #[cfg(target_os = "windows")]
     {
+        let explorer_path = canonical_path.to_string_lossy().replace('/', "\\");
         std::process::Command::new("explorer")
-            .arg(&path)
+            .arg(explorer_path)
             .spawn()
             .map_err(|e| e.to_string())?;
     }
     #[cfg(target_os = "macos")]
     {
         std::process::Command::new("open")
-            .arg(&path)
+            .arg(&canonical_path)
             .spawn()
             .map_err(|e| e.to_string())?;
     }

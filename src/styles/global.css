@@ -2348,12 +2348,13 @@ body.reader-resizing {
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: settings-overlay-in 0.2s ease-out;
+  animation: modal-overlay-in 160ms ease-out;
+  background: rgba(0, 0, 0, 0.5);
 }
 
-@keyframes settings-overlay-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+@keyframes modal-overlay-in {
+  from { background: rgba(0, 0, 0, 0); }
+  to { background: rgba(0, 0, 0, 0.5); }
 }
 
 .settings-panel {
@@ -2362,13 +2363,47 @@ body.reader-resizing {
   border-radius: 0;
   width: min(560px, calc(100vw - 32px));
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.36);
-  animation: settings-panel-in 0.2s ease-out;
+  animation: modal-panel-in 300ms ease-out;
 }
 
-@keyframes settings-panel-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+@keyframes modal-panel-in {
+  0%   { opacity: 0; transform: translateY(24px) scaleY(0.98); }
+  60%  { opacity: 1; transform: translateY(-2px) scaleY(1.005); }
+  100% { opacity: 1; transform: translateY(0) scaleY(1); }
 }
+
+@keyframes modal-panel-out {
+  0%   { opacity: 1; transform: translateY(0) scaleY(1); }
+  30%  { opacity: 1; transform: translateY(-3px) scaleY(1.005); }
+  100% { opacity: 0; transform: translateY(18px) scaleY(0.98); }
+}
+
+@keyframes modal-overlay-out {
+  from { background: rgba(0, 0, 0, 0.5); }
+  to { background: rgba(0, 0, 0, 0); }
+}
+
+.settings-overlay.modal-exiting {
+  animation: modal-overlay-out 150ms ease-in forwards;
+}
+
+.settings-panel.modal-exiting,
+.info-panel.modal-exiting {
+  animation: modal-panel-out 150ms ease-in forwards;
+}
+
+/* Reduced motion: restore after tuning feel
+@media (prefers-reduced-motion: reduce) {
+  .settings-overlay { animation-duration: 0ms; }
+  .settings-panel,
+  .info-panel { animation-duration: 80ms; animation-name: modal-panel-in-reduced; }
+}
+
+@keyframes modal-panel-in-reduced {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+*/
 
 .welcome-modal {
   background: var(--bg-sidebar);
@@ -2376,12 +2411,7 @@ body.reader-resizing {
   width: min(420px, calc(100vw - 32px));
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.36);
   overflow: hidden;
-  animation: welcome-enter 0.2s ease-out;
-}
-
-@keyframes welcome-enter {
-  from { opacity: 0; transform: scale(0.96) translateY(8px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
+  animation: modal-panel-in 300ms ease-out;
 }
 .welcome-header {
   display: flex;
@@ -3009,6 +3039,7 @@ body.reader-resizing {
   max-height: 80vh;
   display: flex;
   flex-direction: column;
+  animation: modal-panel-in 300ms ease-out;
 }
 
 .info-panel .settings-header {

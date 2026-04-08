@@ -302,14 +302,18 @@ const SECTIONS = {
   paths: PathsSection,
 };
 
-export default function Settings({ onClose }) {
+export default function Settings({ onClose, exiting, onExited }) {
   useEscapeKey(onClose);
   const [activeCategory, setActiveCategory] = useState("appearance");
   const ActiveSection = SECTIONS[activeCategory];
 
   return (
-    <div className="settings-overlay" onClick={onClose}>
-      <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
+    <div
+      className={`settings-overlay${exiting ? " modal-exiting" : ""}`}
+      onClick={onClose}
+      onAnimationEnd={exiting ? onExited : undefined}
+    >
+      <div className={`settings-panel${exiting ? " modal-exiting" : ""}`} onClick={(e) => e.stopPropagation()}>
         <div className="settings-header">
           <span>Settings</span>
           <button className="settings-close" onClick={onClose} aria-label="Close settings">

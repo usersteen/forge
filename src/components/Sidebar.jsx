@@ -157,7 +157,9 @@ export default function Sidebar() {
   };
 
   const [showSettings, setShowSettings] = useState(false);
+  const [settingsExiting, setSettingsExiting] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
+  const [infoExiting, setInfoExiting] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [showThemeLab, setShowThemeLab] = useState(false);
   const tourActive = useForgeStore((s) => s.tourActive);
@@ -168,8 +170,10 @@ export default function Sidebar() {
   const [worktreeDialog, setWorktreeDialog] = useState(null);
   const [newProjectMenu, setNewProjectMenu] = useState(null);
   const newProjectBtnRef = useRef(null);
-  const closeInfo = useCallback(() => setShowInfo(false), []);
-  const closeSettings = useCallback(() => setShowSettings(false), []);
+  const closeInfo = useCallback(() => setInfoExiting(true), []);
+  const closeSettings = useCallback(() => setSettingsExiting(true), []);
+  const onInfoExited = useCallback(() => { setInfoExiting(false); setShowInfo(false); }, []);
+  const onSettingsExited = useCallback(() => { setSettingsExiting(false); setShowSettings(false); }, []);
   const openInfo = useCallback(() => setShowInfo(true), []);
   const openSettings = useCallback(() => setShowSettings(true), []);
   const closeWelcome = useCallback(() => setShowWelcome(false), []);
@@ -362,13 +366,13 @@ export default function Sidebar() {
       {showWelcome && <WelcomeModal onClose={closeWelcome} onStartTour={startTour} />}
       {showInfo && (
         <div className={tourActive ? "tour-elevated-panel" : ""}>
-          <InfoPanel onClose={tourActive ? NOOP : closeInfo} onStartTour={tourActive ? undefined : startTour} />
+          <InfoPanel onClose={tourActive ? NOOP : closeInfo} onExited={onInfoExited} exiting={infoExiting} onStartTour={tourActive ? undefined : startTour} />
         </div>
       )}
       {tourActive && <GuidedTour onClose={closeTour} />}
       {showSettings && (
         <div className={tourActive ? "tour-elevated-panel" : ""}>
-          <Settings onClose={tourActive ? NOOP : closeSettings} />
+          <Settings onClose={tourActive ? NOOP : closeSettings} onExited={onSettingsExited} exiting={settingsExiting} />
         </div>
       )}
       {showThemeLab && ThemeLab && (

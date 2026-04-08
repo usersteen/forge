@@ -8,6 +8,7 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import useForgeStore from "../store/useForgeStore";
 import {
+  classifyClaudeSessionCommand,
   classifyCodexSessionCommand,
   detectCodexAttentionText,
   extractPlainText,
@@ -870,12 +871,15 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       }
 
       if (detector.provider === "claude") {
-        detector.awaitingUser = false;
+        const claudeCommandKind = classifyClaudeSessionCommand(command);
+        if (claudeCommandKind !== "ui") {
+          detector.awaitingUser = false;
+        }
         const store = useForgeStore.getState();
         const snapshot = getTabSnapshot(store, tabId);
         if (!snapshot) return;
 
-        if (snapshot.tab.status === "waiting") {
+        if (claudeCommandKind !== "ui" && snapshot.tab.status === "waiting") {
           applyDetectedStatus("working", summarizeStatusText(command, "Claude"), {
             notifyWaiting: false,
           });

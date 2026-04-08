@@ -132,6 +132,12 @@ export function classifyCodexSessionCommand(command) {
   return "slash";
 }
 
+export function classifyClaudeSessionCommand(command) {
+  const normalized = typeof command === "string" ? command.trim() : "";
+  if (!normalized) return "unknown";
+  return normalized.startsWith("/") ? "ui" : "prompt";
+}
+
 export function getCodexLaunchMode(command) {
   if (!isCodexLaunchCommand(command)) return null;
 

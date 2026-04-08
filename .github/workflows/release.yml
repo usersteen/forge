@@ -91,9 +91,9 @@ jobs:
           def normalize_label(name: str) -> str:
             lower = name.lower()
             if lower.endswith(".exe"):
-              return "Windows EXE (ZIP)"
+              return "Windows EXE"
             if lower.endswith(".dmg"):
-              return "macOS DMG (ZIP)"
+              return "macOS DMG"
             return ""
 
           lines = []

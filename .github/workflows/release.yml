@@ -108,16 +108,11 @@ jobs:
       - name: Build changelog
         id: changelog
         run: |
-          # Use RELEASE_NOTES.md if it exists, otherwise generate from commits
-          if [ -f RELEASE_NOTES.md ]; then
-            cp RELEASE_NOTES.md /tmp/changelog.txt
+          PREV_TAG="${{ steps.vars.outputs.prev_tag }}"
+          if [ -n "$PREV_TAG" ]; then
+            git log --pretty=format:"- %s" "${PREV_TAG}..HEAD" -- . ':!.github' | grep -v 'Co-Authored-By' | head -20 > /tmp/changelog.txt
           else
-            PREV_TAG="${{ steps.vars.outputs.prev_tag }}"
-            if [ -n "$PREV_TAG" ]; then
-              git log --pretty=format:"- %s" "${PREV_TAG}..HEAD" -- . ':!.github' | grep -v 'Co-Authored-By' | head -20 > /tmp/changelog.txt
-            else
-              echo "- Initial release" > /tmp/changelog.txt
-            fi
+            echo "- Initial release" > /tmp/changelog.txt
           fi
 
       - name: Update release body

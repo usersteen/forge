@@ -23,6 +23,51 @@ import GuidedTour from "./GuidedTour";
 
 const appWindow = getCurrentWindow();
 
+function WorktreeCloseBlockedModal({ groupName, childNames, onClose }) {
+  useEffect(() => {
+    const handleKey = (event) => {
+      if (event.key === "Escape") onClose();
+    };
+
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [onClose]);
+
+  return (
+    <div className="settings-overlay" onClick={onClose}>
+      <div className="worktree-blocked-modal" onClick={(event) => event.stopPropagation()}>
+        <div className="settings-header">
+          <span>Close Worktrees First</span>
+          <button className="settings-close" onClick={onClose} aria-label="Close dialog">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div className="worktree-blocked-body">
+          <p>
+            <strong>{groupName}</strong> has nested worktrees, so it cannot be closed until those child worktrees are removed first.
+          </p>
+          {childNames.length > 0 && (
+            <>
+              <div className="worktree-blocked-label">Nested worktrees</div>
+              <div className="worktree-blocked-list">
+                {childNames.map((name) => (
+                  <div key={name} className="worktree-blocked-item">{name}</div>
+                ))}
+              </div>
+            </>
+          )}
+          <button type="button" className="settings-path-save" onClick={onClose}>
+            OK
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function getSidebarDotClass(tab, isRecent) {
   if (tab.type === "server") {
     return "server-running";
@@ -72,7 +117,28 @@ function getGroupPriorityClass(group, now, recencyThreshold) {
   return "";
 }
 
-function SortableGroup({ group, isActive, now, recencyThreshold, onSelect, onDoubleClick, onContextMenu, editingId, inputProps, onRemove, branchName }) {
+function getVisibleSidebarTabs(tabs, limit = 4) {
+  return {
+    visibleTabs: tabs.slice(0, limit),
+    overflowCount: Math.max(0, tabs.length - limit),
+  };
+}
+
+function SortableGroup({
+  group,
+  isActive,
+  now,
+  recencyThreshold,
+  projectMenuDetail,
+  onSelect,
+  onSelectTab,
+  onDoubleClick,
+  onContextMenu,
+  editingId,
+  inputProps,
+  onRemove,
+  branchName,
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: group.id });
   const { elementRef: groupRef, handleAnimationEnd } = useFlashAnimation(group.waitingFlashKey);
   const style = {
@@ -80,20 +146,25 @@ function SortableGroup({ group, isActive, now, recencyThreshold, onSelect, onDou
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
+  const { visibleTabs, overflowCount } = getVisibleSidebarTabs(group.tabs);
+  const isDetailed = projectMenuDetail === "detailed";
 
   return (
     <div
       ref={(node) => { setNodeRef(node); groupRef.current = node; }}
       style={style}
-      {...attributes}
-      {...listeners}
       className={`sidebar-group ${isActive ? "sidebar-group-active" : ""} ${getGroupPriorityClass(group, now, recencyThreshold)}`}
-      onClick={onSelect}
-      onDoubleClick={onDoubleClick}
-      onContextMenu={onContextMenu}
       onAnimationEnd={handleAnimationEnd}
     >
-      <div className="sidebar-group-info">
+      <div
+        className="sidebar-group-main"
+        {...attributes}
+        {...listeners}
+        onClick={onSelect}
+        onDoubleClick={onDoubleClick}
+        onContextMenu={onContextMenu}
+      >
+        <div className="sidebar-group-info">
         {editingId === group.id ? (
           <input className="sidebar-rename-input" {...inputProps} />
         ) : (
@@ -102,22 +173,55 @@ function SortableGroup({ group, isActive, now, recencyThreshold, onSelect, onDou
               <span className="sidebar-group-name">{group.name}</span>
             </div>
             {branchName && <div className="sidebar-branch-label">{branchName}</div>}
+            {isDetailed ? (
+              <div className="sidebar-tab-list" aria-label={`${group.name} tabs`}>
+                {visibleTabs.map((tab) => {
+                  const isRecent = tab.lastEngagedAt && now - tab.lastEngagedAt < recencyThreshold;
+                  const isActiveTab = tab.id === group.activeTabId;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      className={`sidebar-tab-row${isActiveTab ? " sidebar-tab-row-active" : ""}`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onSelectTab(tab.id);
+                      }}
+                      onPointerDown={(event) => event.stopPropagation()}
+                      title={tab.name}
+                    >
+                      <span
+                        className={`sidebar-dot sidebar-tab-dot ${getSidebarDotClass(tab, isRecent)}`}
+                        aria-hidden="true"
+                      />
+                      <span className="sidebar-tab-label">{tab.name}</span>
+                    </button>
+                  );
+                })}
+                {overflowCount > 0 && <div className="sidebar-tab-overflow">+{overflowCount} more</div>}
+              </div>
+            ) : (
+              <div className="sidebar-group-dots">
+                {group.tabs.map((tab) => (
+                  <span key={tab.id} className={`sidebar-dot ${getSidebarDotClass(tab, tab.lastEngagedAt && now - tab.lastEngagedAt < recencyThreshold)}`} />
+                ))}
+              </div>
+            )}
           </>
         )}
-        <div className="sidebar-group-dots">
-          {group.tabs.map((tab) => (
-            <span key={tab.id} className={`sidebar-dot ${getSidebarDotClass(tab, tab.lastEngagedAt && now - tab.lastEngagedAt < recencyThreshold)}`} />
-          ))}
         </div>
       </div>
       <button
+        type="button"
         className="sidebar-group-close"
         onClick={(e) => {
           e.stopPropagation();
           onRemove();
         }}
         onPointerDown={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
         onContextMenu={(e) => e.stopPropagation()}
+        aria-label={`Close project ${group.name}`}
       >
         x
       </button>
@@ -133,11 +237,13 @@ export default function Sidebar() {
   const removeGroup = useForgeStore((s) => s.removeGroup);
   const renameGroup = useForgeStore((s) => s.renameGroup);
   const reorderGroups = useForgeStore((s) => s.reorderGroups);
+  const setActiveTab = useForgeStore((s) => s.setActiveTab);
   const theme = useForgeStore((s) => s.theme);
   const fxEnabled = useForgeStore((s) => s.fxEnabled);
   const configLoaded = useForgeStore((s) => s.configLoaded);
   const showWelcomeOnLaunch = useForgeStore((s) => s.showWelcomeOnLaunch);
   const tabRecencyMinutes = useForgeStore((s) => s.tabRecencyMinutes);
+  const projectMenuDetail = useForgeStore((s) => s.projectMenuDetail);
   const setDemoHeatStage = useForgeStore((s) => s.setDemoHeatStage);
 
   const hasWaitingTabs = groups.some((g) => g.tabs.some((t) => t.status === "waiting"));
@@ -167,6 +273,7 @@ export default function Sidebar() {
   const [infoExiting, setInfoExiting] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [showThemeLab, setShowThemeLab] = useState(false);
+  const [blockedCloseGroup, setBlockedCloseGroup] = useState(null);
   const tourActive = useForgeStore((s) => s.tourActive);
   const tourExpandedPanel = useForgeStore((s) => s.tourExpandedPanel);
   const storeTourStart = useForgeStore((s) => s.startTour);
@@ -229,6 +336,15 @@ export default function Sidebar() {
     setContextMenu(null);
   }, [activeGroupId]);
 
+  const openBlockedCloseModal = useCallback((groupId) => {
+    const group = groups.find((entry) => entry.id === groupId);
+    if (!group) return;
+    const childNames = groups
+      .filter((entry) => entry.worktreeParentId === groupId)
+      .map((entry) => entry.name);
+    setBlockedCloseGroup({ groupName: group.name, childNames });
+  }, [groups]);
+
   const NOOP = useCallback(() => {}, []);
 
   return (
@@ -252,7 +368,12 @@ export default function Sidebar() {
                   now={now}
                   recencyThreshold={recencyThreshold}
                   branchName={branchName}
+                  projectMenuDetail={projectMenuDetail}
                   onSelect={() => setActiveGroup(group.id)}
+                  onSelectTab={(tabId) => {
+                    setActiveGroup(group.id);
+                    setActiveTab(group.id, tabId);
+                  }}
                   onDoubleClick={() => startEditing(group.id, group.name)}
                   onContextMenu={(event) => {
                     event.preventDefault();
@@ -268,7 +389,13 @@ export default function Sidebar() {
                   }}
                   editingId={editingId}
                   inputProps={inputProps}
-                  onRemove={() => removeGroup(group.id)}
+                  onRemove={() => {
+                    if (hasWorktreeChildren(group.id)) {
+                      openBlockedCloseModal(group.id);
+                      return;
+                    }
+                    removeGroup(group.id);
+                  }}
                 />
               );
 
@@ -394,7 +521,7 @@ export default function Sidebar() {
           onRename={() => startEditing(contextMenu.groupId, contextMenu.groupName)}
           onRemove={() => {
             if (hasWorktreeChildren(contextMenu.groupId)) {
-              alert("Close worktree branches first.");
+              openBlockedCloseModal(contextMenu.groupId);
             } else {
               removeGroup(contextMenu.groupId);
             }
@@ -407,6 +534,13 @@ export default function Sidebar() {
             removeWorktreeGroup(contextMenu.groupId).catch((err) => alert(err));
           }}
           onClose={() => setContextMenu(null)}
+        />
+      )}
+      {blockedCloseGroup && (
+        <WorktreeCloseBlockedModal
+          groupName={blockedCloseGroup.groupName}
+          childNames={blockedCloseGroup.childNames}
+          onClose={() => setBlockedCloseGroup(null)}
         />
       )}
       {worktreeDialog && (

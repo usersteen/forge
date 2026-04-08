@@ -108,6 +108,8 @@ pub struct SettingsConfig {
     pub sound_volume: u64,
     #[serde(default = "default_true")]
     pub show_welcome_on_launch: bool,
+    #[serde(default = "default_project_menu_detail")]
+    pub project_menu_detail: String,
     #[serde(default)]
     pub repos_root_path: Option<String>,
 }
@@ -131,6 +133,10 @@ fn default_sound_volume() -> u64 {
     80
 }
 
+fn default_project_menu_detail() -> String {
+    "simple".to_string()
+}
+
 impl Default for SettingsConfig {
     fn default() -> Self {
         Self {
@@ -142,6 +148,7 @@ impl Default for SettingsConfig {
             fx_enabled: true,
             sound_volume: 80,
             show_welcome_on_launch: true,
+            project_menu_detail: default_project_menu_detail(),
             repos_root_path: None,
         }
     }
@@ -162,7 +169,7 @@ pub struct ForgeConfig {
 }
 
 fn default_schema_version() -> u32 {
-    4
+    5
 }
 
 fn config_path() -> PathBuf {

@@ -15,9 +15,33 @@ import {
 
 const AI_TAB_TYPE = "ai";
 const SERVER_TAB_TYPE = "server";
+const DEFAULT_PROJECT_MENU_DETAIL = "simple";
+const PROJECT_MENU_DETAIL_STORAGE_KEY = "forge.projectMenuDetail";
 
 function normalizeTabType(value) {
   return value === SERVER_TAB_TYPE ? SERVER_TAB_TYPE : AI_TAB_TYPE;
+}
+
+function normalizeProjectMenuDetail(value) {
+  return value === "detailed" ? "detailed" : DEFAULT_PROJECT_MENU_DETAIL;
+}
+
+function loadStoredProjectMenuDetail() {
+  if (typeof window === "undefined") return DEFAULT_PROJECT_MENU_DETAIL;
+  try {
+    return normalizeProjectMenuDetail(window.localStorage.getItem(PROJECT_MENU_DETAIL_STORAGE_KEY));
+  } catch {
+    return DEFAULT_PROJECT_MENU_DETAIL;
+  }
+}
+
+function persistProjectMenuDetail(value) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(PROJECT_MENU_DETAIL_STORAGE_KEY, normalizeProjectMenuDetail(value));
+  } catch {
+    // Ignore localStorage failures and fall back to config persistence.
+  }
 }
 
 function inferProviderFromLaunchCommand(command) {
@@ -146,6 +170,7 @@ const useForgeStore = create((set, get) => ({
   fxEnabled: true,
   soundVolume: 80,
   showWelcomeOnLaunch: true,
+  projectMenuDetail: loadStoredProjectMenuDetail(),
 
   workspaceByGroup: {},
   documentStateByGroup: {},
@@ -183,6 +208,7 @@ const useForgeStore = create((set, get) => ({
       theme: DEFAULT_THEME,
       fxEnabled: true,
       showWelcomeOnLaunch: true,
+      projectMenuDetail: loadStoredProjectMenuDetail(),
       streak: 0,
       lastStreakTime: null,
       heatPauseStartedAt: null,
@@ -234,6 +260,9 @@ const useForgeStore = create((set, get) => ({
       fxEnabled: config.settings?.fx_enabled ?? true,
       soundVolume: config.settings?.sound_volume ?? 80,
       showWelcomeOnLaunch: config.settings?.show_welcome_on_launch ?? true,
+      projectMenuDetail: normalizeProjectMenuDetail(
+        config.settings?.project_menu_detail ?? loadStoredProjectMenuDetail()
+      ),
       streakTimer: config.settings?.streak_timer ?? 10000,
       cooldownTimer: config.settings?.cooldown_timer ?? 30000,
       tabRecencyMinutes: config.settings?.tab_recency_minutes ?? 5,
@@ -986,6 +1015,11 @@ const useForgeStore = create((set, get) => ({
   setSoundVolume: (v) => set({ soundVolume: Math.max(0, Math.min(100, Number(v) || 0)) }),
   setShowWelcomeOnLaunch: (showWelcomeOnLaunch) =>
     set({ showWelcomeOnLaunch: Boolean(showWelcomeOnLaunch) }),
+  setProjectMenuDetail: (projectMenuDetail) => {
+    const normalized = normalizeProjectMenuDetail(projectMenuDetail);
+    persistProjectMenuDetail(normalized);
+    set({ projectMenuDetail: normalized });
+  },
   setReposRootPath: (path) => set({ reposRootPath: path || null }),
 
   setDemoHeatStage: (stage) => set({ demoHeatStage: stage }),
@@ -1255,6 +1289,7 @@ export function storeToConfig(state, windowGeometry) {
       fx_enabled: state.fxEnabled,
       sound_volume: state.soundVolume,
       show_welcome_on_launch: state.showWelcomeOnLaunch,
+      project_menu_detail: normalizeProjectMenuDetail(state.projectMenuDetail),
     },
   };
 }

@@ -47,11 +47,67 @@ const CATEGORIES = [
   { id: "paths", label: "Paths", icon: PathsIcon },
 ];
 
+const PROJECT_MENU_DETAIL_OPTIONS = [
+  {
+    value: "simple",
+    label: "Compact",
+    hint: "Dense project scan with a single dot strip.",
+  },
+  {
+    value: "detailed",
+    label: "Detailed",
+    hint: "Shows named tab rows inside each project item.",
+  },
+];
+
+function ProjectMenuModePreview({ mode, active }) {
+  const previewTabs = [
+    { label: "Server", statusClass: "server-running" },
+    { label: "Plan", statusClass: "waiting waiting-hot" },
+    { label: "Review", statusClass: "working" },
+  ];
+
+  return (
+    <div className={`settings-project-menu-preview${active ? " settings-project-menu-preview-active" : ""}`} aria-hidden="true">
+      <div className="settings-project-menu-preview-header">
+        <span className="settings-project-menu-preview-title">forge</span>
+      </div>
+      <div className="settings-project-menu-preview-body">
+        <div className="settings-project-menu-preview-project">
+          <div className="settings-project-menu-preview-project-name">Forge</div>
+          <div className="settings-project-menu-preview-branch">main</div>
+          {mode === "detailed" ? (
+            <div className="settings-project-menu-preview-tabs">
+              {previewTabs.map((tab, index) => (
+                <div
+                  key={tab.label}
+                  className={`settings-project-menu-preview-tab${index === 1 ? " settings-project-menu-preview-tab-active" : ""}`}
+                >
+                  <span className={`sidebar-dot settings-project-menu-preview-dot ${tab.statusClass}`} />
+                  <span className="settings-project-menu-preview-tab-label">{tab.label}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="settings-project-menu-preview-dots">
+              {previewTabs.map((tab) => (
+                <span key={tab.label} className={`sidebar-dot settings-project-menu-preview-dot ${tab.statusClass}`} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AppearanceSection() {
   const theme = useForgeStore((s) => s.theme);
   const fxEnabled = useForgeStore((s) => s.fxEnabled);
+  const projectMenuDetail = useForgeStore((s) => s.projectMenuDetail);
   const setTheme = useForgeStore((s) => s.setTheme);
   const setFxEnabled = useForgeStore((s) => s.setFxEnabled);
+  const setProjectMenuDetail = useForgeStore((s) => s.setProjectMenuDetail);
   const themeOptions = getThemeOptions();
 
   return (
@@ -98,6 +154,29 @@ function AppearanceSection() {
           onClick={() => setFxEnabled(!fxEnabled)}
           aria-label={fxEnabled ? "Disable effects" : "Enable effects"}
         />
+      </div>
+      <div className="settings-row">
+        <label>Project Menu</label>
+        <div className="settings-project-menu-grid">
+          {PROJECT_MENU_DETAIL_OPTIONS.map((option) => {
+            const active = projectMenuDetail === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                className={`settings-project-menu-card${active ? " settings-project-menu-card-active" : ""}`}
+                onClick={() => setProjectMenuDetail(option.value)}
+              >
+                <ProjectMenuModePreview mode={option.value} active={active} />
+                <span className="settings-project-menu-card-title">{option.label}</span>
+                <span className="settings-project-menu-card-hint">{option.hint}</span>
+              </button>
+            );
+          })}
+        </div>
+        <span className="settings-hint">
+          Compact keeps the sidebar dense. Detailed expands each project into named tab rows.
+        </span>
       </div>
     </>
   );

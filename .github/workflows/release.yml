@@ -49,7 +49,7 @@ jobs:
           releaseName: "Forge ${{ github.ref_name }}"
           releaseBody: "Building..."
           releaseDraft: false
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          prerelease: ${{ contains(github.ref_name, '-') || github.ref_name == 'v0.5.33' }}
 
   update-release:
     needs: build
@@ -80,30 +80,33 @@ jobs:
           # Wait briefly for assets to finalize
           sleep 10
 
-          ASSETS=$(gh release view "$GITHUB_REF_NAME" --json assets --jq '.assets[] | "\(.name) \(.url)"')
+          gh release view "$GITHUB_REF_NAME" --json assets > /tmp/release-assets.json
 
-          WIN_NAME=""
-          WIN_URL=""
-          MAC_NAME=""
-          MAC_URL=""
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          from pathlib import Path
 
-          while read -r name url; do
-            case "$name" in
-              *-setup.exe|*.exe)
-                WIN_NAME="$name"
-                WIN_URL="$url"
-                ;;
-              *.dmg)
-                MAC_NAME="$name"
-                MAC_URL="$url"
-                ;;
-            esac
-          done <<< "$ASSETS"
+          assets = json.loads(Path("/tmp/release-assets.json").read_text())["assets"]
 
-          echo "win_name=$WIN_NAME" >> "$GITHUB_OUTPUT"
-          echo "win_url=$WIN_URL" >> "$GITHUB_OUTPUT"
-          echo "mac_name=$MAC_NAME" >> "$GITHUB_OUTPUT"
-          echo "mac_url=$MAC_URL" >> "$GITHUB_OUTPUT"
+          def normalize_label(name: str) -> str:
+            lower = name.lower()
+            if lower.endswith(".exe"):
+              return "Windows EXE (ZIP)"
+            if lower.endswith(".dmg"):
+              return "macOS DMG (ZIP)"
+            return ""
+
+          lines = []
+          for asset in assets:
+            label = normalize_label(asset["name"])
+            if not label:
+              continue
+            lines.append(f"- **{label}:** [{asset['name']}]({asset['url']})")
+
+          print("downloads<<EOF")
+          print("\n".join(lines))
+          print("EOF")
+          PY
 
       - name: Build changelog
         id: changelog
@@ -121,22 +124,12 @@ jobs:
         run: |
           VERSION="${{ steps.vars.outputs.version }}"
           PREV_TAG="${{ steps.vars.outputs.prev_tag }}"
-          WIN_NAME="${{ steps.assets.outputs.win_name }}"
-          WIN_URL="${{ steps.assets.outputs.win_url }}"
-          MAC_NAME="${{ steps.assets.outputs.mac_name }}"
-          MAC_URL="${{ steps.assets.outputs.mac_url }}"
+          DOWNLOADS="${{ steps.assets.outputs.downloads }}"
 
           CHANGELOG=$(cat /tmp/changelog.txt)
 
-          # Build download section
-          DOWNLOADS=""
-          if [ -n "$WIN_NAME" ]; then
-            DOWNLOADS="$DOWNLOADS
-          - **Windows EXE (ZIP):** [$WIN_NAME]($WIN_URL)"
-          fi
-          if [ -n "$MAC_NAME" ]; then
-            DOWNLOADS="$DOWNLOADS
-          - **macOS DMG (ZIP):** [$MAC_NAME]($MAC_URL)"
+          if [ -z "$DOWNLOADS" ]; then
+            DOWNLOADS="- Build artifacts are still processing."
           fi
 
           # Build comparison link

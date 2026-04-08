@@ -30,6 +30,21 @@ const CODEX_NONINTERACTIVE_SUBCOMMANDS = new Set([
   "features",
   "help",
 ]);
+const CODEX_SESSION_UI_COMMANDS = new Set([
+  "/approvals",
+  "/config",
+  "/help",
+  "/history",
+  "/login",
+  "/logout",
+  "/mcp",
+  "/memory",
+  "/model",
+  "/providers",
+  "/resume",
+  "/status",
+  "/theme",
+]);
 
 const AGENT_WAITING_TITLE_PREFIX = /^[\u2733\u273b\u273d]\uFE0F?/u;
 const CODEX_INTERRUPTED_LINE_PATTERN = /\bconversation interrupted\b/i;
@@ -102,6 +117,19 @@ export function isCodexLaunchCommand(command) {
 
 export function isCodexExitCommand(command) {
   return CODEX_EXIT_COMMAND.test(command);
+}
+
+export function classifyCodexSessionCommand(command) {
+  const normalized = typeof command === "string" ? command.trim() : "";
+  if (!normalized) return "unknown";
+  if (!normalized.startsWith("/")) return "prompt";
+
+  const [verb] = normalized.split(/\s+/, 1);
+  if (CODEX_SESSION_UI_COMMANDS.has(verb.toLowerCase())) {
+    return "ui";
+  }
+
+  return "slash";
 }
 
 export function getCodexLaunchMode(command) {

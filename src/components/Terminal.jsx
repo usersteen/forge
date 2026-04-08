@@ -8,6 +8,7 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import useForgeStore from "../store/useForgeStore";
 import {
+  classifyCodexSessionCommand,
   detectCodexAttentionText,
   extractPlainText,
   isClaudeLaunchCommand,
@@ -178,6 +179,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
     summary: "",
     at: 0,
   });
+  const lastCodexInputKindRef = useRef("unknown");
   const recentCodexReplyAtRef = useRef(0);
   const codexWaitingAttentionRef = useRef({
     pendingTimer: null,
@@ -702,11 +704,20 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
         return;
       }
 
+      if (lastCodexInputKindRef.current === "ui") {
+        logCodexDebug("ignored-ui-output", {
+          summary,
+          recentText,
+        });
+        return;
+      }
+
       if (currentTabStatus === "waiting") {
-        if (summary && hasRecentCodexReply()) {
+        if (summary && hasRecentCodexReply() && lastCodexInputKindRef.current !== "ui") {
           logCodexDebug("working-after-reply", {
             summary,
             recentText,
+            commandKind: lastCodexInputKindRef.current,
           });
           applyDetectedStatus("working", summary);
           return;
@@ -829,6 +840,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
           command,
           launchMode: codexLaunchMode,
         });
+        lastCodexInputKindRef.current = codexLaunchMode === "interactive" ? "launch" : "prompt";
         if (codexLaunchMode === "interactive") {
           clearCodexIdleTimeout();
           applyDetectedStatus("waiting", "Codex ready", {
@@ -886,21 +898,32 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
         return;
       }
 
-      detector.awaitingUser = false;
-      recentCodexReplyAtRef.current = Date.now();
-      rememberRecentCodexInput(command);
+      const codexCommandKind = classifyCodexSessionCommand(command);
+      lastCodexInputKindRef.current = codexCommandKind;
+      if (codexCommandKind !== "ui") {
+        detector.awaitingUser = false;
+        recentCodexReplyAtRef.current = Date.now();
+      }
+      if (codexCommandKind === "prompt") {
+        rememberRecentCodexInput(command);
+      } else {
+        recentCodexInputRef.current = { summary: "", at: 0 };
+      }
       logCodexDebug("user-reply", {
         command,
+        commandKind: codexCommandKind,
         recentText: codexDebugRef.current.recentText,
       });
       const store = useForgeStore.getState();
       const snapshot = getTabSnapshot(store, tabId);
-      if (snapshot?.tab.status === "waiting") {
+      if (codexCommandKind !== "ui" && snapshot?.tab.status === "waiting") {
         applyDetectedStatus("working", summarizeStatusText(command, "Codex"), {
           notifyWaiting: false,
         });
       }
-      scheduleCodexIdleCheck();
+      if (codexCommandKind !== "ui") {
+        scheduleCodexIdleCheck();
+      }
     };
 
     const ensureDebugCodexProvider = () => {
@@ -926,6 +949,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
 
     const simulateCodexReply = (command = "debug reply") => {
       ensureDebugCodexProvider();
+      lastCodexInputKindRef.current = "prompt";
       detectorRef.current.awaitingUser = false;
       recentCodexReplyAtRef.current = Date.now();
       rememberRecentCodexInput(command);
@@ -963,6 +987,25 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
         simulateCodexStatus("waiting", "Debug: initial wait", { notifyWaiting: false });
         scheduleDebugStep(100, () => simulateCodexReply("debug follow-up"));
         scheduleDebugStep(260, () => simulateCodexStatus("waiting", "Debug: new wait after reply"));
+        return { ok: true, scenario };
+      }
+
+      if (scenario === "resume-ui") {
+        simulateCodexStatus("waiting", "Debug: initial wait", { notifyWaiting: false });
+        scheduleDebugStep(100, () => {
+          lastCodexInputKindRef.current = "ui";
+          recentCodexInputRef.current = { summary: "", at: 0 };
+          recentCodexReplyAtRef.current = 0;
+          detectorRef.current.awaitingUser = true;
+        });
+        scheduleDebugStep(220, () => {
+          const previous = prevStatusRef.current;
+          const summary = "Debug: resume picker";
+          if (previous === "waiting" && lastCodexInputKindRef.current !== "ui") {
+            applyDetectedStatus("working", summary, { notifyWaiting: false });
+          }
+        });
+        scheduleDebugStep(420, () => simulateCodexStatus("waiting", "Debug: back from resume", { notifyWaiting: false }));
         return { ok: true, scenario };
       }
 
@@ -1385,6 +1428,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       detectorRef.current = { provider: "unknown", awaitingUser: false };
       recentCodexInputRef.current = { summary: "", at: 0 };
       recentCodexReplyAtRef.current = 0;
+      lastCodexInputKindRef.current = "unknown";
       codexTitleStatusRef.current = {
         supported: false,
         lastSeenAt: 0,

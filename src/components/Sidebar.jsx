@@ -153,7 +153,7 @@ function SortableGroup({
     <div
       ref={(node) => { setNodeRef(node); groupRef.current = node; }}
       style={style}
-      className={`sidebar-group ${isActive ? "sidebar-group-active" : ""} ${getGroupPriorityClass(group, now, recencyThreshold)}`}
+      className={`sidebar-group ${isDetailed ? "sidebar-group-detailed" : ""} ${isActive ? "sidebar-group-active" : ""} ${getGroupPriorityClass(group, now, recencyThreshold)}`}
       onAnimationEnd={handleAnimationEnd}
     >
       <div

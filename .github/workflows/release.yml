@@ -89,7 +89,7 @@ jobs:
 
           while read -r name url; do
             case "$name" in
-              *.exe|*x64-setup*|*.msi)
+              *-setup.exe|*.exe)
                 WIN_NAME="$name"
                 WIN_URL="$url"
                 ;;
@@ -137,11 +137,11 @@ jobs:
           DOWNLOADS=""
           if [ -n "$WIN_NAME" ]; then
             DOWNLOADS="$DOWNLOADS
-          - **Windows:** [$WIN_NAME]($WIN_URL)"
+          - **Windows EXE (ZIP):** [$WIN_NAME]($WIN_URL)"
           fi
           if [ -n "$MAC_NAME" ]; then
             DOWNLOADS="$DOWNLOADS
-          - **macOS:** [$MAC_NAME]($MAC_URL)"
+          - **macOS DMG (ZIP):** [$MAC_NAME]($MAC_URL)"
           fi
 
           # Build comparison link

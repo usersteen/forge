@@ -424,11 +424,13 @@ export default function Sidebar() {
                 return (
                   <div key={item.parent.id} className="sidebar-worktree-cluster">
                     {renderGroup(item.parent, item.parent.gitBranch)}
-                    {item.children.map((child) => (
-                      <div key={child.id} className="sidebar-worktree-child">
-                        {renderGroup(child, child.gitBranch)}
-                      </div>
-                    ))}
+                    <div className="sidebar-worktree-children">
+                      {item.children.map((child) => (
+                        <div key={child.id} className="sidebar-worktree-child">
+                          {renderGroup(child, child.gitBranch)}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 );
               }

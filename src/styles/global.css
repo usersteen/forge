@@ -625,10 +625,17 @@ html, body, #root {
   color: var(--text-primary);
 }
 
-.sidebar-worktree-child {
-  padding-left: 16px;
-  margin-left: 8px;
+.sidebar-worktree-children {
+  display: grid;
+  gap: 0;
+  margin: 5px 0 5px 16px;
+  padding: 6px 0;
   border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-worktree-child {
+  padding-left: 8px;
+  margin-left: -1px;
 }
 
 .sidebar-branch-label {

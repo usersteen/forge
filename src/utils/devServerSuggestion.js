@@ -21,6 +21,10 @@ function commandForPackageScript(packageManager, scriptName) {
   return `npm run ${scriptName}`;
 }
 
+function makeSuggestion(command, reason, source = "script") {
+  return { command, reason, source };
+}
+
 async function readWorkspaceFileIfPresent(rootPath, relativePath) {
   try {
     return await invoke("read_workspace_file", { rootPath, relativePath });
@@ -51,7 +55,30 @@ async function detectPackageManager(rootPath, packageJson) {
   return detected?.packageManager || "npm";
 }
 
-export async function inferServerLaunch(rootPath) {
+async function inferTauriLaunch(rootPath, scripts, packageManager) {
+  if (typeof scripts?.tauri !== "string" || !scripts.tauri.trim()) {
+    return null;
+  }
+
+  const tauriConfigFiles = await Promise.all([
+    readWorkspaceFileIfPresent(rootPath, "src-tauri/tauri.conf.json"),
+    readWorkspaceFileIfPresent(rootPath, "src-tauri/tauri.macos.conf.json"),
+    readWorkspaceFileIfPresent(rootPath, "tauri.conf.json"),
+  ]);
+
+  const isTauriProject = tauriConfigFiles.some(Boolean);
+  if (!isTauriProject) {
+    return null;
+  }
+
+  return makeSuggestion(
+    commandForPackageScript(packageManager, "tauri dev"),
+    "Suggested from a Tauri repo and package.json scripts.tauri",
+    "tauri"
+  );
+}
+
+export async function inferDefaultServerLaunch(rootPath) {
   if (!rootPath) return null;
 
   const packageJsonFile = await readWorkspaceFileIfPresent(rootPath, "package.json");
@@ -67,6 +94,12 @@ export async function inferServerLaunch(rootPath) {
   const scripts = packageJson?.scripts;
   if (!scripts || typeof scripts !== "object") return null;
 
+  const packageManager = await detectPackageManager(rootPath, packageJson);
+  const tauriSuggestion = await inferTauriLaunch(rootPath, scripts, packageManager);
+  if (tauriSuggestion) {
+    return tauriSuggestion;
+  }
+
   const scriptName =
     typeof scripts.dev === "string" && scripts.dev.trim()
       ? "dev"
@@ -76,9 +109,22 @@ export async function inferServerLaunch(rootPath) {
 
   if (!scriptName) return null;
 
-  const packageManager = await detectPackageManager(rootPath, packageJson);
-  return {
-    command: commandForPackageScript(packageManager, scriptName),
-    reason: `Suggested from package.json scripts.${scriptName}`,
-  };
+  return makeSuggestion(
+    commandForPackageScript(packageManager, scriptName),
+    `Suggested from package.json scripts.${scriptName}`,
+    "script"
+  );
+}
+
+export async function inferServerLaunch(rootPath, preferredCommand = null) {
+  const normalizedPreferredCommand =
+    typeof preferredCommand === "string" && preferredCommand.trim()
+      ? preferredCommand.trim()
+      : null;
+
+  if (normalizedPreferredCommand) {
+    return makeSuggestion(normalizedPreferredCommand, "Saved for this project", "saved");
+  }
+
+  return inferDefaultServerLaunch(rootPath);
 }

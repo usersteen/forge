@@ -359,6 +359,7 @@ export default function TabBar({ onRefreshWorkspace }) {
           x={newTabMenu.x}
           y={newTabMenu.y}
           rootPath={activeGroup.rootPath}
+          serverCommandOverride={activeGroup.serverCommandOverride}
           tourElevated={tourActive}
           onSelect={tourActive ? NOOP : (tabOptions) => addTab(activeGroupId, tabOptions)}
           onClose={tourActive ? NOOP : () => setNewTabMenu(null)}

@@ -3,10 +3,18 @@ import { NEW_TAB_OPTIONS } from "../data/newTabOptions";
 import useEscapeKey from "../hooks/useEscapeKey";
 import useServerSuggestion from "../hooks/useServerSuggestion";
 
-export default function NewTabMenu({ x, y, rootPath, onSelect, onClose, tourElevated }) {
+export default function NewTabMenu({
+  x,
+  y,
+  rootPath,
+  serverCommandOverride,
+  onSelect,
+  onClose,
+  tourElevated,
+}) {
   const menuRef = useRef(null);
   const { serverSuggestion, serverExpanded, hasSubmenu, serverHint, toggleServerExpanded } =
-    useServerSuggestion(rootPath);
+    useServerSuggestion(rootPath, serverCommandOverride);
 
   useEffect(() => {
     const handlePointerDown = (event) => {
@@ -33,6 +41,10 @@ export default function NewTabMenu({ x, y, rootPath, onSelect, onClose, tourElev
     openServerTab();
   };
 
+  const runCommandLabel = serverSuggestion.value?.source === "saved"
+    ? "Run Saved Command"
+    : "Run Suggested Command";
+
   return (
     <div ref={menuRef} className={`quick-tab-menu${tourElevated ? " tour-elevated-menu" : ""}`} style={{ left: x, top: y }}>
       {NEW_TAB_OPTIONS.map((option) =>
@@ -58,7 +70,7 @@ export default function NewTabMenu({ x, y, rootPath, onSelect, onClose, tourElev
                     className="quick-tab-subitem"
                     onClick={() => openServerTab(serverSuggestion.value.command)}
                   >
-                    <span className="quick-tab-item-label">Run Suggested Command</span>
+                    <span className="quick-tab-item-label">{runCommandLabel}</span>
                     <span className="quick-tab-item-hint">{serverSuggestion.value.command}</span>
                     <span className="quick-tab-item-meta">{serverSuggestion.value.reason}</span>
                   </button>

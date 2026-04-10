@@ -2,10 +2,10 @@ import { NEW_TAB_OPTIONS } from "../data/newTabOptions";
 import useServerSuggestion from "../hooks/useServerSuggestion";
 import useForgeStore from "../store/useForgeStore";
 
-export default function EmptyGroupPicker({ groupId, rootPath }) {
+export default function EmptyGroupPicker({ groupId, rootPath, serverCommandOverride }) {
   const addTab = useForgeStore((s) => s.addTab);
   const { serverSuggestion, serverExpanded, hasSubmenu, serverHint, toggleServerExpanded } =
-    useServerSuggestion(rootPath);
+    useServerSuggestion(rootPath, serverCommandOverride);
 
   const selectOption = (tabOptions) => {
     addTab(groupId, tabOptions);
@@ -22,6 +22,10 @@ export default function EmptyGroupPicker({ groupId, rootPath }) {
     }
     openServerTab();
   };
+
+  const runCommandLabel = serverSuggestion.value?.source === "saved"
+    ? "Run Saved Command"
+    : "Run Suggested Command";
 
   return (
     <div className="empty-group-picker">
@@ -50,7 +54,7 @@ export default function EmptyGroupPicker({ groupId, rootPath }) {
                       className="quick-tab-subitem"
                       onClick={() => openServerTab(serverSuggestion.value.command)}
                     >
-                      <span className="quick-tab-item-label">Run Suggested Command</span>
+                      <span className="quick-tab-item-label">{runCommandLabel}</span>
                       <span className="quick-tab-item-hint">{serverSuggestion.value.command}</span>
                       <span className="quick-tab-item-meta">{serverSuggestion.value.reason}</span>
                     </button>

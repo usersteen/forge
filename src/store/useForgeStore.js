@@ -24,6 +24,12 @@ function normalizeTabType(value) {
   return value === SERVER_TAB_TYPE ? SERVER_TAB_TYPE : AI_TAB_TYPE;
 }
 
+function normalizeServerCommandOverride(value) {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed || null;
+}
+
 function normalizeProjectMenuDetail(value) {
   return value === "detailed" ? "detailed" : DEFAULT_PROJECT_MENU_DETAIL;
 }
@@ -132,6 +138,7 @@ function makeGroup(name = "Project 1") {
     worktreeParentId: null,
     gitBranch: null,
     gitCommonDir: null,
+    serverCommandOverride: null,
   };
 }
 
@@ -626,6 +633,8 @@ const useForgeStore = create((set, get) => ({
           activeDocumentPath: null,
           activeSurface: "terminal",
           lastIndexedAt: null,
+          serverCommandOverride:
+            group.rootPath === normalizedRootPath ? group.serverCommandOverride : null,
         })),
         workspaceByGroup: {
           ...state.workspaceByGroup,
@@ -637,6 +646,14 @@ const useForgeStore = create((set, get) => ({
         },
       };
     }),
+
+  setGroupServerCommandOverride: (groupId, command) =>
+    set((state) => ({
+      groups: mapGroups(state.groups, groupId, (group) => ({
+        ...group,
+        serverCommandOverride: normalizeServerCommandOverride(command),
+      })),
+    })),
 
   setExplorerVisible: (groupId, explorerVisible) =>
     set((state) => ({
@@ -1418,7 +1435,7 @@ export function storeToConfig(state, windowGeometry) {
     : state.activeGroupId;
 
   return {
-    schema_version: 5,
+    schema_version: 6,
     groups: groups.map((group) => ({
       id: group.id,
       name: group.name,
@@ -1445,6 +1462,7 @@ export function storeToConfig(state, windowGeometry) {
       reader_width: group.readerWidth,
       last_indexed_at: group.lastIndexedAt,
       worktree_parent_id: group.worktreeParentId || null,
+      server_command_override: normalizeServerCommandOverride(group.serverCommandOverride),
     })),
     active_group_id: activeGroupId,
     window: windowGeometry,

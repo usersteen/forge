@@ -110,6 +110,12 @@ export function normalizeReaderWidth(value) {
   return Math.min(MAX_READER_WIDTH, Math.max(MIN_READER_WIDTH, numericValue));
 }
 
+function normalizeServerCommandOverride(value) {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed || null;
+}
+
 export function withWorkspaceDefaults(group) {
   const openDocuments = Array.isArray(group?.open_documents)
     ? group.open_documents.map((doc) => normalizeDocumentRef({
@@ -135,6 +141,7 @@ export function withWorkspaceDefaults(group) {
     readerWidth: normalizeReaderWidth(group?.reader_width),
     lastIndexedAt: typeof group?.last_indexed_at === "number" ? group.last_indexed_at : null,
     worktreeParentId: group?.worktree_parent_id || null,
+    serverCommandOverride: normalizeServerCommandOverride(group?.server_command_override),
   };
 }
 

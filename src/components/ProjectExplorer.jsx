@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import useServerSuggestion from "../hooks/useServerSuggestion";
 import useForgeStore from "../store/useForgeStore";
 import ParticleLayer from "./ParticleLayer";
 import { normalizeRootPath } from "../utils/workspace";
@@ -144,19 +145,38 @@ export default function ProjectExplorer({ open, onClose, onRefresh, tourElevated
   const favoriteRepoPaths = useForgeStore((state) => state.favoriteRepoPaths);
   const openDocument = useForgeStore((state) => state.openDocument);
   const setGroupRootPath = useForgeStore((state) => state.setGroupRootPath);
+  const setGroupServerCommandOverride = useForgeStore((state) => state.setGroupServerCommandOverride);
   const setSelectedPath = useForgeStore((state) => state.setSelectedPath);
   const toggleFavoriteRepoPath = useForgeStore((state) => state.toggleFavoriteRepoPath);
 
   const activeGroup = groups.find((group) => group.id === activeGroupId) ?? null;
   const workspace = workspaceByGroup[activeGroupId];
+  const suggestionRootPath = open ? (activeGroup?.rootPath ?? null) : null;
+  const suggestionOverride = open ? (activeGroup?.serverCommandOverride ?? null) : null;
+  const { serverSuggestion, defaultServerSuggestion } = useServerSuggestion(
+    suggestionRootPath,
+    suggestionOverride
+  );
   const [workspacePathInput, setWorkspacePathInput] = useState("");
   const [expandedPaths, setExpandedPaths] = useState(() => new Set());
   const [editingPath, setEditingPath] = useState(true);
+  const [serverCommandInput, setServerCommandInput] = useState("");
+  const [editingServerCommand, setEditingServerCommand] = useState(false);
 
   useEffect(() => {
     setWorkspacePathInput(activeGroup?.rootPath ?? "");
     setEditingPath(!(activeGroup?.rootPath ?? ""));
   }, [activeGroup?.id, activeGroup?.rootPath]);
+
+  useEffect(() => {
+    setEditingServerCommand(false);
+    setServerCommandInput(activeGroup?.serverCommandOverride ?? "");
+  }, [activeGroup?.id, activeGroup?.rootPath, activeGroup?.serverCommandOverride]);
+
+  useEffect(() => {
+    if (editingServerCommand || activeGroup?.serverCommandOverride) return;
+    setServerCommandInput(defaultServerSuggestion.value?.command ?? "");
+  }, [activeGroup?.serverCommandOverride, defaultServerSuggestion.value?.command, editingServerCommand]);
 
   useEffect(() => {
     setExpandedPaths(new Set());
@@ -190,6 +210,40 @@ export default function ProjectExplorer({ open, onClose, onRefresh, tourElevated
   }, [activeGroup?.rootPath, editingPath, workspacePathInput]);
 
   const isFavoriteTarget = favoriteRepoPaths.includes(favoriteTargetPath);
+  const defaultServerCommand = defaultServerSuggestion.value?.command ?? "";
+  const activeServerCommand = serverSuggestion.value?.command ?? "";
+  const hasSavedServerCommand = Boolean(activeGroup?.serverCommandOverride);
+  const canResetToSuggested =
+    hasSavedServerCommand &&
+    Boolean(defaultServerCommand) &&
+    activeGroup.serverCommandOverride.trim() !== defaultServerCommand;
+
+  const commitServerCommand = useCallback(
+    (nextCommand = serverCommandInput) => {
+      if (!activeGroup) return;
+      const trimmed = nextCommand.trim();
+      const nextOverride =
+        trimmed && trimmed !== defaultServerCommand
+          ? trimmed
+          : null;
+      setGroupServerCommandOverride(activeGroup.id, nextOverride);
+      setServerCommandInput(nextOverride ?? defaultServerCommand);
+      setEditingServerCommand(false);
+    },
+    [activeGroup, defaultServerCommand, serverCommandInput, setGroupServerCommandOverride]
+  );
+
+  const resetServerCommandOverride = useCallback(() => {
+    if (!activeGroup) return;
+    setGroupServerCommandOverride(activeGroup.id, null);
+    setServerCommandInput(defaultServerCommand);
+    setEditingServerCommand(false);
+  }, [activeGroup, defaultServerCommand, setGroupServerCommandOverride]);
+
+  const cancelServerCommandEdit = useCallback(() => {
+    setServerCommandInput(activeGroup?.serverCommandOverride ?? defaultServerCommand);
+    setEditingServerCommand(false);
+  }, [activeGroup?.serverCommandOverride, defaultServerCommand]);
 
   if (!open || !activeGroup) {
     return null;
@@ -290,6 +344,100 @@ export default function ProjectExplorer({ open, onClose, onRefresh, tourElevated
           Paste a repository path to browse files and open markdown, text, or image documents.
         </div>
       )}
+
+      {activeGroup.rootPath ? (
+        <div className="repo-browser-server-row">
+          <div className="repo-browser-server-header">
+            <div className="repo-browser-server-title">Server Command</div>
+            <div className="repo-browser-server-badge">
+              {hasSavedServerCommand ? "Saved" : activeServerCommand ? "Suggested" : "Blank"}
+            </div>
+          </div>
+          {editingServerCommand ? (
+            <>
+              <div className="repo-browser-server-edit">
+                <input
+                  className="repo-browser-input"
+                  value={serverCommandInput}
+                  onChange={(event) => setServerCommandInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      commitServerCommand();
+                    }
+                    if (event.key === "Escape") {
+                      event.preventDefault();
+                      cancelServerCommandEdit();
+                    }
+                  }}
+                  placeholder="e.g. npm run tauri dev"
+                  spellCheck={false}
+                />
+                <button
+                  type="button"
+                  className="repo-browser-action"
+                  onClick={() => commitServerCommand()}
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  className="repo-browser-clear"
+                  onClick={cancelServerCommandEdit}
+                >
+                  Cancel
+                </button>
+                {defaultServerCommand ? (
+                  <button
+                    type="button"
+                    className="repo-browser-action"
+                    onClick={() => setServerCommandInput(defaultServerCommand)}
+                  >
+                    Use Suggested
+                  </button>
+                ) : null}
+              </div>
+              <div className="repo-browser-server-meta">
+                Save a project-specific command for the Server tab menu. Leave it matching the suggested command to fall back to auto-detection.
+              </div>
+            </>
+          ) : (
+            <>
+              <div className={`repo-browser-server-command${activeServerCommand ? "" : " repo-browser-server-command-empty"}`}>
+                {activeServerCommand || "No saved or suggested command yet"}
+              </div>
+              <div className="repo-browser-server-meta">
+                {activeServerCommand
+                  ? `${serverSuggestion.value.reason}. Used when you open a Server tab from the + menu.`
+                  : defaultServerSuggestion.status === "loading"
+                    ? "Inspecting this repo for a likely dev command."
+                    : "Forge will open a blank server tab until you save a command here."}
+              </div>
+              <div className="repo-browser-server-actions">
+                <button
+                  type="button"
+                  className="repo-browser-action"
+                  onClick={() => {
+                    setServerCommandInput(activeGroup.serverCommandOverride ?? defaultServerCommand);
+                    setEditingServerCommand(true);
+                  }}
+                >
+                  {activeServerCommand ? "Edit" : "Add Command"}
+                </button>
+                {canResetToSuggested ? (
+                  <button
+                    type="button"
+                    className="repo-browser-clear"
+                    onClick={resetServerCommandOverride}
+                  >
+                    Use Suggested
+                  </button>
+                ) : null}
+              </div>
+            </>
+          )}
+        </div>
+      ) : null}
 
       {!activeGroup.rootPath ? null : workspace?.status === "loading" ? (
         <div className="repo-browser-empty">Loading repository tree...</div>

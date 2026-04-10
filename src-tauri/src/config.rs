@@ -51,6 +51,8 @@ pub struct GroupConfig {
     pub last_indexed_at: Option<u64>,
     #[serde(default)]
     pub worktree_parent_id: Option<String>,
+    #[serde(default)]
+    pub server_command_override: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Default, Clone)]
@@ -169,7 +171,7 @@ pub struct ForgeConfig {
 }
 
 fn default_schema_version() -> u32 {
-    5
+    6
 }
 
 fn config_path() -> PathBuf {

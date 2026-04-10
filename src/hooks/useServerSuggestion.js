@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { inferServerLaunch } from "../utils/devServerSuggestion";
+import { inferDefaultServerLaunch } from "../utils/devServerSuggestion";
 
-export default function useServerSuggestion(rootPath) {
+export default function useServerSuggestion(rootPath, preferredCommand = null) {
   const [serverExpanded, setServerExpanded] = useState(false);
-  const [serverSuggestion, setServerSuggestion] = useState({
+  const [defaultServerSuggestion, setDefaultServerSuggestion] = useState({
     status: rootPath ? "loading" : "idle",
     value: null,
   });
@@ -12,14 +12,14 @@ export default function useServerSuggestion(rootPath) {
     let cancelled = false;
 
     if (!rootPath) {
-      setServerSuggestion({ status: "idle", value: null });
+      setDefaultServerSuggestion({ status: "idle", value: null });
       return () => { cancelled = true; };
     }
 
-    setServerSuggestion({ status: "loading", value: null });
-    inferServerLaunch(rootPath).then((value) => {
+    setDefaultServerSuggestion({ status: "loading", value: null });
+    inferDefaultServerLaunch(rootPath).then((value) => {
       if (cancelled) return;
-      setServerSuggestion({
+      setDefaultServerSuggestion({
         status: value ? "ready" : "idle",
         value,
       });
@@ -28,18 +28,38 @@ export default function useServerSuggestion(rootPath) {
     return () => { cancelled = true; };
   }, [rootPath]);
 
-  const hasSubmenu = serverSuggestion.status === "loading" || !!serverSuggestion.value;
+  const serverSuggestion =
+    typeof preferredCommand === "string" && preferredCommand.trim()
+      ? {
+          status: "ready",
+          value: {
+            command: preferredCommand.trim(),
+            reason: "Saved for this project",
+            source: "saved",
+          },
+        }
+      : defaultServerSuggestion;
+
+  const hasSubmenu = defaultServerSuggestion.status === "loading" || !!serverSuggestion.value;
+  const hintPrefix = serverSuggestion.value?.source === "saved" ? "Saved" : "Suggested";
 
   const serverHint =
-    serverSuggestion.status === "loading"
+    !serverSuggestion.value && defaultServerSuggestion.status === "loading"
       ? "Inspecting the attached repo for a likely dev command"
       : serverSuggestion.value
-        ? `Suggested: ${serverSuggestion.value.command}`
+        ? `${hintPrefix}: ${serverSuggestion.value.command}`
         : rootPath
           ? "Open a blank server tab in the attached repo"
           : "Open a blank server tab";
 
   const toggleServerExpanded = () => setServerExpanded((c) => !c);
 
-  return { serverSuggestion, serverExpanded, hasSubmenu, serverHint, toggleServerExpanded };
+  return {
+    serverSuggestion,
+    defaultServerSuggestion,
+    serverExpanded,
+    hasSubmenu,
+    serverHint,
+    toggleServerExpanded,
+  };
 }

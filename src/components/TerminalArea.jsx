@@ -47,7 +47,11 @@ export default function TerminalArea() {
     <div className="terminal-area" data-tour="terminal-area">
       {showMockDocViewer && <MockDocViewer />}
       {showPicker && (
-        <EmptyGroupPicker groupId={activeGroupId} rootPath={activeGroup.rootPath} />
+        <EmptyGroupPicker
+          groupId={activeGroupId}
+          rootPath={activeGroup.rootPath}
+          serverCommandOverride={activeGroup.serverCommandOverride}
+        />
       )}
       {allTabs.map(({ tab, groupId }) => {
         const isActive = groupId === activeGroupId && tab.id === activeTabId;

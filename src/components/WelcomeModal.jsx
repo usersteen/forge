@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import useForgeStore from "../store/useForgeStore";
 import useEscapeKey from "../hooks/useEscapeKey";
 import ForgeWordmark from "./ForgeWordmark";
@@ -7,7 +7,7 @@ import { getThemeHeatColor, getThemeTokens } from "../utils/themes";
 
 const WELCOME_HEAT = 3;
 
-export default function WelcomeModal({ onClose, onStartTour }) {
+export default function WelcomeModal({ onClose, onExited, onStartTour, exiting = false }) {
   useEscapeKey(onClose);
   const showWelcomeOnLaunch = useForgeStore((state) => state.showWelcomeOnLaunch);
   const setShowWelcomeOnLaunch = useForgeStore((state) => state.setShowWelcomeOnLaunch);
@@ -17,8 +17,14 @@ export default function WelcomeModal({ onClose, onStartTour }) {
   const [hideOnLaunch, setHideOnLaunch] = useState(!showWelcomeOnLaunch);
   const [localPath, setLocalPath] = useState(reposRootPath || "");
   const [editing, setEditing] = useState(!reposRootPath);
+  const [isReady, setIsReady] = useState(false);
 
   const isDirty = localPath.trim() !== (reposRootPath || "");
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setIsReady(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
 
   const { logoFill, headerVars, modalVars } = useMemo(() => {
     const tokens = getThemeTokens(theme, WELCOME_HEAT);
@@ -65,9 +71,32 @@ export default function WelcomeModal({ onClose, onStartTour }) {
     onClose();
   };
 
+  const overlayClassName = [
+    "settings-overlay",
+    "surface-overlay",
+    isReady && !exiting && "modal-open",
+    exiting && "modal-exiting",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <div className="settings-overlay" onClick={handleClose}>
-      <div className="welcome-modal" style={modalVars} onClick={(event) => event.stopPropagation()}>
+    <div
+      className={overlayClassName}
+      onClick={handleClose}
+      onTransitionEnd={
+        exiting
+          ? (event) => {
+              if (event.target === event.currentTarget) onExited?.();
+            }
+          : undefined
+      }
+    >
+      <div
+        className="welcome-modal surface-panel"
+        style={modalVars}
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="welcome-header" style={headerVars}>
           <ParticleLayer location="header" heatOverride={WELCOME_HEAT} />
           <div className="welcome-wordmark">

@@ -184,6 +184,7 @@ const useForgeStore = create((set, get) => ({
   fxEnabled: true,
   soundVolume: 80,
   showWelcomeOnLaunch: true,
+  welcomeModalVisible: false,
   projectMenuDetail: loadStoredProjectMenuDetail(),
 
   workspaceByGroup: {},
@@ -230,6 +231,7 @@ const useForgeStore = create((set, get) => ({
       theme: DEFAULT_THEME,
       fxEnabled: true,
       showWelcomeOnLaunch: true,
+      welcomeModalVisible: false,
       projectMenuDetail: loadStoredProjectMenuDetail(),
       streak: 0,
       lastStreakTime: null,
@@ -290,6 +292,7 @@ const useForgeStore = create((set, get) => ({
       fxEnabled: config.settings?.fx_enabled ?? true,
       soundVolume: config.settings?.sound_volume ?? 80,
       showWelcomeOnLaunch: config.settings?.show_welcome_on_launch ?? true,
+      welcomeModalVisible: false,
       projectMenuDetail: normalizeProjectMenuDetail(
         config.settings?.project_menu_detail ?? loadStoredProjectMenuDetail()
       ),
@@ -1063,6 +1066,8 @@ const useForgeStore = create((set, get) => ({
   setSoundVolume: (v) => set({ soundVolume: Math.max(0, Math.min(100, Number(v) || 0)) }),
   setShowWelcomeOnLaunch: (showWelcomeOnLaunch) =>
     set({ showWelcomeOnLaunch: Boolean(showWelcomeOnLaunch) }),
+  setWelcomeModalVisible: (welcomeModalVisible) =>
+    set({ welcomeModalVisible: Boolean(welcomeModalVisible) }),
   setProjectMenuDetail: (projectMenuDetail) => {
     const normalized = normalizeProjectMenuDetail(projectMenuDetail);
     persistProjectMenuDetail(normalized);

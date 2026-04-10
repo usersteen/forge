@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import useForgeStore from "../store/useForgeStore";
 import useEscapeKey from "../hooks/useEscapeKey";
 import { getThemeOptions, getThemeStatusColors } from "../utils/themes";
@@ -384,15 +384,36 @@ const SECTIONS = {
 export default function Settings({ onClose, exiting, onExited }) {
   useEscapeKey(onClose);
   const [activeCategory, setActiveCategory] = useState("appearance");
+  const [isReady, setIsReady] = useState(false);
   const ActiveSection = SECTIONS[activeCategory];
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setIsReady(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  const overlayClassName = [
+    "settings-overlay",
+    "surface-overlay",
+    isReady && !exiting && "modal-open",
+    exiting && "modal-exiting",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <div
-      className={`settings-overlay${exiting ? " modal-exiting" : ""}`}
+      className={overlayClassName}
       onClick={onClose}
-      onAnimationEnd={exiting ? onExited : undefined}
+      onTransitionEnd={
+        exiting
+          ? (event) => {
+              if (event.target === event.currentTarget) onExited?.();
+            }
+          : undefined
+      }
     >
-      <div className={`settings-panel${exiting ? " modal-exiting" : ""}`} onClick={(e) => e.stopPropagation()}>
+      <div className="settings-panel surface-panel" onClick={(e) => e.stopPropagation()}>
         <div className="settings-header">
           <span>Settings</span>
           <button className="settings-close" onClick={onClose} aria-label="Close settings">

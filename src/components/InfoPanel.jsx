@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import useForgeStore from "../store/useForgeStore";
 import useEscapeKey from "../hooks/useEscapeKey";
 import { HEAT_LABELS } from "../utils/heat";
@@ -246,15 +246,36 @@ const INFO_SECTIONS = {
 export default function InfoPanel({ onClose, exiting, onExited, onStartTour }) {
   useEscapeKey(onClose);
   const [activeCategory, setActiveCategory] = useState("projects");
+  const [isReady, setIsReady] = useState(false);
   const ActiveSection = INFO_SECTIONS[activeCategory];
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setIsReady(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  const overlayClassName = [
+    "settings-overlay",
+    "surface-overlay",
+    isReady && !exiting && "modal-open",
+    exiting && "modal-exiting",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <div
-      className={`settings-overlay${exiting ? " modal-exiting" : ""}`}
+      className={overlayClassName}
       onClick={onClose}
-      onAnimationEnd={exiting ? onExited : undefined}
+      onTransitionEnd={
+        exiting
+          ? (event) => {
+              if (event.target === event.currentTarget) onExited?.();
+            }
+          : undefined
+      }
     >
-      <div className={`settings-panel info-panel${exiting ? " modal-exiting" : ""}`} onClick={(e) => e.stopPropagation()}>
+      <div className="settings-panel info-panel surface-panel" onClick={(e) => e.stopPropagation()}>
         <div className="settings-header">
           <span>Guide</span>
           <button className="settings-close" onClick={onClose} aria-label="Close info panel">

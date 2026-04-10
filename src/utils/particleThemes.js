@@ -166,6 +166,44 @@ for (const theme of Object.keys(THEME_CONFIGS)) {
 
 const LOCATION_OVERRIDES = {
   header: {},
+  heatBlock: {
+    forge: {
+      rate: 16,
+      lifetime: { base: 3.6, variance: 0.9 },
+      spawnArea: { y: 1.02, yVariance: 0.03, initialVy: -260 },
+      initialVxSpread: 16,
+      gravity: -10,
+      turbulenceAmplitude: 30,
+      drag: 1.4,
+    },
+    ice: {
+      rate: 14,
+      lifetime: { base: 5.4, variance: 1.2 },
+      spawnArea: { y: -0.04, yVariance: 0.03, initialVy: 54 },
+      initialVxSpread: 10,
+      gravity: 18,
+      windX: 2,
+      turbulenceAmplitude: 14,
+      drag: 0.55,
+    },
+    void: {
+      rate: 10,
+      lifetime: { base: 4.2, variance: 1.0 },
+      spawnArea: { y: 0.5, yVariance: 0.42, initialVy: 0 },
+      initialVxSpread: 12,
+      turbulenceAmplitude: 28,
+      drag: 2.1,
+    },
+    grass: {
+      rate: 10,
+      lifetime: { base: 5.2, variance: 1.6 },
+      spawnArea: { y: 0.24, yVariance: 0.42, initialVy: 4 },
+      initialVxSpread: 9,
+      gravity: 5,
+      turbulenceAmplitude: 22,
+      drag: 0.9,
+    },
+  },
   sidebar: {
     forge: { spawnArea: { y: 0.6, yVariance: 0.4 } },
     ice:   { spawnArea: { y: 0.4, yVariance: 0.4, initialVy: 8 } },

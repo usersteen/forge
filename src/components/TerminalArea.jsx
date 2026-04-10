@@ -1,4 +1,5 @@
 import useForgeStore from "../store/useForgeStore";
+import ShowcaseTerminal from "./ShowcaseTerminal";
 import Terminal from "./Terminal";
 import EmptyGroupPicker from "./EmptyGroupPicker";
 
@@ -30,6 +31,7 @@ export default function TerminalArea() {
   const groups = useForgeStore((s) => s.groups);
   const activeGroupId = useForgeStore((s) => s.activeGroupId);
   const tourExpandedPanel = useForgeStore((s) => s.tourExpandedPanel);
+  const showcaseActive = useForgeStore((s) => s.showcaseActive);
 
   const activeGroup = groups.find((g) => g.id === activeGroupId);
   const activeTabId = activeGroup?.activeTabId;
@@ -59,7 +61,11 @@ export default function TerminalArea() {
               ...(showMockDocViewer ? { width: "60%" } : {}),
             }}
           >
-            <Terminal tabId={tab.id} isActive={isActive} cwd={tab.cwd} launchCommand={tab.launchCommand} />
+            {showcaseActive ? (
+              <ShowcaseTerminal tabId={tab.id} isActive={isActive} />
+            ) : (
+              <Terminal tabId={tab.id} isActive={isActive} cwd={tab.cwd} launchCommand={tab.launchCommand} />
+            )}
           </div>
         );
       })}

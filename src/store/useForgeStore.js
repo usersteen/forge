@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { create } from "zustand";
 import { clampHeatStreak } from "../utils/heat";
 import { getAgentLaunchPreset } from "../utils/statusDetection";
+import { getDefaultShowcaseSceneId, getShowcaseScene } from "../demo/showcaseScenes";
 import { DEFAULT_THEME, normalizeTheme } from "../utils/themes";
 import {
   classifyWorkspacePath,
@@ -201,6 +202,14 @@ const useForgeStore = create((set, get) => ({
   tourExpandedPanel: null,
   tourSavedState: null,
   tourOriginalTheme: null,
+  showcaseActive: false,
+  showcaseSceneId: null,
+  showcaseMeta: null,
+  showcaseStudioVisible: true,
+  showcaseCleanMode: false,
+  showcaseRepoOpen: false,
+  showcaseTerminalScreensByTab: {},
+  showcaseSavedState: null,
 
   initFresh: () => {
     const group = makeGroup();
@@ -227,6 +236,14 @@ const useForgeStore = create((set, get) => ({
       tourExpandedPanel: null,
       tourSavedState: null,
       tourOriginalTheme: null,
+      showcaseActive: false,
+      showcaseSceneId: null,
+      showcaseMeta: null,
+      showcaseStudioVisible: true,
+      showcaseCleanMode: false,
+      showcaseRepoOpen: false,
+      showcaseTerminalScreensByTab: {},
+      showcaseSavedState: null,
       configLoaded: true,
     });
   },
@@ -284,6 +301,14 @@ const useForgeStore = create((set, get) => ({
       tourExpandedPanel: null,
       tourSavedState: null,
       tourOriginalTheme: null,
+      showcaseActive: false,
+      showcaseSceneId: null,
+      showcaseMeta: null,
+      showcaseStudioVisible: true,
+      showcaseCleanMode: false,
+      showcaseRepoOpen: false,
+      showcaseTerminalScreensByTab: {},
+      showcaseSavedState: null,
       configLoaded: true,
     });
   },
@@ -1032,6 +1057,128 @@ const useForgeStore = create((set, get) => ({
   setParticleVersion: (version) => set({ particleVersion: version }),
   setThemeVariant: (variant) => set({ themeVariant: variant }),
   exitDemoMode: () => set({ demoHeatStage: null, themeVariant: null, particleVersion: null }),
+  setShowcaseStudioVisible: (visible) => set({ showcaseStudioVisible: Boolean(visible) }),
+  setShowcaseCleanMode: (enabled) => set({ showcaseCleanMode: Boolean(enabled) }),
+  startShowcaseScene: (sceneId, options = {}) => {
+    const state = get();
+    const savedState = state.showcaseActive
+      ? state.showcaseSavedState
+      : {
+          groups: state.groups,
+          activeGroupId: state.activeGroupId,
+          workspaceByGroup: state.workspaceByGroup,
+          documentStateByGroup: state.documentStateByGroup,
+          theme: state.theme,
+          fxEnabled: state.fxEnabled,
+          streak: state.streak,
+          lastStreakTime: state.lastStreakTime,
+          heatPauseStartedAt: state.heatPauseStartedAt,
+          heatPauseSources: state.heatPauseSources,
+          demoHeatStage: state.demoHeatStage,
+          themeVariant: state.themeVariant,
+          particleVersion: state.particleVersion,
+        };
+
+    const loaded = get().loadShowcaseScene(sceneId, options);
+    if (!loaded) return false;
+    set({ showcaseSavedState: savedState });
+    return true;
+  },
+  loadShowcaseScene: (sceneId, options = {}) => {
+    const scene = getShowcaseScene(sceneId) || getShowcaseScene(getDefaultShowcaseSceneId());
+    if (!scene) return false;
+    const snapshot = typeof structuredClone === "function"
+      ? structuredClone(scene)
+      : JSON.parse(JSON.stringify(scene));
+
+    const nextStudioVisible = options.studioVisible ?? get().showcaseStudioVisible ?? true;
+    const nextCleanMode = options.cleanMode ?? get().showcaseCleanMode ?? false;
+    const pausedAt = Date.now();
+
+    set({
+      groups: snapshot.groups,
+      activeGroupId: snapshot.activeGroupId,
+      workspaceByGroup: snapshot.workspaceByGroup,
+      documentStateByGroup: snapshot.documentStateByGroup,
+      theme: normalizeTheme(snapshot.theme),
+      fxEnabled: snapshot.fxEnabled ?? true,
+      streak: snapshot.heatStage ?? 0,
+      lastStreakTime: pausedAt,
+      heatPauseStartedAt: pausedAt,
+      heatPauseSources: { showcase: pausedAt },
+      demoHeatStage: snapshot.heatStage ?? null,
+      themeVariant: null,
+      particleVersion: null,
+      tourActive: false,
+      tourStep: 0,
+      tourExpandedPanel: null,
+      tourSavedState: null,
+      tourOriginalTheme: null,
+      showcaseActive: true,
+      showcaseSceneId: snapshot.id,
+      showcaseMeta: {
+        kicker: snapshot.kicker,
+        title: snapshot.title,
+        summary: snapshot.summary,
+        feature: snapshot.feature,
+        notes: snapshot.notes || [],
+        captureNotes: snapshot.captureNotes || "",
+      },
+      showcaseStudioVisible: nextStudioVisible,
+      showcaseCleanMode: nextCleanMode,
+      showcaseRepoOpen: Boolean(snapshot.repoExplorerOpen),
+      showcaseTerminalScreensByTab: snapshot.terminalScreensByTab || {},
+      showcaseSavedState: get().showcaseSavedState,
+      showWelcomeOnLaunch: false,
+      configLoaded: true,
+    });
+
+    return true;
+  },
+  exitShowcase: () => {
+    const state = get();
+    const saved = state.showcaseSavedState;
+    if (!saved) {
+      set({
+        showcaseActive: false,
+        showcaseSceneId: null,
+        showcaseMeta: null,
+        showcaseStudioVisible: true,
+        showcaseCleanMode: false,
+        showcaseRepoOpen: false,
+        showcaseTerminalScreensByTab: {},
+        showcaseSavedState: null,
+        heatPauseSources: {},
+        heatPauseStartedAt: null,
+        demoHeatStage: null,
+      });
+      return;
+    }
+
+    set({
+      groups: saved.groups,
+      activeGroupId: saved.activeGroupId,
+      workspaceByGroup: saved.workspaceByGroup,
+      documentStateByGroup: saved.documentStateByGroup,
+      theme: saved.theme,
+      fxEnabled: saved.fxEnabled,
+      streak: saved.streak,
+      lastStreakTime: saved.lastStreakTime,
+      heatPauseStartedAt: saved.heatPauseStartedAt,
+      heatPauseSources: saved.heatPauseSources,
+      demoHeatStage: saved.demoHeatStage,
+      themeVariant: saved.themeVariant,
+      particleVersion: saved.particleVersion,
+      showcaseActive: false,
+      showcaseSceneId: null,
+      showcaseMeta: null,
+      showcaseStudioVisible: true,
+      showcaseCleanMode: false,
+      showcaseRepoOpen: false,
+      showcaseTerminalScreensByTab: {},
+      showcaseSavedState: null,
+    });
+  },
 
   startTour: () => {
     const state = get();
@@ -1116,6 +1263,14 @@ const useForgeStore = create((set, get) => ({
         tourSavedState: null,
         tourOriginalTheme: null,
         theme: restoreTheme,
+        showcaseActive: false,
+        showcaseSceneId: null,
+        showcaseMeta: null,
+        showcaseStudioVisible: true,
+        showcaseCleanMode: false,
+        showcaseRepoOpen: false,
+        showcaseTerminalScreensByTab: {},
+        showcaseSavedState: null,
       });
     } else {
       set({
@@ -1125,6 +1280,14 @@ const useForgeStore = create((set, get) => ({
         tourSavedState: null,
         tourOriginalTheme: null,
         theme: restoreTheme,
+        showcaseActive: false,
+        showcaseSceneId: null,
+        showcaseMeta: null,
+        showcaseStudioVisible: true,
+        showcaseCleanMode: false,
+        showcaseRepoOpen: false,
+        showcaseTerminalScreensByTab: {},
+        showcaseSavedState: null,
       });
     }
   },

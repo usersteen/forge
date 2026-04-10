@@ -65,3 +65,7 @@ Config lives at `~/.forge/config.json`. Shell is detected per platform (PowerShe
 ## Feedback
 
 Testing the preview? The most useful feedback right now: install friction, first-run clarity, terminal reliability, and session recovery. Open an issue or reach out directly.
+
+## Docs
+
+- [`docs/showcase-staging-guide.md`](docs/showcase-staging-guide.md) - how to stage real Forge scenes for screenshots and demo videos

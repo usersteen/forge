@@ -10,7 +10,13 @@ function createEmitter(config, poolSize) {
   return new Emitter(config, poolSize);
 }
 
-export default function ParticleCanvas({ location = "header", themeOverride, heatOverride }) {
+export default function ParticleCanvas({
+  location = "header",
+  themeOverride,
+  heatOverride,
+  densityMultiplier = 1,
+  sizeMultiplier = 1,
+}) {
   const canvasRef = useRef(null);
   const emitterRef = useRef(null);
   const rafRef = useRef(null);
@@ -111,7 +117,12 @@ export default function ParticleCanvas({ location = "header", themeOverride, hea
         // Heat 5: everywhere
         const isHeader = locationRef.current === "header";
         const childScale = heat >= 5 ? 1.0 : (heat >= 4 && isHeader) ? 1.0 : 0;
-        const mult = { ...baseMult, childScale };
+        const mult = {
+          ...baseMult,
+          rateScale: (baseMult.rateScale || 1) * densityMultiplier,
+          sizeScale: (baseMult.sizeScale || 1) * sizeMultiplier,
+          childScale,
+        };
         emitter.update(dt, w, h, mult);
         emitter.render(ctx, w, h);
       }
@@ -127,7 +138,7 @@ export default function ParticleCanvas({ location = "header", themeOverride, hea
         rafRef.current = null;
       }
     };
-  }, [active]);
+  }, [active, densityMultiplier, sizeMultiplier]);
 
   if (!active) return null;
   if (particleVersion === "v1") {

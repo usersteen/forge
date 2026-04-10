@@ -129,6 +129,8 @@ export default function TabBar({ onRefreshWorkspace }) {
   const tourActive = useForgeStore((s) => s.tourActive);
   const tourExpandedPanel = useForgeStore((s) => s.tourExpandedPanel);
   const tabRecencyMinutes = useForgeStore((s) => s.tabRecencyMinutes);
+  const showcaseActive = useForgeStore((s) => s.showcaseActive);
+  const showcaseRepoOpen = useForgeStore((s) => s.showcaseRepoOpen);
 
   const [contextMenu, setContextMenu] = useState(null);
   const [newTabMenu, setNewTabMenu] = useState(null);
@@ -202,6 +204,11 @@ export default function TabBar({ onRefreshWorkspace }) {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [repoOpen, tourActive]);
+
+  useEffect(() => {
+    if (!showcaseActive) return;
+    setRepoOpen(showcaseRepoOpen);
+  }, [showcaseActive, showcaseRepoOpen]);
 
   // Sync tour-driven panel expansion
   useEffect(() => {

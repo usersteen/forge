@@ -19,6 +19,7 @@ const ThemeLab = import.meta.env.DEV ? lazy(() => import("./ThemeLab")) : null;
 import NewProjectMenu from "./NewProjectMenu";
 import WelcomeModal from "./WelcomeModal";
 import GuidedTour from "./GuidedTour";
+import { getDefaultShowcaseSceneId } from "../demo/showcaseScenes";
 
 
 const appWindow = getCurrentWindow();
@@ -262,6 +263,9 @@ export default function Sidebar() {
   const tabRecencyMinutes = useForgeStore((s) => s.tabRecencyMinutes);
   const projectMenuDetail = useForgeStore((s) => s.projectMenuDetail);
   const setDemoHeatStage = useForgeStore((s) => s.setDemoHeatStage);
+  const showcaseActive = useForgeStore((s) => s.showcaseActive);
+  const startShowcaseScene = useForgeStore((s) => s.startShowcaseScene);
+  const exitShowcase = useForgeStore((s) => s.exitShowcase);
 
   const hasWaitingTabs = groups.some((g) => g.tabs.some((t) => t.status === "waiting"));
   const now = useRecencyTick(hasWaitingTabs);
@@ -484,14 +488,33 @@ export default function Sidebar() {
               <button
                 className="sidebar-action-btn"
                 onClick={() => setShowThemeLab(true)}
-                aria-label="Theme Lab"
-                title="Theme Lab"
+                aria-label="Heat Block Lab"
+                title="Heat Block Lab"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
                 </svg>
               </button>
             )}
+            <button
+              className={`sidebar-action-btn${showcaseActive ? " sidebar-action-btn-active" : ""}`}
+              onClick={() => {
+                if (showcaseActive) {
+                  exitShowcase();
+                } else {
+                  startShowcaseScene(getDefaultShowcaseSceneId(), { studioVisible: true, cleanMode: false });
+                }
+              }}
+              aria-label={showcaseActive ? "Exit Showcase" : "Open Showcase"}
+              title={showcaseActive ? "Exit Showcase" : "Open Showcase"}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="14" rx="1"/>
+                <path d="M7 20h10"/>
+                <path d="M8 8h8"/>
+                <path d="M8 12h5"/>
+              </svg>
+            </button>
           </>
         )}
       </div>

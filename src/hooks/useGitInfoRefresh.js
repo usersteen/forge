@@ -5,20 +5,23 @@ const REFRESH_INTERVAL_MS = 30000;
 
 export default function useGitInfoRefresh() {
   const groups = useForgeStore((s) => s.groups);
+  const showcaseActive = useForgeStore((s) => s.showcaseActive);
   const refreshedIds = useRef(new Set());
 
   // Refresh git info for any group that has a rootPath but no gitCommonDir yet
   useEffect(() => {
+    if (showcaseActive) return;
     for (const group of groups) {
       if (group.rootPath && !refreshedIds.current.has(group.id)) {
         refreshedIds.current.add(group.id);
         refreshGitInfo(group.id);
       }
     }
-  }, [groups]);
+  }, [groups, showcaseActive]);
 
   // Periodic refresh of branch names (picks up branch switches in terminal)
   useEffect(() => {
+    if (showcaseActive) return undefined;
     const interval = setInterval(() => {
       const current = useForgeStore.getState().groups;
       for (const group of current) {
@@ -29,5 +32,5 @@ export default function useGitInfoRefresh() {
     }, REFRESH_INTERVAL_MS);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [showcaseActive]);
 }

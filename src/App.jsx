@@ -4,9 +4,11 @@ import { LogicalPosition, LogicalSize } from "@tauri-apps/api/dpi";
 import { availableMonitors, getCurrentWindow } from "@tauri-apps/api/window";
 import DemoStrip from "./components/DemoStrip";
 import DocumentViewer from "./components/DocumentViewer";
+import ShowcaseStudio from "./components/ShowcaseStudio";
 import Sidebar from "./components/Sidebar";
 import TabBar from "./components/TabBar";
 import TerminalArea from "./components/TerminalArea";
+import { getDefaultShowcaseSceneId } from "./demo/showcaseScenes";
 import useEffectiveHeatStage from "./hooks/useEffectiveHeatStage";
 import useGitInfoRefresh from "./hooks/useGitInfoRefresh";
 import useHeatTick from "./hooks/useHeatTick";
@@ -149,6 +151,10 @@ function App() {
   const documentStateByGroup = useForgeStore((state) => state.documentStateByGroup);
   const theme = useForgeStore((state) => state.theme);
   const fxEnabled = useForgeStore((state) => state.fxEnabled);
+  const showcaseActive = useForgeStore((state) => state.showcaseActive);
+  const showcaseSceneId = useForgeStore((state) => state.showcaseSceneId);
+  const showcaseStudioVisible = useForgeStore((state) => state.showcaseStudioVisible);
+  const showcaseCleanMode = useForgeStore((state) => state.showcaseCleanMode);
   const setWorkspaceLoading = useForgeStore((state) => state.setWorkspaceLoading);
   const setWorkspaceTree = useForgeStore((state) => state.setWorkspaceTree);
   const setWorkspaceError = useForgeStore((state) => state.setWorkspaceError);
@@ -182,6 +188,16 @@ function App() {
 
   useEffect(() => {
     (async () => {
+      const searchParams = new URLSearchParams(window.location.search);
+      const showcaseScene = searchParams.get("showcase");
+      if (showcaseScene) {
+        useForgeStore.getState().loadShowcaseScene(showcaseScene || getDefaultShowcaseSceneId(), {
+          studioVisible: searchParams.get("studio") !== "0",
+          cleanMode: searchParams.get("capture") === "1",
+        });
+        return;
+      }
+
       try {
         const config = await invoke("load_config");
         lastSavedWindowRef.current = config.window || null;
@@ -203,6 +219,7 @@ function App() {
   const saveTimerRef = useRef(null);
   useEffect(() => {
     const unsubscribe = useForgeStore.subscribe(() => {
+      if (useForgeStore.getState().showcaseActive) return;
       if (!useForgeStore.getState().configLoaded) return;
       clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(async () => {
@@ -241,6 +258,7 @@ function App() {
     const handleBeforeUnload = async () => {
       try {
         const state = useForgeStore.getState();
+        if (state.showcaseActive) return;
         if (!state.configLoaded) return;
         const win = getCurrentWindow();
         const geometry = await captureWindowGeometry(win);
@@ -292,10 +310,30 @@ function App() {
   }, [setReaderWidth]);
 
   useEffect(() => {
+    if (!showcaseActive || !showcaseSceneId) return;
+    const searchParams = new URLSearchParams(window.location.search);
+    searchParams.set("showcase", showcaseSceneId);
+    if (showcaseStudioVisible) {
+      searchParams.delete("studio");
+    } else {
+      searchParams.set("studio", "0");
+    }
+    if (showcaseCleanMode) {
+      searchParams.set("capture", "1");
+    } else {
+      searchParams.delete("capture");
+    }
+    const nextSearch = searchParams.toString();
+    const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash}`;
+    window.history.replaceState({}, "", nextUrl);
+  }, [showcaseActive, showcaseSceneId, showcaseStudioVisible, showcaseCleanMode]);
+
+  useEffect(() => {
     if ("Notification" in window && Notification.permission === "default") {
+      if (showcaseActive) return;
       Notification.requestPermission();
     }
-  }, []);
+  }, [showcaseActive]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -347,6 +385,22 @@ function App() {
   }, [exitDemoMode, gotoTab, nextGroup, nextTab, prevGroup, prevTab]);
 
   useEffect(() => {
+    if (!showcaseActive) return undefined;
+
+    const handleShowcaseKeys = (event) => {
+      if (event.shiftKey && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        const store = useForgeStore.getState();
+        store.setShowcaseStudioVisible(!store.showcaseStudioVisible);
+      }
+    };
+
+    window.addEventListener("keydown", handleShowcaseKeys);
+    return () => window.removeEventListener("keydown", handleShowcaseKeys);
+  }, [showcaseActive]);
+
+  useEffect(() => {
+    if (showcaseActive) return undefined;
     if (!activeGroupId || !activeRootPath) return;
 
     let cancelled = false;
@@ -383,6 +437,7 @@ function App() {
   ]);
 
   useEffect(() => {
+    if (showcaseActive) return undefined;
     if (!activeGroupId || !activeRootPath || !activeDocument) return;
 
     const documentPath = activeDocument.path;
@@ -439,7 +494,7 @@ function App() {
 
   return (
     <div
-      className="app-layout"
+      className={`app-layout${showcaseActive ? " app-layout-showcase" : ""}${showcaseCleanMode ? " app-layout-showcase-clean" : ""}`}
       data-heat={effectiveHeat}
       data-theme={theme}
       data-fx={fxEnabled ? "on" : "off"}
@@ -475,7 +530,8 @@ function App() {
           <DocumentViewer />
         </div>
       </div>
-      <DemoStrip />
+      {showcaseActive ? null : <DemoStrip />}
+      {showcaseActive ? <ShowcaseStudio /> : null}
     </div>
   );
 }

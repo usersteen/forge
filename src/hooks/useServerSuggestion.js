@@ -41,13 +41,12 @@ export default function useServerSuggestion(rootPath, preferredCommand = null) {
       : defaultServerSuggestion;
 
   const hasSubmenu = defaultServerSuggestion.status === "loading" || !!serverSuggestion.value;
-  const hintPrefix = serverSuggestion.value?.source === "saved" ? "Saved" : "Suggested";
 
   const serverHint =
     !serverSuggestion.value && defaultServerSuggestion.status === "loading"
       ? "Inspecting the attached repo for a likely dev command"
       : serverSuggestion.value
-        ? `${hintPrefix}: ${serverSuggestion.value.command}`
+        ? "Open a server tab or choose a launch command"
         : rootPath
           ? "Open a blank server tab in the attached repo"
           : "Open a blank server tab";

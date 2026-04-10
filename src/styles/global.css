@@ -306,7 +306,7 @@ html, body, #root {
 }
 
 .tab.flash-waiting .status-dot.waiting,
-.sidebar-group.flash-waiting .sidebar-dot.waiting {
+.sidebar-dot.flash-waiting.waiting {
   animation: waiting-flash-dot 0.98s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -536,20 +536,45 @@ html, body, #root {
 }
 
 .sidebar-tab-list {
-  display: grid;
-  gap: 4px;
+  display: flex;
+  flex-direction: column;
   margin-top: 5px;
   padding-left: 8px;
   border-left: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sidebar-tab-row-shell {
+  max-height: 28px;
+  margin-bottom: 4px;
+  width: 100%;
+  overflow: hidden;
+  transition:
+    max-height 180ms var(--motion-deploy),
+    margin-bottom 180ms var(--motion-deploy);
+}
+
+.sidebar-tab-row-shell:last-child {
+  margin-bottom: 0;
+}
+
+.sidebar-tab-row-shell[data-presence="entering"] {
+  max-height: 0;
+  margin-bottom: 0;
+}
+
+.sidebar-tab-row-shell[data-presence="exiting"] {
+  max-height: 0;
+  margin-bottom: 0;
+  transition-delay: 52ms;
 }
 
 .sidebar-tab-row {
   display: flex;
   align-items: center;
   gap: 6px;
+  width: 100%;
   min-width: 0;
   padding: 4px 6px;
-  margin-left: -1px;
   border: 1px solid transparent;
   background: rgba(255, 255, 255, 0.018);
   color: var(--text-muted);
@@ -557,18 +582,21 @@ html, body, #root {
   font-size: 11px;
   text-align: left;
   cursor: pointer;
-  transform: translate3d(0, 0, 0);
+  min-height: 0;
+  opacity: 1;
+  transform: var(--sidebar-tab-row-presence-transform, translate3d(0px, 0px, 0px));
+  transform-origin: left center;
   transition:
     background 140ms linear,
     border-color 150ms var(--motion-settle),
     color 140ms linear,
-    transform 170ms var(--motion-lock);
+    opacity 130ms linear,
+    transform 170ms var(--motion-deploy);
 }
 
 .sidebar-tab-row:hover {
   background: rgba(255, 255, 255, 0.045);
   color: var(--text-secondary);
-  transform: translate3d(2px, 0, 0);
 }
 
 .sidebar-tab-row:focus-visible {
@@ -580,7 +608,17 @@ html, body, #root {
   border-color: rgba(var(--accent-active-rgb), 0.32);
   background: rgba(var(--accent-active-rgb), 0.12);
   color: var(--text-primary);
-  transform: translate3d(1px, 0, 0);
+}
+
+.sidebar-tab-row-shell[data-presence="entering"] .sidebar-tab-row {
+  opacity: 0;
+  --sidebar-tab-row-presence-transform: translate3d(-8px, 0, 0);
+}
+
+.sidebar-tab-row-shell[data-presence="exiting"] .sidebar-tab-row {
+  opacity: 0;
+  pointer-events: none;
+  --sidebar-tab-row-presence-transform: translate3d(-10px, 0, 0);
 }
 
 .sidebar-tab-dot {
@@ -919,15 +957,24 @@ html, body, #root {
   border-bottom: 3px solid transparent;
   white-space: nowrap;
   color: var(--text-secondary);
+  opacity: 1;
+  overflow: hidden;
   transition:
     background 140ms linear,
     color 130ms linear,
     border-bottom-color 180ms var(--motion-settle),
-    transform 180ms var(--motion-lock);
+    flex-basis 180ms var(--motion-deploy),
+    max-width 180ms var(--motion-deploy),
+    padding 180ms var(--motion-deploy),
+    gap 180ms var(--motion-deploy),
+    opacity 150ms linear,
+    transform 155ms var(--motion-deploy);
   flex: 1 1 0;
+  flex-basis: 0;
   min-width: 80px;
   max-width: 180px;
   touch-action: none;
+  transform-origin: center center;
 }
 
 .tab + .tab::before {
@@ -1008,6 +1055,31 @@ html, body, #root {
 
 .tab-active.tab-working {
   border-bottom-color: var(--accent-working) !important;
+}
+
+.tab[data-presence="entering"] {
+  opacity: 0;
+  flex: 0 0 0px;
+  min-width: 0;
+  max-width: 0;
+  gap: 0;
+  padding-left: 0;
+  padding-right: 0;
+  border-bottom-color: transparent !important;
+  --tab-presence-transform: translate3d(10px, 0, 0);
+}
+
+.tab[data-presence="exiting"] {
+  opacity: 0;
+  flex: 0 0 0px;
+  min-width: 0;
+  max-width: 0;
+  gap: 0;
+  padding-left: 0;
+  padding-right: 0;
+  border-bottom-color: transparent !important;
+  pointer-events: none;
+  --tab-presence-transform: translate3d(8px, 0, 0);
 }
 
 .tab-name {
@@ -5074,7 +5146,7 @@ button:not(.window-control):not(.window-minimize):not(.window-maximize):not(.win
 }
 
 /* Tier 2: Universal button press */
-button:active:not(.tab-close):not(.sidebar-group-close):not(.document-tab-close):not(.document-viewer-tab-close):not(.settings-close):not(.tour-tooltip-close):not(.window-control):not(.window-minimize):not(.window-maximize):not(.window-fullscreen):not(.window-close):not(.settings-toggle):not(:disabled) {
+button:active:not(.tab-close):not(.sidebar-group-close):not(.sidebar-tab-row):not(.document-tab-close):not(.document-viewer-tab-close):not(.settings-close):not(.tour-tooltip-close):not(.window-control):not(.window-minimize):not(.window-maximize):not(.window-fullscreen):not(.window-close):not(.settings-toggle):not(:disabled) {
   transform: translate3d(0, 1px, 0) scale(0.985);
   transition-duration: 0.04s;
 }
@@ -5087,8 +5159,16 @@ button:active:not(.tab-close):not(.sidebar-group-close):not(.document-tab-close)
 .repo-browser-node:active,
 .settings-nav-btn:active,
 .settings-chip:active {
-  transform: translate3d(0, 1px, 0) scale(0.985);
   transition-duration: 0.04s;
+}
+
+.quick-tab-item:active,
+.quick-tab-subitem:active:not(.quick-tab-subitem-disabled),
+.tab-context-item:active,
+.repo-browser-node:active,
+.settings-nav-btn:active,
+.settings-chip:active {
+  transform: translate3d(0, 1px, 0) scale(0.985);
 }
 
 /* Accessibility: disable press transforms for reduced motion */
@@ -5106,6 +5186,30 @@ button:active:not(.tab-close):not(.sidebar-group-close):not(.document-tab-close)
     transform: none !important;
     --tab-interaction-transform: translate3d(0, 0, 0) !important;
     --sidebar-group-transform: translate3d(0, 0, 0) !important;
+  }
+
+  .tab[data-presence="entering"],
+  .tab[data-presence="exiting"] {
+    flex: 1 1 0;
+    flex-basis: 0;
+    min-width: 80px;
+    max-width: 180px;
+    gap: 7px;
+    padding-left: 10px;
+    padding-right: 10px;
+    --tab-presence-transform: translate3d(0, 0, 0);
+  }
+
+  .sidebar-tab-row-shell[data-presence="entering"] .sidebar-tab-row,
+  .sidebar-tab-row-shell[data-presence="exiting"] .sidebar-tab-row {
+    --sidebar-tab-row-presence-transform: translate3d(0, 0, 0);
+  }
+
+  .sidebar-tab-row-shell[data-presence="entering"],
+  .sidebar-tab-row-shell[data-presence="exiting"] {
+    max-height: 28px;
+    margin-bottom: 4px;
+    transition-delay: 0ms;
   }
 
   .surface-menu,

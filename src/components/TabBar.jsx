@@ -6,6 +6,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import useForgeStore from "../store/useForgeStore";
 import useInlineRename from "../hooks/useInlineRename";
 import useFlashAnimation from "../hooks/useFlashAnimation";
+import { usePresenceList } from "../hooks/useMotionList";
 import useRecencyTick from "../hooks/useRecencyTick";
 import useAnimatedSurface from "../hooks/useAnimatedSurface";
 import NewTabMenu from "./NewTabMenu";
@@ -16,6 +17,7 @@ import ParticleLayer from "./ParticleLayer";
 
 const appWindow = getCurrentWindow();
 const IS_MACOS = navigator.platform.startsWith("Mac");
+const TAB_EXIT_DURATION_MS = 135;
 
 function getTabRecencyAnchor(tab) {
   if (tab.status === "waiting") {
@@ -67,14 +69,25 @@ function getRenameSeed(tab) {
   return tab.name;
 }
 
-function SortableTab({ tab, isActive, isRecent, onSelect, onDoubleClick, onContextMenu, editingId, inputProps, onClose }) {
+function SortableTab({
+  tab,
+  isActive,
+  isRecent,
+  presencePhase,
+  onSelect,
+  onDoubleClick,
+  onContextMenu,
+  editingId,
+  inputProps,
+  onClose,
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: tab.id });
   const { elementRef: tabRef, handleAnimationEnd } = useFlashAnimation(tab.waitingFlashKey);
   const dragTransform = transform
     ? CSS.Transform.toString({ ...transform, y: 0, scaleX: 1, scaleY: 1 })
     : "translate3d(0px, 0px, 0px)";
   const style = {
-    transform: `${dragTransform} var(--tab-interaction-transform, translate3d(0px, 0px, 0px))`,
+    transform: `${dragTransform} var(--tab-interaction-transform, translate3d(0px, 0px, 0px)) var(--tab-presence-transform, translate3d(0px, 0px, 0px))`,
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
@@ -84,11 +97,15 @@ function SortableTab({ tab, isActive, isRecent, onSelect, onDoubleClick, onConte
 
   return (
     <div
-      ref={(node) => { setNodeRef(node); tabRef.current = node; }}
+      ref={(node) => {
+        setNodeRef(node);
+        tabRef.current = node;
+      }}
       style={style}
       {...attributes}
       {...listeners}
       className={`tab ${isActive ? "tab-active" : ""} ${statusClass}`}
+      data-presence={presencePhase}
       onClick={onSelect}
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
@@ -169,6 +186,10 @@ export default function TabBar({ onRefreshWorkspace }) {
   }, []);
 
   const activeGroup = groups.find((g) => g.id === activeGroupId);
+  const renderedTabs = usePresenceList(activeGroup?.tabs ?? [], {
+    exitDuration: TAB_EXIT_DURATION_MS,
+    resetKey: activeGroupId,
+  });
   const hasWaitingTabs = activeGroup?.tabs.some((t) => t.status === "waiting") ?? false;
   const now = useRecencyTick(hasWaitingTabs);
   const recencyThreshold = tabRecencyMinutes * 60000;
@@ -300,31 +321,32 @@ export default function TabBar({ onRefreshWorkspace }) {
         />
       </div>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={activeGroup.tabs.map((t) => t.id)} strategy={horizontalListSortingStrategy}>
+        <SortableContext items={renderedTabs.map((entry) => entry.key)} strategy={horizontalListSortingStrategy}>
           <div className="tab-list" data-tour="tab-list">
-            {activeGroup.tabs.map((tab) => (
+            {renderedTabs.map((entry) => (
               <SortableTab
-                key={tab.id}
-                tab={tab}
-                isActive={tab.id === activeGroup.activeTabId}
-                isRecent={isTabRecent(tab)}
-                onSelect={() => setActiveTab(activeGroupId, tab.id)}
-                onDoubleClick={() => startEditing(tab.id, tab.name, getRenameSeed(tab))}
+                key={entry.key}
+                tab={entry.item}
+                isActive={entry.item.id === activeGroup.activeTabId}
+                isRecent={isTabRecent(entry.item)}
+                presencePhase={entry.phase}
+                onSelect={() => setActiveTab(activeGroupId, entry.item.id)}
+                onDoubleClick={() => startEditing(entry.item.id, entry.item.name, getRenameSeed(entry.item))}
                 onContextMenu={(e) => {
                   e.preventDefault();
-                  setActiveTab(activeGroupId, tab.id);
+                  setActiveTab(activeGroupId, entry.item.id);
                   openContextMenu({
-                    tabId: tab.id,
-                    tabName: tab.name,
-                    renameSeed: getRenameSeed(tab),
-                    tabType: tab.type,
+                    tabId: entry.item.id,
+                    tabName: entry.item.name,
+                    renameSeed: getRenameSeed(entry.item),
+                    tabType: entry.item.type,
                     x: e.clientX,
                     y: e.clientY,
                   });
                 }}
                 editingId={editingId}
                 inputProps={inputProps}
-                onClose={() => removeTab(activeGroupId, tab.id)}
+                onClose={() => removeTab(activeGroupId, entry.item.id)}
               />
             ))}
             <button

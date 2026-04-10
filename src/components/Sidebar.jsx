@@ -8,6 +8,7 @@ import AddWorktreeDialog from "./AddWorktreeDialog";
 import useInlineRename from "../hooks/useInlineRename";
 import useEffectiveHeatStage from "../hooks/useEffectiveHeatStage";
 import useFlashAnimation from "../hooks/useFlashAnimation";
+import { usePresenceList } from "../hooks/useMotionList";
 import ParticleLayer from "./ParticleLayer";
 import useRecencyTick from "../hooks/useRecencyTick";
 import useAnimatedSurface from "../hooks/useAnimatedSurface";
@@ -27,6 +28,7 @@ const ThemeLab = loadThemeLab ? lazy(loadThemeLab) : null;
 
 
 const appWindow = getCurrentWindow();
+const SIDEBAR_TAB_EXIT_DURATION_MS = 190;
 
 function getTabRecencyAnchor(tab) {
   if (tab.status === "waiting") {
@@ -139,6 +141,31 @@ function getVisibleSidebarTabs(tabs, limit = 4) {
   };
 }
 
+function SidebarTabButton({ tab, isActiveTab, isRecent, onSelectTab }) {
+  const { elementRef: dotRef, handleAnimationEnd } = useFlashAnimation(tab.waitingFlashKey);
+
+  return (
+    <button
+      type="button"
+      className={`sidebar-tab-row${isActiveTab ? " sidebar-tab-row-active" : ""}`}
+      onClick={(event) => {
+        event.stopPropagation();
+        onSelectTab(tab.id);
+      }}
+      onPointerDown={(event) => event.stopPropagation()}
+      title={tab.name}
+    >
+      <span
+        ref={dotRef}
+        onAnimationEnd={handleAnimationEnd}
+        className={`sidebar-dot sidebar-tab-dot ${getSidebarDotClass(tab, isRecent)}`}
+        aria-hidden="true"
+      />
+      <span className="sidebar-tab-label">{tab.name}</span>
+    </button>
+  );
+}
+
 function SortableGroup({
   group,
   isActive,
@@ -164,8 +191,12 @@ function SortableGroup({
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
-  const { visibleTabs, overflowCount } = getVisibleSidebarTabs(group.tabs);
+  const { visibleTabs, overflowCount } = useMemo(() => getVisibleSidebarTabs(group.tabs), [group.tabs]);
   const isDetailed = projectMenuDetail === "detailed";
+  const renderedVisibleTabs = usePresenceList(visibleTabs, {
+    exitDuration: SIDEBAR_TAB_EXIT_DURATION_MS,
+    resetKey: `${group.id}:${isDetailed ? "detailed" : "compact"}`,
+  });
 
   return (
     <div
@@ -193,28 +224,20 @@ function SortableGroup({
             {branchName && <div className="sidebar-branch-label">{branchName}</div>}
             {isDetailed ? (
               <div className="sidebar-tab-list" aria-label={`${group.name} tabs`}>
-                {visibleTabs.map((tab) => {
+                {renderedVisibleTabs.map((entry) => {
+                  const tab = entry.item;
                   const anchor = getTabRecencyAnchor(tab);
                   const isRecent = anchor ? now - anchor < recencyThreshold : false;
                   const isActiveTab = tab.id === group.activeTabId;
                   return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      className={`sidebar-tab-row${isActiveTab ? " sidebar-tab-row-active" : ""}`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onSelectTab(tab.id);
-                      }}
-                      onPointerDown={(event) => event.stopPropagation()}
-                      title={tab.name}
-                    >
-                      <span
-                        className={`sidebar-dot sidebar-tab-dot ${getSidebarDotClass(tab, isRecent)}`}
-                        aria-hidden="true"
+                    <div key={tab.id} className="sidebar-tab-row-shell" data-presence={entry.phase}>
+                      <SidebarTabButton
+                        tab={tab}
+                        isActiveTab={isActiveTab}
+                        isRecent={isRecent}
+                        onSelectTab={onSelectTab}
                       />
-                      <span className="sidebar-tab-label">{tab.name}</span>
-                    </button>
+                    </div>
                   );
                 })}
                 {overflowCount > 0 && <div className="sidebar-tab-overflow">+{overflowCount} more</div>}

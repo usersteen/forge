@@ -32,6 +32,7 @@ const CODEX_REPLY_TO_WORKING_MS = 10000;
 const CODEX_WAITING_CONFIRM_MS = 900;
 const CODEX_WAITING_ATTENTION_COOLDOWN_MS = 4000;
 const HUMAN_INPUT_PAUSE_MS = 5000;
+const RESPONSE_DEBOUNCE_MS = 5000;
 const TERMINAL_NOTICE_MS = 6000;
 const TERMINAL_RECOVERY_MESSAGE = "Open a new terminal tab and rerun the command you were using.";
 const SERVER_URL_PATTERN = /\bhttps?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]|::1|(?:\d{1,3}\.){3}\d{1,3})(?::(\d{2,5}))?(?:\/[^\s]*)?/gi;
@@ -191,6 +192,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
     supported: false,
     lastSeenAt: 0,
   });
+  const lastResponseAtRef = useRef(0);
 
   useEffect(() => {
     const sessionId = crypto.randomUUID();
@@ -531,7 +533,11 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       }
 
       if (countResponse && prevStatus === "waiting" && status === "working" && tab.type !== "server") {
-        store.recordResponse(tabId);
+        const now = Date.now();
+        if (now - lastResponseAtRef.current >= RESPONSE_DEBOUNCE_MS) {
+          lastResponseAtRef.current = now;
+          store.recordResponse(tabId);
+        }
       }
 
       const shouldAnnounceWaiting = notifyWaiting && status === "waiting" && prevStatus !== "waiting";
@@ -914,12 +920,12 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       }
 
       const codexCommandKind = classifyCodexSessionCommand(command);
-      lastCodexInputKindRef.current = codexCommandKind;
-      if (codexCommandKind !== "ui") {
+      // Treat short inputs (picker selections like "1", "y") as UI interactions too.
+      const isNonPrompt = codexCommandKind !== "prompt" || command.length <= 1;
+      lastCodexInputKindRef.current = isNonPrompt ? "ui" : codexCommandKind;
+      if (!isNonPrompt) {
         detector.awaitingUser = false;
         recentCodexReplyAtRef.current = Date.now();
-      }
-      if (codexCommandKind === "prompt") {
         rememberRecentCodexInput(command);
       } else {
         recentCodexInputRef.current = { summary: "", at: 0 };
@@ -927,16 +933,17 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       logCodexDebug("user-reply", {
         command,
         commandKind: codexCommandKind,
+        isNonPrompt,
         recentText: codexDebugRef.current.recentText,
       });
       const store = useForgeStore.getState();
       const snapshot = getTabSnapshot(store, tabId);
-      if (codexCommandKind !== "ui" && snapshot?.tab.status === "waiting") {
+      if (!isNonPrompt && snapshot?.tab.status === "waiting") {
         applyDetectedStatus("working", summarizeStatusText(command, "Codex"), {
           notifyWaiting: false,
         });
       }
-      if (codexCommandKind !== "ui") {
+      if (!isNonPrompt) {
         scheduleCodexIdleCheck();
       }
     };
@@ -1316,6 +1323,14 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       }
 
       const parsedTitle = parseAgentStatusTitle(title);
+
+      // Ignore "working" titles when the user hasn't submitted a real prompt yet.
+      // awaitingUser stays true for slash commands and short UI inputs (picker selections).
+      // This prevents title mode activation during UI flows that would block the idle check.
+      if (detectorRef.current.awaitingUser && parsedTitle?.status === "working") {
+        return;
+      }
+
       let nextStatus = parsedTitle?.status ?? null;
       let nextLabel = parsedTitle?.label ?? "";
 
@@ -1441,6 +1456,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
         delete window.forgeDebug.terminals[tabId];
       }
       detectorRef.current = { provider: "unknown", awaitingUser: false };
+      lastResponseAtRef.current = 0;
       recentCodexInputRef.current = { summary: "", at: 0 };
       recentCodexReplyAtRef.current = 0;
       lastCodexInputKindRef.current = "unknown";

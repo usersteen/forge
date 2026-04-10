@@ -6,7 +6,9 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import useForgeStore from "../store/useForgeStore";
 import useInlineRename from "../hooks/useInlineRename";
 import useFlashAnimation from "../hooks/useFlashAnimation";
+import { usePresenceList } from "../hooks/useMotionList";
 import useRecencyTick from "../hooks/useRecencyTick";
+import useAnimatedSurface from "../hooks/useAnimatedSurface";
 import NewTabMenu from "./NewTabMenu";
 import ProjectExplorer from "./ProjectExplorer";
 import TabContextMenu from "./TabContextMenu";
@@ -15,6 +17,7 @@ import ParticleLayer from "./ParticleLayer";
 
 const appWindow = getCurrentWindow();
 const IS_MACOS = navigator.platform.startsWith("Mac");
+const TAB_EXIT_DURATION_MS = 135;
 
 function getTabRecencyAnchor(tab) {
   if (tab.status === "waiting") {
@@ -66,11 +69,25 @@ function getRenameSeed(tab) {
   return tab.name;
 }
 
-function SortableTab({ tab, isActive, isRecent, onSelect, onDoubleClick, onContextMenu, editingId, inputProps, onClose }) {
+function SortableTab({
+  tab,
+  isActive,
+  isRecent,
+  presencePhase,
+  onSelect,
+  onDoubleClick,
+  onContextMenu,
+  editingId,
+  inputProps,
+  onClose,
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: tab.id });
   const { elementRef: tabRef, handleAnimationEnd } = useFlashAnimation(tab.waitingFlashKey);
+  const dragTransform = transform
+    ? CSS.Transform.toString({ ...transform, y: 0, scaleX: 1, scaleY: 1 })
+    : "translate3d(0px, 0px, 0px)";
   const style = {
-    transform: transform ? CSS.Transform.toString({ ...transform, y: 0, scaleX: 1, scaleY: 1 }) : undefined,
+    transform: `${dragTransform} var(--tab-interaction-transform, translate3d(0px, 0px, 0px)) var(--tab-presence-transform, translate3d(0px, 0px, 0px))`,
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
@@ -80,11 +97,15 @@ function SortableTab({ tab, isActive, isRecent, onSelect, onDoubleClick, onConte
 
   return (
     <div
-      ref={(node) => { setNodeRef(node); tabRef.current = node; }}
+      ref={(node) => {
+        setNodeRef(node);
+        tabRef.current = node;
+      }}
       style={style}
       {...attributes}
       {...listeners}
       className={`tab ${isActive ? "tab-active" : ""} ${statusClass}`}
+      data-presence={presencePhase}
       onClick={onSelect}
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
@@ -125,16 +146,32 @@ export default function TabBar({ onRefreshWorkspace }) {
   const renameTab = useForgeStore((s) => s.renameTab);
   const reorderTabs = useForgeStore((s) => s.reorderTabs);
   const updateTabTerminal = useForgeStore((s) => s.updateTabTerminal);
-  const theme = useForgeStore((s) => s.theme);
   const tourActive = useForgeStore((s) => s.tourActive);
   const tourExpandedPanel = useForgeStore((s) => s.tourExpandedPanel);
   const tabRecencyMinutes = useForgeStore((s) => s.tabRecencyMinutes);
   const showcaseActive = useForgeStore((s) => s.showcaseActive);
   const showcaseRepoOpen = useForgeStore((s) => s.showcaseRepoOpen);
 
-  const [contextMenu, setContextMenu] = useState(null);
-  const [newTabMenu, setNewTabMenu] = useState(null);
-  const [repoOpen, setRepoOpen] = useState(false);
+  const {
+    surface: contextMenu,
+    clearSurface: clearContextMenu,
+    hideSurface: closeContextMenu,
+    showSurface: openContextMenu,
+  } = useAnimatedSurface(140);
+  const {
+    surface: newTabMenu,
+    isOpen: isNewTabMenuOpen,
+    clearSurface: clearNewTabMenu,
+    hideSurface: closeNewTabMenu,
+    showSurface: openNewTabMenu,
+  } = useAnimatedSurface(145);
+  const {
+    surface: repoPanel,
+    isOpen: isRepoOpen,
+    clearSurface: clearRepoPanel,
+    hideSurface: closeRepoPanel,
+    showSurface: openRepoPanel,
+  } = useAnimatedSurface(150);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const addButtonRef = useRef(null);
   const repoPanelRef = useRef(null);
@@ -149,6 +186,10 @@ export default function TabBar({ onRefreshWorkspace }) {
   }, []);
 
   const activeGroup = groups.find((g) => g.id === activeGroupId);
+  const renderedTabs = usePresenceList(activeGroup?.tabs ?? [], {
+    exitDuration: TAB_EXIT_DURATION_MS,
+    resetKey: activeGroupId,
+  });
   const hasWaitingTabs = activeGroup?.tabs.some((t) => t.status === "waiting") ?? false;
   const now = useRecencyTick(hasWaitingTabs);
   const recencyThreshold = tabRecencyMinutes * 60000;
@@ -184,16 +225,16 @@ export default function TabBar({ onRefreshWorkspace }) {
   }, [activeGroup?.rootPath]);
 
   useEffect(() => {
-    if (!repoOpen || tourActive) return;
+    if (!repoPanel || tourActive) return;
 
     const handlePointerDown = (event) => {
       if (repoPanelRef.current?.contains(event.target)) return;
-      setRepoOpen(false);
+      closeRepoPanel();
     };
 
     const handleKeyDown = (event) => {
       if (event.key === "Escape") {
-        setRepoOpen(false);
+        closeRepoPanel();
       }
     };
 
@@ -203,33 +244,42 @@ export default function TabBar({ onRefreshWorkspace }) {
       window.removeEventListener("pointerdown", handlePointerDown);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [repoOpen, tourActive]);
+  }, [closeRepoPanel, repoPanel, tourActive]);
 
   useEffect(() => {
     if (!showcaseActive) return;
-    setRepoOpen(showcaseRepoOpen);
-  }, [showcaseActive, showcaseRepoOpen]);
+    if (showcaseRepoOpen) {
+      openRepoPanel({});
+      return;
+    }
+    closeRepoPanel();
+  }, [closeRepoPanel, openRepoPanel, showcaseActive, showcaseRepoOpen]);
 
   // Sync tour-driven panel expansion
   useEffect(() => {
     if (!tourActive) {
-      setNewTabMenu(null);
-      setRepoOpen(false);
+      clearNewTabMenu();
+      clearRepoPanel();
       return;
     }
     if (tourExpandedPanel === "new-tab-menu" && addButtonRef.current) {
       const rect = addButtonRef.current.getBoundingClientRect();
-      setNewTabMenu({ x: rect.left, y: rect.bottom + 6 });
+      openNewTabMenu({ x: rect.left, y: rect.bottom + 10 });
     } else {
-      setNewTabMenu(null);
+      clearNewTabMenu();
     }
-    setRepoOpen(tourExpandedPanel === "project-explorer");
-  }, [tourActive, tourExpandedPanel]);
+    if (tourExpandedPanel === "project-explorer") {
+      openRepoPanel({});
+      return;
+    }
+    clearRepoPanel();
+  }, [clearNewTabMenu, clearRepoPanel, openNewTabMenu, openRepoPanel, tourActive, tourExpandedPanel]);
 
   useEffect(() => {
-    setContextMenu(null);
-    setNewTabMenu(null);
-  }, [activeGroupId]);
+    clearContextMenu();
+    clearNewTabMenu();
+    clearRepoPanel();
+  }, [activeGroupId, clearContextMenu, clearNewTabMenu, clearRepoPanel]);
 
   const NOOP = useCallback(() => {}, []);
 
@@ -249,46 +299,54 @@ export default function TabBar({ onRefreshWorkspace }) {
       <ParticleLayer location="tabbar" />
       <div className="tab-bar-leading" ref={repoPanelRef}>
         <button
-          className={`repo-trigger ${repoOpen ? "repo-trigger-active" : ""}`}
+          className={`repo-trigger ${isRepoOpen ? "repo-trigger-active" : ""}`}
           data-tour="repo-trigger"
           onPointerDown={(event) => event.stopPropagation()}
-          onClick={() => setRepoOpen((value) => !value)}
+          onClick={() => {
+            if (isRepoOpen) {
+              closeRepoPanel();
+              return;
+            }
+            openRepoPanel({});
+          }}
         >
           <span className="repo-trigger-label">{repoLabel}</span>
         </button>
         <ProjectExplorer
-          open={repoOpen}
-          onClose={tourActive ? NOOP : () => setRepoOpen(false)}
+          open={Boolean(repoPanel)}
+          motionState={repoPanel?.motionState ?? "open"}
+          onClose={tourActive ? NOOP : closeRepoPanel}
           onRefresh={onRefreshWorkspace}
           tourElevated={tourActive}
         />
       </div>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={activeGroup.tabs.map((t) => t.id)} strategy={horizontalListSortingStrategy}>
+        <SortableContext items={renderedTabs.map((entry) => entry.key)} strategy={horizontalListSortingStrategy}>
           <div className="tab-list" data-tour="tab-list">
-            {activeGroup.tabs.map((tab) => (
+            {renderedTabs.map((entry) => (
               <SortableTab
-                key={tab.id}
-                tab={tab}
-                isActive={tab.id === activeGroup.activeTabId}
-                isRecent={isTabRecent(tab)}
-                onSelect={() => setActiveTab(activeGroupId, tab.id)}
-                onDoubleClick={() => startEditing(tab.id, tab.name, getRenameSeed(tab))}
+                key={entry.key}
+                tab={entry.item}
+                isActive={entry.item.id === activeGroup.activeTabId}
+                isRecent={isTabRecent(entry.item)}
+                presencePhase={entry.phase}
+                onSelect={() => setActiveTab(activeGroupId, entry.item.id)}
+                onDoubleClick={() => startEditing(entry.item.id, entry.item.name, getRenameSeed(entry.item))}
                 onContextMenu={(e) => {
                   e.preventDefault();
-                  setActiveTab(activeGroupId, tab.id);
-                  setContextMenu({
-                    tabId: tab.id,
-                    tabName: tab.name,
-                    renameSeed: getRenameSeed(tab),
-                    tabType: tab.type,
+                  setActiveTab(activeGroupId, entry.item.id);
+                  openContextMenu({
+                    tabId: entry.item.id,
+                    tabName: entry.item.name,
+                    renameSeed: getRenameSeed(entry.item),
+                    tabType: entry.item.type,
                     x: e.clientX,
                     y: e.clientY,
                   });
                 }}
                 editingId={editingId}
                 inputProps={inputProps}
-                onClose={() => removeTab(activeGroupId, tab.id)}
+                onClose={() => removeTab(activeGroupId, entry.item.id)}
               />
             ))}
             <button
@@ -297,19 +355,19 @@ export default function TabBar({ onRefreshWorkspace }) {
               data-tour="tab-add"
               aria-label="Open new tab menu"
               aria-haspopup="menu"
-              aria-expanded={Boolean(newTabMenu)}
+              aria-expanded={isNewTabMenuOpen}
               onPointerDown={(event) => event.stopPropagation()}
               onClick={() => {
                 const rect = addButtonRef.current?.getBoundingClientRect();
                 if (!rect) return;
-                setNewTabMenu((current) =>
-                  current
-                    ? null
-                    : {
-                        x: rect.left,
-                        y: rect.bottom + 6,
-                      }
-                );
+                if (isNewTabMenuOpen) {
+                  closeNewTabMenu();
+                  return;
+                }
+                openNewTabMenu({
+                  x: rect.left,
+                  y: rect.bottom + 10,
+                });
               }}
             >
               +
@@ -351,7 +409,8 @@ export default function TabBar({ onRefreshWorkspace }) {
           onRename={() => startEditing(contextMenu.tabId, contextMenu.tabName, contextMenu.renameSeed)}
           onUpdateTab={(updates) => updateTabTerminal(contextMenu.tabId, updates)}
           onCloseTab={() => removeTab(activeGroupId, contextMenu.tabId)}
-          onClose={() => setContextMenu(null)}
+          motionState={contextMenu.motionState}
+          onClose={closeContextMenu}
         />
       )}
       {newTabMenu && (
@@ -360,9 +419,11 @@ export default function TabBar({ onRefreshWorkspace }) {
           y={newTabMenu.y}
           rootPath={activeGroup.rootPath}
           serverCommandOverride={activeGroup.serverCommandOverride}
+          anchorRef={addButtonRef}
           tourElevated={tourActive}
+          motionState={newTabMenu.motionState}
           onSelect={tourActive ? NOOP : (tabOptions) => addTab(activeGroupId, tabOptions)}
-          onClose={tourActive ? NOOP : () => setNewTabMenu(null)}
+          onClose={tourActive ? NOOP : closeNewTabMenu}
         />
       )}
     </div>

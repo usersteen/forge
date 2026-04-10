@@ -8,21 +8,27 @@ import AddWorktreeDialog from "./AddWorktreeDialog";
 import useInlineRename from "../hooks/useInlineRename";
 import useEffectiveHeatStage from "../hooks/useEffectiveHeatStage";
 import useFlashAnimation from "../hooks/useFlashAnimation";
+import { usePresenceList } from "../hooks/useMotionList";
 import ParticleLayer from "./ParticleLayer";
 import useRecencyTick from "../hooks/useRecencyTick";
+import useAnimatedSurface from "../hooks/useAnimatedSurface";
 import { getThemeHeatColor } from "../utils/themes";
 import ForgeWordmark from "./ForgeWordmark";
 import ProjectContextMenu from "./ProjectContextMenu";
 import Settings from "./Settings";
 import InfoPanel from "./InfoPanel";
-const ThemeLab = import.meta.env.DEV ? lazy(() => import("./ThemeLab")) : null;
 import NewProjectMenu from "./NewProjectMenu";
 import WelcomeModal from "./WelcomeModal";
 import GuidedTour from "./GuidedTour";
 import { getDefaultShowcaseSceneId } from "../demo/showcaseScenes";
 
+const themeLabModules = import.meta.env.DEV ? import.meta.glob("./ThemeLab.{jsx,js}") : {};
+const loadThemeLab = themeLabModules["./ThemeLab.jsx"] ?? themeLabModules["./ThemeLab.js"] ?? null;
+const ThemeLab = loadThemeLab ? lazy(loadThemeLab) : null;
+
 
 const appWindow = getCurrentWindow();
+const SIDEBAR_TAB_EXIT_DURATION_MS = 190;
 
 function getTabRecencyAnchor(tab) {
   if (tab.status === "waiting") {
@@ -135,6 +141,31 @@ function getVisibleSidebarTabs(tabs, limit = 4) {
   };
 }
 
+function SidebarTabButton({ tab, isActiveTab, isRecent, onSelectTab }) {
+  const { elementRef: dotRef, handleAnimationEnd } = useFlashAnimation(tab.waitingFlashKey);
+
+  return (
+    <button
+      type="button"
+      className={`sidebar-tab-row${isActiveTab ? " sidebar-tab-row-active" : ""}`}
+      onClick={(event) => {
+        event.stopPropagation();
+        onSelectTab(tab.id);
+      }}
+      onPointerDown={(event) => event.stopPropagation()}
+      title={tab.name}
+    >
+      <span
+        ref={dotRef}
+        onAnimationEnd={handleAnimationEnd}
+        className={`sidebar-dot sidebar-tab-dot ${getSidebarDotClass(tab, isRecent)}`}
+        aria-hidden="true"
+      />
+      <span className="sidebar-tab-label">{tab.name}</span>
+    </button>
+  );
+}
+
 function SortableGroup({
   group,
   isActive,
@@ -152,13 +183,20 @@ function SortableGroup({
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: group.id });
   const { elementRef: groupRef, handleAnimationEnd } = useFlashAnimation(group.waitingFlashKey);
+  const dragTransform = transform
+    ? CSS.Transform.toString(transform)
+    : "translate3d(0px, 0px, 0px)";
   const style = {
-    transform: CSS.Transform.toString(transform),
+    transform: `${dragTransform} var(--sidebar-group-transform, translate3d(0px, 0px, 0px))`,
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
-  const { visibleTabs, overflowCount } = getVisibleSidebarTabs(group.tabs);
+  const { visibleTabs, overflowCount } = useMemo(() => getVisibleSidebarTabs(group.tabs), [group.tabs]);
   const isDetailed = projectMenuDetail === "detailed";
+  const renderedVisibleTabs = usePresenceList(visibleTabs, {
+    exitDuration: SIDEBAR_TAB_EXIT_DURATION_MS,
+    resetKey: `${group.id}:${isDetailed ? "detailed" : "compact"}`,
+  });
 
   return (
     <div
@@ -186,28 +224,20 @@ function SortableGroup({
             {branchName && <div className="sidebar-branch-label">{branchName}</div>}
             {isDetailed ? (
               <div className="sidebar-tab-list" aria-label={`${group.name} tabs`}>
-                {visibleTabs.map((tab) => {
+                {renderedVisibleTabs.map((entry) => {
+                  const tab = entry.item;
                   const anchor = getTabRecencyAnchor(tab);
                   const isRecent = anchor ? now - anchor < recencyThreshold : false;
                   const isActiveTab = tab.id === group.activeTabId;
                   return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      className={`sidebar-tab-row${isActiveTab ? " sidebar-tab-row-active" : ""}`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onSelectTab(tab.id);
-                      }}
-                      onPointerDown={(event) => event.stopPropagation()}
-                      title={tab.name}
-                    >
-                      <span
-                        className={`sidebar-dot sidebar-tab-dot ${getSidebarDotClass(tab, isRecent)}`}
-                        aria-hidden="true"
+                    <div key={tab.id} className="sidebar-tab-row-shell" data-presence={entry.phase}>
+                      <SidebarTabButton
+                        tab={tab}
+                        isActiveTab={isActiveTab}
+                        isRecent={isRecent}
+                        onSelectTab={onSelectTab}
                       />
-                      <span className="sidebar-tab-label">{tab.name}</span>
-                    </button>
+                    </div>
                   );
                 })}
                 {overflowCount > 0 && <div className="sidebar-tab-overflow">+{overflowCount} more</div>}
@@ -260,6 +290,7 @@ export default function Sidebar() {
   const fxEnabled = useForgeStore((s) => s.fxEnabled);
   const configLoaded = useForgeStore((s) => s.configLoaded);
   const showWelcomeOnLaunch = useForgeStore((s) => s.showWelcomeOnLaunch);
+  const setWelcomeModalVisible = useForgeStore((s) => s.setWelcomeModalVisible);
   const tabRecencyMinutes = useForgeStore((s) => s.tabRecencyMinutes);
   const projectMenuDetail = useForgeStore((s) => s.projectMenuDetail);
   const setDemoHeatStage = useForgeStore((s) => s.setDemoHeatStage);
@@ -293,26 +324,57 @@ export default function Sidebar() {
   const [showInfo, setShowInfo] = useState(false);
   const [infoExiting, setInfoExiting] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [welcomeExiting, setWelcomeExiting] = useState(false);
   const [showThemeLab, setShowThemeLab] = useState(false);
   const [blockedCloseGroup, setBlockedCloseGroup] = useState(null);
   const tourActive = useForgeStore((s) => s.tourActive);
   const tourExpandedPanel = useForgeStore((s) => s.tourExpandedPanel);
   const storeTourStart = useForgeStore((s) => s.startTour);
   const storeTourEnd = useForgeStore((s) => s.endTour);
-  const [contextMenu, setContextMenu] = useState(null);
+  const {
+    surface: contextMenu,
+    clearSurface: clearContextMenu,
+    hideSurface: closeContextMenu,
+    showSurface: openContextMenu,
+  } = useAnimatedSurface(140);
   const [worktreeDialog, setWorktreeDialog] = useState(null);
-  const [newProjectMenu, setNewProjectMenu] = useState(null);
+  const {
+    surface: newProjectMenu,
+    isOpen: isNewProjectMenuOpen,
+    clearSurface: clearNewProjectMenu,
+    hideSurface: hideNewProjectMenu,
+    showSurface: openNewProjectMenu,
+  } = useAnimatedSurface(145);
   const newProjectBtnRef = useRef(null);
   const closeInfo = useCallback(() => setInfoExiting(true), []);
   const closeSettings = useCallback(() => setSettingsExiting(true), []);
   const onInfoExited = useCallback(() => { setInfoExiting(false); setShowInfo(false); }, []);
   const onSettingsExited = useCallback(() => { setSettingsExiting(false); setShowSettings(false); }, []);
-  const openInfo = useCallback(() => setShowInfo(true), []);
-  const openSettings = useCallback(() => setShowSettings(true), []);
-  const closeWelcome = useCallback(() => setShowWelcome(false), []);
-  const closeNewProjectMenu = useCallback(() => setNewProjectMenu(null), []);
+  const toggleInfo = useCallback(() => {
+    if (showInfo && !infoExiting) {
+      setInfoExiting(true);
+      return;
+    }
+    setShowInfo(true);
+    setInfoExiting(false);
+  }, [infoExiting, showInfo]);
+  const toggleSettings = useCallback(() => {
+    if (showSettings && !settingsExiting) {
+      setSettingsExiting(true);
+      return;
+    }
+    setShowSettings(true);
+    setSettingsExiting(false);
+  }, [settingsExiting, showSettings]);
+  const closeWelcome = useCallback(() => setWelcomeExiting(true), []);
+  const onWelcomeExited = useCallback(() => {
+    setWelcomeExiting(false);
+    setShowWelcome(false);
+  }, []);
+  const closeNewProjectMenu = useCallback(() => hideNewProjectMenu(), [hideNewProjectMenu]);
   const startTour = useCallback(() => {
     setShowWelcome(false);
+    setWelcomeExiting(false);
     setShowInfo(false);
     setShowSettings(false);
     setShowThemeLab(false);
@@ -335,27 +397,31 @@ export default function Sidebar() {
     if (import.meta.env.DEV || showWelcomeOnLaunch) setShowWelcome(true);
   }, [configLoaded, showWelcomeOnLaunch]);
 
+  useEffect(() => {
+    setWelcomeModalVisible(showWelcome || welcomeExiting);
+  }, [setWelcomeModalVisible, showWelcome, welcomeExiting]);
+
   // Sync tour-driven panel expansion
   useEffect(() => {
     if (!tourActive) {
       setShowSettings(false);
       setShowInfo(false);
-      setNewProjectMenu(null);
+      clearNewProjectMenu();
       return;
     }
     setShowSettings(tourExpandedPanel === "settings");
     setShowInfo(tourExpandedPanel === "info");
     if (tourExpandedPanel === "new-project-menu" && newProjectBtnRef.current) {
       const rect = newProjectBtnRef.current.getBoundingClientRect();
-      setNewProjectMenu({ x: rect.right + 6, y: rect.top });
+      openNewProjectMenu({ x: rect.right + 10, y: rect.top });
     } else {
-      setNewProjectMenu(null);
+      clearNewProjectMenu();
     }
-  }, [tourActive, tourExpandedPanel]);
+  }, [clearNewProjectMenu, openNewProjectMenu, tourActive, tourExpandedPanel]);
 
   useEffect(() => {
-    setContextMenu(null);
-  }, [activeGroupId]);
+    clearContextMenu();
+  }, [activeGroupId, clearContextMenu]);
 
   const openBlockedCloseModal = useCallback((groupId) => {
     const group = groups.find((entry) => entry.id === groupId);
@@ -399,7 +465,7 @@ export default function Sidebar() {
                   onContextMenu={(event) => {
                     event.preventDefault();
                     setActiveGroup(group.id);
-                    setContextMenu({
+                    openContextMenu({
                       groupId: group.id,
                       groupName: group.name,
                       gitBranch: group.gitBranch,
@@ -444,17 +510,22 @@ export default function Sidebar() {
         className="sidebar-add"
         data-tour="new-project"
         onClick={() => {
-          const rect = newProjectBtnRef.current.getBoundingClientRect();
-          setNewProjectMenu({ x: rect.right + 6, y: rect.top });
+          const rect = newProjectBtnRef.current?.getBoundingClientRect();
+          if (!rect) return;
+          if (isNewProjectMenuOpen) {
+            closeNewProjectMenu();
+            return;
+          }
+          openNewProjectMenu({ x: rect.right + 10, y: rect.top });
         }}
       >
         + New Project
       </button>
       <div className="sidebar-actions">
         <button
-          className="sidebar-action-btn"
-          onClick={openInfo}
-          aria-label="Open Forge info"
+          className={`sidebar-action-btn${showInfo && !infoExiting ? " sidebar-action-btn-active" : ""}`}
+          onClick={toggleInfo}
+          aria-label={showInfo && !infoExiting ? "Close Forge info" : "Open Forge info"}
           data-tour="info-btn"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -464,9 +535,9 @@ export default function Sidebar() {
           </svg>
         </button>
         <button
-          className="sidebar-action-btn"
-          onClick={openSettings}
-          aria-label="Open Forge settings"
+          className={`sidebar-action-btn${showSettings && !settingsExiting ? " sidebar-action-btn-active" : ""}`}
+          onClick={toggleSettings}
+          aria-label={showSettings && !settingsExiting ? "Close Forge settings" : "Open Forge settings"}
           data-tour="settings-btn"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -526,7 +597,9 @@ export default function Sidebar() {
         <NewProjectMenu
           x={newProjectMenu.x}
           y={newProjectMenu.y}
+          anchorRef={newProjectBtnRef}
           tourElevated={tourActive}
+          motionState={newProjectMenu.motionState}
           onSelect={tourActive ? NOOP : (path) => {
             if (path) {
               addGroup(undefined, { rootPath: path });
@@ -537,7 +610,14 @@ export default function Sidebar() {
           onClose={tourActive ? NOOP : closeNewProjectMenu}
         />
       )}
-      {showWelcome && <WelcomeModal onClose={closeWelcome} onStartTour={startTour} />}
+      {showWelcome && (
+        <WelcomeModal
+          exiting={welcomeExiting}
+          onClose={closeWelcome}
+          onExited={onWelcomeExited}
+          onStartTour={startTour}
+        />
+      )}
       {showInfo && (
         <div className={tourActive ? "tour-elevated-panel" : ""}>
           <InfoPanel onClose={tourActive ? NOOP : closeInfo} onExited={onInfoExited} exiting={infoExiting} onStartTour={tourActive ? undefined : startTour} />
@@ -560,6 +640,7 @@ export default function Sidebar() {
           y={contextMenu.y}
           isGitRepo={!!contextMenu.gitBranch && !contextMenu.worktreeParentId}
           isWorktree={!!contextMenu.worktreeParentId}
+          motionState={contextMenu.motionState}
           onRename={() => startEditing(contextMenu.groupId, contextMenu.groupName)}
           onRemove={() => {
             if (hasWorktreeChildren(contextMenu.groupId)) {
@@ -575,7 +656,7 @@ export default function Sidebar() {
           onRemoveWorktree={() => {
             removeWorktreeGroup(contextMenu.groupId).catch((err) => alert(err));
           }}
-          onClose={() => setContextMenu(null)}
+          onClose={closeContextMenu}
         />
       )}
       {blockedCloseGroup && (

@@ -32,6 +32,7 @@ export default function TerminalArea() {
   const activeGroupId = useForgeStore((s) => s.activeGroupId);
   const tourExpandedPanel = useForgeStore((s) => s.tourExpandedPanel);
   const showcaseActive = useForgeStore((s) => s.showcaseActive);
+  const welcomeModalVisible = useForgeStore((s) => s.welcomeModalVisible);
 
   const activeGroup = groups.find((g) => g.id === activeGroupId);
   const activeTabId = activeGroup?.activeTabId;
@@ -46,7 +47,7 @@ export default function TerminalArea() {
   return (
     <div className="terminal-area" data-tour="terminal-area">
       {showMockDocViewer && <MockDocViewer />}
-      {showPicker && (
+      {showPicker && !welcomeModalVisible && (
         <EmptyGroupPicker
           groupId={activeGroupId}
           rootPath={activeGroup.rootPath}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import useServerSuggestion from "../hooks/useServerSuggestion";
 import useForgeStore from "../store/useForgeStore";
@@ -6,20 +6,62 @@ import ParticleLayer from "./ParticleLayer";
 import { normalizeRootPath } from "../utils/workspace";
 
 const IS_MACOS = navigator.platform.startsWith("Mac");
+const TREE_EXIT_MS = 140;
 
-const STAR_POINTS = "12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2";
+const STAR_POINTS =
+  "12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2";
 
 function StarIcon({ filled }) {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill={filled ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <polygon points={STAR_POINTS} />
+    </svg>
+  );
+}
+
+function ChevronIcon({ expanded }) {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 12 12"
+      fill="none"
+      className={`repo-browser-chevron${expanded ? " repo-browser-chevron-open" : ""}`}
+      aria-hidden="true"
+    >
+      <path
+        d="M4 2.5L7.5 6L4 9.5"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
 
 function FolderIcon({ open }) {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" className="repo-browser-icon">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="repo-browser-icon"
+    >
       {open ? (
         <path d="M1.5 12.5V4a1 1 0 0 1 1-1h3l1.5 1.5h5a1 1 0 0 1 1 1v.5M1.5 12.5h11.5a1 1 0 0 0 1-1L12 7H2L.5 11.5a1 1 0 0 0 1 1z" />
       ) : (
@@ -31,7 +73,17 @@ function FolderIcon({ open }) {
 
 function FileIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" className="repo-browser-icon">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="repo-browser-icon"
+    >
       <path d="M9.5 1.5H4.5a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V4.5z" />
       <polyline points="9.5 1.5 9.5 4.5 12.5 4.5" />
     </svg>
@@ -40,7 +92,17 @@ function FileIcon() {
 
 function ImageIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" className="repo-browser-icon">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="repo-browser-icon"
+    >
       <rect x="2" y="2" width="12" height="12" rx="1" />
       <circle cx="5.5" cy="5.5" r="1" />
       <path d="M14 10.5l-3-3-7 7" />
@@ -50,7 +112,17 @@ function ImageIcon() {
 
 function MarkdownIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" className="repo-browser-icon">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="repo-browser-icon"
+    >
       <path d="M9.5 1.5H4.5a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V4.5z" />
       <polyline points="9.5 1.5 9.5 4.5 12.5 4.5" />
       <path d="M5.5 8.5v3l1.25-1.25L8 11.5v-3" strokeWidth="1.3" />
@@ -60,17 +132,63 @@ function MarkdownIcon() {
 
 function fileIcon(fileType) {
   switch (fileType) {
-    case "markdown": return <MarkdownIcon />;
-    case "image": return <ImageIcon />;
-    default: return <FileIcon />;
+    case "markdown":
+      return <MarkdownIcon />;
+    case "image":
+      return <ImageIcon />;
+    default:
+      return <FileIcon />;
   }
 }
 
-
-function TreeNode({ node, depth, expandedPaths, setExpandedPaths, selectedPath, onOpenFile }) {
+function TreeNode({
+  node,
+  depth,
+  expandedPaths,
+  setExpandedPaths,
+  selectedPath,
+  onOpenFile,
+}) {
   const isDirectory = node.kind === "directory";
   const isExpanded = expandedPaths.has(node.path);
   const isSelected = selectedPath === node.path;
+  const hasChildren = isDirectory && node.children?.length > 0;
+  const [childrenVisible, setChildrenVisible] = useState(isExpanded);
+  const [childrenMotionState, setChildrenMotionState] = useState(
+    isExpanded ? "open" : "closing"
+  );
+  const enterFrameRef = useRef(null);
+  const exitTimerRef = useRef(null);
+
+  useEffect(
+    () => () => {
+      if (enterFrameRef.current) cancelAnimationFrame(enterFrameRef.current);
+      if (exitTimerRef.current) clearTimeout(exitTimerRef.current);
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (!hasChildren) return;
+    if (enterFrameRef.current) cancelAnimationFrame(enterFrameRef.current);
+    if (exitTimerRef.current) clearTimeout(exitTimerRef.current);
+
+    if (isExpanded) {
+      setChildrenVisible(true);
+      setChildrenMotionState("entering");
+      enterFrameRef.current = requestAnimationFrame(() => {
+        setChildrenMotionState("open");
+      });
+      return;
+    }
+
+    if (childrenVisible) {
+      setChildrenMotionState("closing");
+      exitTimerRef.current = setTimeout(() => {
+        setChildrenVisible(false);
+      }, TREE_EXIT_MS);
+    }
+  }, [childrenVisible, hasChildren, isExpanded]);
 
   const flipExpanded = () => {
     setExpandedPaths((current) => {
@@ -89,12 +207,15 @@ function TreeNode({ node, depth, expandedPaths, setExpandedPaths, selectedPath, 
     flipExpanded();
   };
 
-  const isViewable = !isDirectory && ["markdown", "text", "image"].includes(node.file_type);
+  const isViewable =
+    !isDirectory && ["markdown", "text", "image"].includes(node.file_type);
 
   return (
     <div className="repo-browser-node-block">
       <div
-        className={`repo-browser-node ${isSelected ? "repo-browser-node-selected" : ""} ${isDirectory ? "repo-browser-node-directory" : ""} ${!isDirectory && !isViewable ? "repo-browser-node-inert" : ""}`}
+        className={`repo-browser-node${isSelected ? " repo-browser-node-selected" : ""}${
+          isDirectory ? " repo-browser-node-directory" : ""
+        }${!isDirectory && !isViewable ? " repo-browser-node-inert" : ""}`}
         style={{ paddingLeft: `${depth * 14 + 12}px` }}
         onClick={() => {
           if (isDirectory) {
@@ -107,11 +228,11 @@ function TreeNode({ node, depth, expandedPaths, setExpandedPaths, selectedPath, 
         {isDirectory ? (
           <button
             type="button"
-            className="repo-browser-toggle"
+            className={`repo-browser-toggle${isExpanded ? " repo-browser-toggle-open" : ""}`}
             onClick={toggleExpanded}
             aria-label={isExpanded ? "Collapse folder" : "Expand folder"}
           >
-            {isExpanded ? "\u25be" : "\u25b8"}
+            <ChevronIcon expanded={isExpanded} />
           </button>
         ) : (
           <span className="repo-browser-file-spacer" />
@@ -119,26 +240,36 @@ function TreeNode({ node, depth, expandedPaths, setExpandedPaths, selectedPath, 
         {isDirectory ? <FolderIcon open={isExpanded} /> : fileIcon(node.file_type)}
         <span className="repo-browser-node-name">{node.name}</span>
       </div>
-      {isDirectory && isExpanded && node.children?.length > 0 ? (
-        <div className="repo-browser-children">
-          {node.children.map((child) => (
-            <TreeNode
-              key={child.path}
-              node={child}
-              depth={depth + 1}
-              expandedPaths={expandedPaths}
-              setExpandedPaths={setExpandedPaths}
-              selectedPath={selectedPath}
-              onOpenFile={onOpenFile}
-            />
-          ))}
+      {hasChildren && childrenVisible ? (
+        <div
+          className={`repo-browser-children-shell repo-browser-children-shell-${childrenMotionState}`}
+        >
+          <div className="repo-browser-children">
+            {node.children.map((child) => (
+              <TreeNode
+                key={child.path}
+                node={child}
+                depth={depth + 1}
+                expandedPaths={expandedPaths}
+                setExpandedPaths={setExpandedPaths}
+                selectedPath={selectedPath}
+                onOpenFile={onOpenFile}
+              />
+            ))}
+          </div>
         </div>
       ) : null}
     </div>
   );
 }
 
-export default function ProjectExplorer({ open, onClose, onRefresh, tourElevated }) {
+export default function ProjectExplorer({
+  open,
+  onClose,
+  onRefresh,
+  tourElevated,
+  motionState = "open",
+}) {
   const activeGroupId = useForgeStore((state) => state.activeGroupId);
   const groups = useForgeStore((state) => state.groups);
   const workspaceByGroup = useForgeStore((state) => state.workspaceByGroup);
@@ -260,11 +391,13 @@ export default function ProjectExplorer({ open, onClose, onRefresh, tourElevated
 
   return (
     <div
-      className={`repo-browser-popover${tourElevated ? " tour-elevated-menu" : ""}`}
+      className={`repo-browser-popover surface-menu${tourElevated ? " tour-elevated-menu" : ""}`}
+      data-motion-state={motionState}
+      data-placement="down-right"
       onMouseDown={(event) => event.stopPropagation()}
       onPointerDown={(event) => event.stopPropagation()}
     >
-      <div className="repo-browser-header">
+      <div className="repo-browser-header surface-stagger" style={{ "--surface-index": 0 }}>
         <ParticleLayer location="repoBrowser" />
         <div className="repo-browser-title">Repository</div>
         <div className="repo-browser-header-actions">
@@ -273,7 +406,9 @@ export default function ProjectExplorer({ open, onClose, onRefresh, tourElevated
               <button
                 type="button"
                 className="repo-browser-action"
-                onClick={() => invoke("open_in_file_manager", { path: activeGroup.rootPath })}
+                onClick={() =>
+                  invoke("open_in_file_manager", { path: activeGroup.rootPath })
+                }
               >
                 {IS_MACOS ? "Finder" : "Explorer"}
               </button>
@@ -282,7 +417,7 @@ export default function ProjectExplorer({ open, onClose, onRefresh, tourElevated
               </button>
               <button
                 type="button"
-                className="repo-browser-action"
+                className={`repo-browser-action${editingPath ? " repo-browser-action-active" : ""}`}
                 onClick={() => setEditingPath((current) => !current)}
               >
                 {editingPath ? "Done" : "Change Path"}
@@ -293,7 +428,7 @@ export default function ProjectExplorer({ open, onClose, onRefresh, tourElevated
       </div>
 
       {editingPath ? (
-        <div className="repo-browser-bind-row">
+        <div className="repo-browser-bind-row surface-stagger" style={{ "--surface-index": 1 }}>
           <input
             className="repo-browser-input"
             value={workspacePathInput}
@@ -307,12 +442,16 @@ export default function ProjectExplorer({ open, onClose, onRefresh, tourElevated
             placeholder="Paste repository path"
             spellCheck={false}
           />
-          <button type="button" className="repo-browser-action" onClick={() => commitWorkspacePath()}>
+          <button
+            type="button"
+            className="repo-browser-action"
+            onClick={() => commitWorkspacePath()}
+          >
             Set
           </button>
           <button
             type="button"
-            className={`repo-browser-star ${isFavoriteTarget ? "repo-browser-star-active" : ""}`}
+            className={`repo-browser-star${isFavoriteTarget ? " repo-browser-star-active" : ""}`}
             onClick={() => toggleFavoriteRepoPath(favoriteTargetPath)}
             disabled={!favoriteTargetPath}
             aria-label={isFavoriteTarget ? "Unstar repo" : "Star repo"}
@@ -321,16 +460,24 @@ export default function ProjectExplorer({ open, onClose, onRefresh, tourElevated
           </button>
         </div>
       ) : activeGroup.rootPath ? (
-        <div className="repo-browser-path-row">
+        <div className="repo-browser-path-row surface-stagger" style={{ "--surface-index": 1 }}>
           <div className="repo-browser-path" title={activeGroup.rootPath}>
             {activeGroup.rootPath}
           </div>
           <div className="repo-browser-path-actions">
             <button
               type="button"
-              className={`repo-browser-star ${favoriteRepoPaths.includes(activeGroup.rootPath) ? "repo-browser-star-active" : ""}`}
+              className={`repo-browser-star${
+                favoriteRepoPaths.includes(activeGroup.rootPath)
+                  ? " repo-browser-star-active"
+                  : ""
+              }`}
               onClick={() => toggleFavoriteRepoPath(activeGroup.rootPath)}
-              aria-label={favoriteRepoPaths.includes(activeGroup.rootPath) ? "Unstar repo" : "Star repo"}
+              aria-label={
+                favoriteRepoPaths.includes(activeGroup.rootPath)
+                  ? "Unstar repo"
+                  : "Star repo"
+              }
             >
               <StarIcon filled={favoriteRepoPaths.includes(activeGroup.rootPath)} />
             </button>
@@ -340,7 +487,7 @@ export default function ProjectExplorer({ open, onClose, onRefresh, tourElevated
           </div>
         </div>
       ) : (
-        <div className="repo-browser-note">
+        <div className="repo-browser-note surface-stagger" style={{ "--surface-index": 1 }}>
           Paste a repository path to browse files and open markdown, text, or image documents.
         </div>
       )}
@@ -440,18 +587,22 @@ export default function ProjectExplorer({ open, onClose, onRefresh, tourElevated
       ) : null}
 
       {!activeGroup.rootPath ? null : workspace?.status === "loading" ? (
-        <div className="repo-browser-empty">Loading repository tree...</div>
+        <div className="repo-browser-empty surface-stagger" style={{ "--surface-index": 2 }}>
+          Loading repository tree...
+        </div>
       ) : workspace?.status === "error" ? (
-        <div className="repo-browser-empty">
+        <div className="repo-browser-empty surface-stagger" style={{ "--surface-index": 2 }}>
           <p>{workspace.error || "Workspace scan failed."}</p>
           <button type="button" className="repo-browser-action" onClick={onRefresh}>
             Retry
           </button>
         </div>
       ) : workspace?.status === "empty-folder" ? (
-        <div className="repo-browser-empty">No files were found after applying workspace ignores.</div>
+        <div className="repo-browser-empty surface-stagger" style={{ "--surface-index": 2 }}>
+          No files were found after applying workspace ignores.
+        </div>
       ) : (
-        <div className="repo-browser-tree">
+        <div className="repo-browser-tree surface-stagger" style={{ "--surface-index": 2 }}>
           {workspace?.tree?.map((node) => (
             <TreeNode
               key={node.path}

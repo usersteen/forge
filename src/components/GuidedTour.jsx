@@ -6,7 +6,7 @@ import { TOUR_STEPS } from "../data/tourSteps";
 
 const TOOLTIP_GAP = 12;
 const DEFAULT_PADDING = 0;
-const TRANSITION_MS = 300;
+const TRANSITION_MS = 180;
 
 function getUnionRect(rects) {
   if (rects.length === 0) return null;

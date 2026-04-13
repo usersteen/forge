@@ -643,6 +643,14 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       const { status, screenText, title: detectedTitle } = inspectCodexScreen(termRef.current);
       if (!status) return null;
 
+      if (status === "working" && lastCodexInputKindRef.current === "ui") {
+        logCodexDebug("surface-suppressed-ui-guard", {
+          source,
+          screenText: clipDebugText(screenText.replace(/\s+/g, " ").trim()),
+        });
+        return null;
+      }
+
       const title =
         detectedTitle ||
         fallbackTitle ||
@@ -762,14 +770,6 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
 
       scheduleCodexIdleCheck();
 
-      const snapshot = getTabSnapshot(useForgeStore.getState(), tabId);
-      const currentTabStatus = snapshot?.tab.status ?? prevStatusRef.current;
-
-      const surfaceStatus = inspectCodexSurface("output", summary, {
-        allowDuringTitleMode: true,
-      });
-      if (surfaceStatus) return;
-
       if (hasCodexTitleStatus()) {
         logCodexDebug("ignored-output-title-mode", {
           summary,
@@ -779,16 +779,24 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
         return;
       }
 
-      if (summary && isRecentCodexEcho(summary)) {
-        logCodexDebug("ignored-echo", {
+      if (lastCodexInputKindRef.current === "ui") {
+        logCodexDebug("ignored-ui-output", {
           summary,
           recentText,
         });
         return;
       }
 
-      if (lastCodexInputKindRef.current === "ui") {
-        logCodexDebug("ignored-ui-output", {
+      const snapshot = getTabSnapshot(useForgeStore.getState(), tabId);
+      const currentTabStatus = snapshot?.tab.status ?? prevStatusRef.current;
+
+      const surfaceStatus = inspectCodexSurface("output", summary, {
+        allowDuringTitleMode: true,
+      });
+      if (surfaceStatus) return;
+
+      if (summary && isRecentCodexEcho(summary)) {
+        logCodexDebug("ignored-echo", {
           summary,
           recentText,
         });

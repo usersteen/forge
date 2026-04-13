@@ -3968,6 +3968,25 @@ body.reader-resizing {
   color: #fca5a5;
 }
 
+.settings-support-copy {
+  display: inline;
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 10px;
+  padding: 1px 6px;
+  margin-left: 6px;
+  cursor: pointer;
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+
+.settings-support-copy:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+  color: var(--text-primary);
+}
+
 /* Info panel — taller body for more content */
 .info-panel .settings-body {
   height: 420px;

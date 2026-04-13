@@ -390,6 +390,7 @@ function DiagnosticsPanel() {
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState("");
   const [exportResult, setExportResult] = useState(null);
+  const [copied, setCopied] = useState(false);
   const exportedDirectory =
     exportResult?.directory ||
     (typeof diagnosticsLastExportPath === "string"
@@ -416,6 +417,18 @@ function DiagnosticsPanel() {
       setExportError(String(error));
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleCopyPath = async () => {
+    const pathToCopy = exportResult?.path || diagnosticsLastExportPath;
+    if (!pathToCopy) return;
+    try {
+      await invoke("write_clipboard_text", { text: pathToCopy });
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (error) {
+      setExportError(String(error));
     }
   };
 
@@ -462,6 +475,9 @@ function DiagnosticsPanel() {
       {exportResult?.path || diagnosticsLastExportPath ? (
         <span className="settings-hint settings-support-path">
           Saved to {exportResult?.path || diagnosticsLastExportPath}
+          <button type="button" className="settings-support-copy" onClick={handleCopyPath}>
+            {copied ? "Copied!" : "Copy Path"}
+          </button>
         </span>
       ) : null}
     </div>

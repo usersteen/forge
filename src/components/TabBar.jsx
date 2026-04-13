@@ -13,18 +13,12 @@ import NewTabMenu from "./NewTabMenu";
 import ProjectExplorer from "./ProjectExplorer";
 import TabContextMenu from "./TabContextMenu";
 import ParticleLayer from "./ParticleLayer";
+import { getTabRecencyAnchor, getTabStatusSummary } from "../utils/tabStatusSummary";
 
 
 const appWindow = getCurrentWindow();
 const IS_MACOS = navigator.platform.startsWith("Mac");
 const TAB_EXIT_DURATION_MS = 135;
-
-function getTabRecencyAnchor(tab) {
-  if (tab.status === "waiting") {
-    return tab.lastEngagedAt || tab.waitingSince || null;
-  }
-  return tab.lastEngagedAt || null;
-}
 
 function getStatusDotClass(tab, isRecent) {
   if (tab.type === "server") {
@@ -73,6 +67,7 @@ function SortableTab({
   tab,
   isActive,
   isRecent,
+  activeGroupStatusClass,
   presencePhase,
   onSelect,
   onDoubleClick,
@@ -91,7 +86,10 @@ function SortableTab({
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
-  const statusClass = getTabStateClass(tab, isRecent);
+  const statusClass =
+    isActive && activeGroupStatusClass
+      ? activeGroupStatusClass
+      : getTabStateClass(tab, isRecent);
   const providerBadge = getProviderBadge(tab);
   const showProviderBadge = isActive && providerBadge;
 
@@ -197,6 +195,14 @@ export default function TabBar({ onRefreshWorkspace }) {
     const anchor = getTabRecencyAnchor(tab);
     return anchor ? now - anchor < recencyThreshold : false;
   };
+  const activeGroupStatusClass = useMemo(() => {
+    const summary = getTabStatusSummary(activeGroup?.tabs ?? [], now, recencyThreshold);
+    if (summary.status === "waiting") {
+      return summary.hasRecentWaiting ? "tab-waiting tab-waiting-hot" : "tab-waiting tab-waiting-cold";
+    }
+    if (summary.status === "working") return "tab-working";
+    return "";
+  }, [activeGroup?.tabs, now, recencyThreshold]);
 
   const onCommit = useCallback(
     (id, name) => renameTab(activeGroupId, id, name),
@@ -329,6 +335,7 @@ export default function TabBar({ onRefreshWorkspace }) {
                 tab={entry.item}
                 isActive={entry.item.id === activeGroup.activeTabId}
                 isRecent={isTabRecent(entry.item)}
+                activeGroupStatusClass={activeGroupStatusClass}
                 presencePhase={entry.phase}
                 onSelect={() => setActiveTab(activeGroupId, entry.item.id)}
                 onDoubleClick={() => startEditing(entry.item.id, entry.item.name, getRenameSeed(entry.item))}

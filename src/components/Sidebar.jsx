@@ -21,6 +21,7 @@ import NewProjectMenu from "./NewProjectMenu";
 import WelcomeModal from "./WelcomeModal";
 import GuidedTour from "./GuidedTour";
 import { getDefaultShowcaseSceneId } from "../demo/showcaseScenes";
+import { getTabRecencyAnchor, getTabStatusSummary } from "../utils/tabStatusSummary";
 
 const themeLabModules = import.meta.env.DEV ? import.meta.glob("./ThemeLab.{jsx,js}") : {};
 const loadThemeLab = themeLabModules["./ThemeLab.jsx"] ?? themeLabModules["./ThemeLab.js"] ?? null;
@@ -29,13 +30,6 @@ const ThemeLab = loadThemeLab ? lazy(loadThemeLab) : null;
 
 const appWindow = getCurrentWindow();
 const SIDEBAR_TAB_EXIT_DURATION_MS = 190;
-
-function getTabRecencyAnchor(tab) {
-  if (tab.status === "waiting") {
-    return tab.lastEngagedAt || tab.waitingSince || null;
-  }
-  return tab.lastEngagedAt || null;
-}
 
 function WorktreeCloseBlockedModal({ groupName, childNames, onClose }) {
   useEffect(() => {
@@ -118,19 +112,13 @@ function computeSidebarItems(groups) {
 }
 
 function getGroupPriorityClass(group, now, recencyThreshold) {
-  const interactiveTabs = group.tabs.filter((t) => t.type !== "server");
-  const waitingTabs = interactiveTabs.filter((t) => t.status === "waiting");
-  if (waitingTabs.length) {
-    const hasRecentWaiting = waitingTabs.some(
-      (tab) => {
-        const anchor = getTabRecencyAnchor(tab);
-        return anchor ? now - anchor < recencyThreshold : false;
-      }
-    );
-    return hasRecentWaiting ? "sidebar-group-waiting sidebar-group-waiting-hot" : "sidebar-group-waiting sidebar-group-waiting-cold";
+  const summary = getTabStatusSummary(group.tabs, now, recencyThreshold);
+  if (summary.status === "waiting") {
+    return summary.hasRecentWaiting
+      ? "sidebar-group-waiting sidebar-group-waiting-hot"
+      : "sidebar-group-waiting sidebar-group-waiting-cold";
   }
-  const hasWorking = interactiveTabs.some((t) => t.status === "working");
-  if (hasWorking) return "sidebar-group-working";
+  if (summary.status === "working") return "sidebar-group-working";
   return "";
 }
 

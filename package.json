@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "test:status": "node --test src/utils/statusEngine.test.js",
     "video:studio": "remotion studio remotion/index.jsx",
     "video:render": "remotion render remotion/index.jsx ForgeSocialThemeCycle dist/forge-social-theme-cycle.mp4 --browser-executable=\"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\" --overwrite",
     "version:bump": "node scripts/bump-version.cjs",

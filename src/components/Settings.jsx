@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
 import useForgeStore from "../store/useForgeStore";
 import useEscapeKey from "../hooks/useEscapeKey";
@@ -381,6 +382,92 @@ const SECTIONS = {
   paths: PathsSection,
 };
 
+function DiagnosticsPanel() {
+  const diagnosticsEntries = useForgeStore((s) => s.diagnosticsEntries);
+  const diagnosticsLastExportPath = useForgeStore((s) => s.diagnosticsLastExportPath);
+  const buildDiagnosticsReport = useForgeStore((s) => s.buildDiagnosticsReport);
+  const markDiagnosticsExported = useForgeStore((s) => s.markDiagnosticsExported);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState("");
+  const [exportResult, setExportResult] = useState(null);
+  const exportedDirectory =
+    exportResult?.directory ||
+    (typeof diagnosticsLastExportPath === "string"
+      ? diagnosticsLastExportPath.replace(/[\\/][^\\/]+$/, "")
+      : "");
+
+  const handleExport = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    setExportError("");
+
+    try {
+      const report = buildDiagnosticsReport({
+        platform: navigator.platform || "unknown",
+        userAgent: navigator.userAgent || "unknown",
+        exportedFrom: "settings",
+      });
+      const result = await invoke("export_diagnostics_report", {
+        reportJson: JSON.stringify(report),
+      });
+      markDiagnosticsExported(result.path);
+      setExportResult(result);
+    } catch (error) {
+      setExportError(String(error));
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleOpenFolder = async () => {
+    const directory = exportedDirectory;
+    if (!directory) return;
+    try {
+      await invoke("open_in_file_manager", { path: directory });
+    } catch (error) {
+      setExportError(String(error));
+    }
+  };
+
+  return (
+    <div className="settings-support-panel">
+      <div className="settings-support-header">
+        <div>
+          <label>Support Diagnostics</label>
+          <span className="settings-hint">
+            Exports recent status transitions and tab snapshots for debugging. No terminal transcript or file contents are included.
+          </span>
+        </div>
+        <span className="settings-support-meta">{diagnosticsEntries.length} events buffered</span>
+      </div>
+      <div className="settings-support-actions">
+        <button
+          type="button"
+          className="settings-path-save"
+          onClick={handleExport}
+          disabled={isExporting}
+        >
+          {isExporting ? "Exporting..." : "Export Diagnostics"}
+        </button>
+        <button
+          type="button"
+          className="settings-path-save"
+          onClick={handleOpenFolder}
+          disabled={!exportedDirectory}
+        >
+          Open Folder
+        </button>
+      </div>
+      {exportError ? <span className="settings-hint settings-support-error">{exportError}</span> : null}
+      {exportResult?.path || diagnosticsLastExportPath ? (
+        <span className="settings-hint settings-support-path">
+          Saved to {exportResult?.path || diagnosticsLastExportPath}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 export default function Settings({ onClose, exiting, onExited }) {
   useEscapeKey(onClose);
   const [activeCategory, setActiveCategory] = useState("appearance");
@@ -441,6 +528,7 @@ export default function Settings({ onClose, exiting, onExited }) {
           </nav>
           <div className="settings-content">
             <ActiveSection />
+            <DiagnosticsPanel />
           </div>
         </div>
       </div>

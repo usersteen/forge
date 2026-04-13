@@ -24,6 +24,7 @@ pub fn run() {
             pty::read_clipboard_payload,
             config::load_config,
             config::save_config,
+            config::export_diagnostics_report,
             config::list_repos,
             workspace::pick_workspace_folder,
             workspace::scan_workspace,

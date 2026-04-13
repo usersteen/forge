@@ -20,6 +20,14 @@ import {
   parseAgentStatusTitle,
   summarizeStatusText,
 } from "../utils/statusDetection";
+import {
+  createStatusEngineState,
+  getHeatTransition,
+  observeStatusTransition,
+  reduceLaunchCommand,
+  reduceSessionCommand,
+  reduceTitleChange,
+} from "../utils/statusEngine";
 
 let _audioCtx;
 const CODEX_DEBUG_TEXT_LIMIT = 400;
@@ -193,6 +201,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
     lastSeenAt: 0,
   });
   const lastResponseAtRef = useRef(0);
+  const statusEngineRef = useRef(createStatusEngineState());
 
   useEffect(() => {
     const sessionId = crypto.randomUUID();
@@ -203,13 +212,20 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
     const initialSnapshot = getTabSnapshot(useForgeStore.getState(), tabId);
     prevStatusRef.current = initialSnapshot?.tab.status || "idle";
     statusTitleRef.current = initialSnapshot?.tab.statusTitle || "";
+    statusEngineRef.current = createStatusEngineState({
+      provider: initialSnapshot?.tab.provider,
+      status: initialSnapshot?.tab.status,
+      statusTitle: initialSnapshot?.tab.statusTitle,
+      waitingReason: initialSnapshot?.tab.waitingReason,
+    });
     if (
       initialSnapshot?.tab.provider &&
       initialSnapshot.tab.provider !== "unknown" &&
       !initialSnapshot.tab.launchCommand
     ) {
-      detectorRef.current.provider = initialSnapshot.tab.provider;
-      detectorRef.current.awaitingUser = initialSnapshot.tab.status === "waiting";
+      detectorRef.current.provider = statusEngineRef.current.provider;
+      detectorRef.current.awaitingUser =
+        statusEngineRef.current.status === "waiting" || statusEngineRef.current.codexWorkingTitleGuard;
     }
 
     const logCodexDebug = (event, details = {}) => {
@@ -366,14 +382,16 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
     };
 
     const noteHumanInput = () => {
-      const snapshot = getTabSnapshot(useForgeStore.getState(), tabId);
+      const store = useForgeStore.getState();
+      const snapshot = getTabSnapshot(store, tabId);
       if (!snapshot || snapshot.tab.type === "server") return;
+      store.markTabInteraction(tabId);
 
       clearPendingCodexWaitingAttention();
 
       if (!humanInputPauseActive) {
         humanInputPauseActive = true;
-        useForgeStore.getState().startHeatPause(`typing:${tabId}`);
+        store.startHeatPause(`typing:${tabId}`);
       }
 
       clearTimeout(humanInputPauseTimeout);
@@ -485,12 +503,21 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       }
     };
 
+    const syncDetectorFromEngine = () => {
+      const engineState = statusEngineRef.current;
+      detectorRef.current.provider = engineState.provider;
+      detectorRef.current.awaitingUser =
+        engineState.status === "waiting" || engineState.codexWorkingTitleGuard;
+    };
+
     const applyDetectedStatus = (status, title = "", options = {}) => {
       const {
         countResponse = true,
         notifyWaiting = true,
         heatEligibleWaiting = status === "waiting",
         waitingReason: requestedWaitingReason,
+        source = "status_detected",
+        metadata = {},
       } = options;
       const store = useForgeStore.getState();
       const snapshot = getTabSnapshot(store, tabId);
@@ -504,14 +531,21 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
         status === "waiting"
           ? (requestedWaitingReason ?? tab.waitingReason ?? null)
           : null;
-      const shouldPromoteHeatWaiting =
-        status === "waiting" && heatEligibleWaiting && !tab.heatWaitingSince;
+      const heatTransition = getHeatTransition({
+        prevStatus,
+        nextStatus: status,
+        countResponse,
+        heatEligibleWaiting,
+        hasHeatWaiting: Boolean(tab.heatWaitingSince),
+        tabType: tab.type,
+      });
       const shouldSyncTitle = nextTitle !== currentTitle || nextTitle !== (tab.statusTitle || "");
       statusTitleRef.current = nextTitle;
       if (
         status === prevStatus &&
         nextWaitingReason === tab.waitingReason &&
-        !shouldPromoteHeatWaiting &&
+        !heatTransition.opensHeatWaiting &&
+        !heatTransition.clearsHeatWaiting &&
         !shouldSyncTitle
       ) return;
 
@@ -532,23 +566,51 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
         clearPendingCodexWaitingAttention();
       }
 
-      if (countResponse && prevStatus === "waiting" && status === "working" && tab.type !== "server") {
-        const now = Date.now();
-        if (now - lastResponseAtRef.current >= RESPONSE_DEBOUNCE_MS) {
-          lastResponseAtRef.current = now;
-          store.recordResponse(tabId);
-        }
-      }
-
       const shouldAnnounceWaiting = notifyWaiting && status === "waiting" && prevStatus !== "waiting";
       const shouldDelayCodexWaitingAnnouncement =
         detectorRef.current.provider === "codex" && shouldAnnounceWaiting;
 
       store.setTabStatus(tabId, status, nextTitle, {
-        heatEligibleWaiting,
         triggerWaitingAttention: shouldAnnounceWaiting && !shouldDelayCodexWaitingAnnouncement,
         waitingReason: nextWaitingReason,
       });
+      if (heatTransition.opensHeatWaiting) {
+        store.openHeatWaiting(tabId);
+      }
+      if (heatTransition.recordsResponse) {
+        const now = Date.now();
+        if (now - lastResponseAtRef.current >= RESPONSE_DEBOUNCE_MS) {
+          lastResponseAtRef.current = now;
+          store.recordResponse(tabId);
+        } else {
+          store.clearHeatWaiting(tabId);
+        }
+      } else if (heatTransition.clearsHeatWaiting) {
+        store.clearHeatWaiting(tabId);
+      }
+      store.recordStatusTransition({
+        tabId,
+        prevStatus,
+        nextStatus: status,
+        source,
+        title: nextTitle,
+        waitingReason: nextWaitingReason,
+        metadata: {
+          ...metadata,
+          countResponse,
+          notifyWaiting,
+          heatOpened: heatTransition.opensHeatWaiting,
+          heatResolved: heatTransition.recordsResponse,
+          heatCleared: heatTransition.clearsHeatWaiting,
+        },
+      });
+      statusEngineRef.current = observeStatusTransition(statusEngineRef.current, {
+        provider: detectorRef.current.provider,
+        status,
+        title: nextTitle,
+        waitingReason: nextWaitingReason,
+      });
+      syncDetectorFromEngine();
 
       if (shouldAnnounceWaiting) {
         if (shouldDelayCodexWaitingAnnouncement) {
@@ -564,7 +626,12 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       clearCodexIdleTimeout();
       stopHumanInputPause();
       detectorRef.current = { provider: "unknown", awaitingUser: false };
-      applyDetectedStatus("idle", title, { countResponse: false, notifyWaiting: false });
+      applyDetectedStatus("idle", title, {
+        countResponse: false,
+        notifyWaiting: false,
+        source: "pty_disconnect",
+        metadata: { detail: detail || message },
+      });
       showPersistentNotice(title, message, detail);
     };
 
@@ -593,6 +660,9 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
         recentCodexReplyAtRef.current = 0;
       }
       applyDetectedStatus(status, title, {
+        countResponse: false,
+        source: `codex_surface_${source}`,
+        metadata: { surfaceSource: source, detectedTitle: Boolean(detectedTitle) },
         waitingReason:
           status === "waiting"
             ? (detectedTitle ? "interrupted" : "userInput")
@@ -627,6 +697,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
         recentCodexReplyAtRef.current = 0;
         applyDetectedStatus("waiting", "Codex ready", {
           notifyWaiting: false,
+          source: "codex_idle_timeout",
           waitingReason: "ready",
         });
       }, CODEX_IDLE_TIMEOUT_MS);
@@ -664,6 +735,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
         applyDetectedStatus("waiting", summary || "Codex ready", {
           notifyWaiting: false,
           heatEligibleWaiting: false,
+          source: "codex_session_detected",
           waitingReason: "ready",
         });
         return;
@@ -681,7 +753,10 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
           title: attentionTitle,
           recentText,
         });
-        applyDetectedStatus("waiting", attentionTitle, { waitingReason: "interrupted" });
+        applyDetectedStatus("waiting", attentionTitle, {
+          source: "codex_attention_output",
+          waitingReason: "interrupted",
+        });
         return;
       }
 
@@ -727,7 +802,10 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
             recentText,
             commandKind: lastCodexInputKindRef.current,
           });
-          applyDetectedStatus("working", summary);
+          applyDetectedStatus("working", summary, {
+            countResponse: false,
+            source: "codex_output_after_reply",
+          });
           return;
         }
 
@@ -743,7 +821,10 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
           summary,
           recentText,
         });
-        applyDetectedStatus("working", summary);
+        applyDetectedStatus("working", summary, {
+          countResponse: false,
+          source: "codex_output",
+        });
       }
     };
 
@@ -788,7 +869,10 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       detector.awaitingUser = true;
       recentCodexReplyAtRef.current = 0;
       const title = statusTitleRef.current || snapshot.tab.statusTitle || "Codex needs attention";
-      applyDetectedStatus("waiting", title, { waitingReason: "userInput" });
+      applyDetectedStatus("waiting", title, {
+        source: "codex_bell",
+        waitingReason: "userInput",
+      });
     };
 
     const updateInputBuffer = (data) => {
@@ -806,6 +890,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
           applyDetectedStatus("waiting", statusTitleRef.current || "Codex interrupted", {
             notifyWaiting: false,
             heatEligibleWaiting: false,
+            source: "codex_interrupt",
           });
         }
         return null;
@@ -823,6 +908,11 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       return command;
     };
 
+    const recordBufferedInput = (text) => {
+      if (typeof text !== "string" || !text) return;
+      inputBufferRef.current += text.replace(/\u001b/g, "");
+    };
+
     const handleSubmittedCommand = (command) => {
       if (!command) return;
 
@@ -831,8 +921,26 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       const detector = detectorRef.current;
       const codexLaunchMode = getCodexLaunchMode(command);
       if (codexLaunchMode) {
-        detector.provider = "codex";
-        detector.awaitingUser = codexLaunchMode === "interactive";
+        useForgeStore.getState().recordDiagnosticsEvent({
+          kind: "command_submitted",
+          source: "codex_launch_command",
+          tabId,
+          provider: "codex",
+          metadata: {
+            launchMode: codexLaunchMode,
+            commandLength: command.length,
+          },
+        });
+        const launchResult = reduceLaunchCommand(statusEngineRef.current, {
+          provider: "codex",
+          launchMode: codexLaunchMode,
+          title:
+            codexLaunchMode === "interactive"
+              ? "Codex ready"
+              : summarizeStatusText(command, "Codex"),
+        });
+        statusEngineRef.current = launchResult.state;
+        syncDetectorFromEngine();
         resetCodexTitleStatus();
         const store = useForgeStore.getState();
         store.setTabProvider(tabId, "codex");
@@ -851,13 +959,17 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
         lastCodexInputKindRef.current = codexLaunchMode === "interactive" ? "launch" : "prompt";
         if (codexLaunchMode === "interactive") {
           clearCodexIdleTimeout();
-          applyDetectedStatus("waiting", "Codex ready", {
+          applyDetectedStatus(launchResult.transition.status, launchResult.transition.title, {
             notifyWaiting: false,
-            heatEligibleWaiting: false,
-            waitingReason: "ready",
+            heatEligibleWaiting: launchResult.transition.heatEligibleWaiting,
+            source: "codex_launch_interactive",
+            waitingReason: launchResult.transition.waitingReason,
           });
         } else {
-          applyDetectedStatus("working", summarizeStatusText(command, "Codex"));
+          applyDetectedStatus(launchResult.transition.status, launchResult.transition.title, {
+            source: "codex_launch_task",
+            waitingReason: launchResult.transition.waitingReason,
+          });
           scheduleCodexIdleCheck();
         }
         return;
@@ -866,8 +978,26 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       if (isClaudeLaunchCommand(command)) {
         clearCodexIdleTimeout();
         const claudeLaunchMode = getClaudeLaunchMode(command);
-        detector.provider = "claude";
-        detector.awaitingUser = claudeLaunchMode === "interactive";
+        useForgeStore.getState().recordDiagnosticsEvent({
+          kind: "command_submitted",
+          source: "claude_launch_command",
+          tabId,
+          provider: "claude",
+          metadata: {
+            launchMode: claudeLaunchMode,
+            commandLength: command.length,
+          },
+        });
+        const launchResult = reduceLaunchCommand(statusEngineRef.current, {
+          provider: "claude",
+          launchMode: claudeLaunchMode,
+          title:
+            claudeLaunchMode === "interactive"
+              ? "Claude ready"
+              : summarizeStatusText(command, "Claude"),
+        });
+        statusEngineRef.current = launchResult.state;
+        syncDetectorFromEngine();
         resetCodexTitleStatus();
         const store = useForgeStore.getState();
         store.setTabProvider(tabId, "claude");
@@ -876,29 +1006,50 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
           store.setTabAutoName(tabId, "Claude");
         }
         if (claudeLaunchMode === "interactive") {
-          applyDetectedStatus("waiting", "Claude ready", {
+          applyDetectedStatus(launchResult.transition.status, launchResult.transition.title, {
             notifyWaiting: false,
-            heatEligibleWaiting: false,
-            waitingReason: "ready",
+            heatEligibleWaiting: launchResult.transition.heatEligibleWaiting,
+            source: "claude_launch_interactive",
+            waitingReason: launchResult.transition.waitingReason,
           });
         } else {
-          applyDetectedStatus("working", summarizeStatusText(command, "Claude"));
+          applyDetectedStatus(launchResult.transition.status, launchResult.transition.title, {
+            source: "claude_launch_task",
+            waitingReason: launchResult.transition.waitingReason,
+          });
         }
         return;
       }
 
       if (detector.provider === "claude") {
         const claudeCommandKind = classifyClaudeSessionCommand(command);
-        if (claudeCommandKind !== "ui") {
-          detector.awaitingUser = false;
-        }
+        useForgeStore.getState().recordDiagnosticsEvent({
+          kind: "command_submitted",
+          source: "claude_session_command",
+          tabId,
+          provider: "claude",
+          metadata: {
+            commandKind: claudeCommandKind,
+            commandLength: command.length,
+          },
+        });
+        const commandResult = reduceSessionCommand(statusEngineRef.current, {
+          provider: "claude",
+          commandKind: claudeCommandKind,
+          summary: summarizeStatusText(command, "Claude"),
+        });
+        statusEngineRef.current = commandResult.state;
+        syncDetectorFromEngine();
         const store = useForgeStore.getState();
         const snapshot = getTabSnapshot(store, tabId);
         if (!snapshot) return;
 
-        if (claudeCommandKind !== "ui" && snapshot.tab.status === "waiting") {
-          applyDetectedStatus("working", summarizeStatusText(command, "Claude"), {
+        if (commandResult.transition && snapshot.tab.status === "waiting") {
+          applyDetectedStatus(commandResult.transition.status, commandResult.transition.title, {
             notifyWaiting: false,
+            source: "claude_user_reply",
+            metadata: { commandKind: claudeCommandKind },
+            waitingReason: commandResult.transition.waitingReason,
           });
         }
         return;
@@ -907,6 +1058,15 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       if (detector.provider !== "codex") return;
 
       if (isCodexExitCommand(command)) {
+        useForgeStore.getState().recordDiagnosticsEvent({
+          kind: "command_submitted",
+          source: "codex_exit_command",
+          tabId,
+          provider: "codex",
+          metadata: {
+            commandLength: command.length,
+          },
+        });
         logCodexDebug("session-exit", {
           command,
           recentText: codexDebugRef.current.recentText,
@@ -915,16 +1075,37 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
         detector.provider = "unknown";
         detector.awaitingUser = false;
         resetCodexTitleStatus();
-        applyDetectedStatus("idle", "", { countResponse: false, notifyWaiting: false });
+        applyDetectedStatus("idle", "", {
+          countResponse: false,
+          notifyWaiting: false,
+          source: "codex_exit_command",
+        });
         return;
       }
 
       const codexCommandKind = classifyCodexSessionCommand(command);
-      // Treat short inputs (picker selections like "1", "y") as UI interactions too.
-      const isNonPrompt = codexCommandKind !== "prompt" || command.length <= 1;
-      lastCodexInputKindRef.current = isNonPrompt ? "ui" : codexCommandKind;
-      if (!isNonPrompt) {
-        detector.awaitingUser = false;
+      const isUiFlow = codexCommandKind === "ui" || command.length <= 1;
+      const isPrompt = codexCommandKind === "prompt";
+      useForgeStore.getState().recordDiagnosticsEvent({
+        kind: "command_submitted",
+        source: "codex_session_command",
+        tabId,
+        provider: "codex",
+        metadata: {
+          commandKind: codexCommandKind,
+          isUiFlow,
+          commandLength: command.length,
+        },
+      });
+      const commandResult = reduceSessionCommand(statusEngineRef.current, {
+        provider: "codex",
+        commandKind: isUiFlow ? "ui" : codexCommandKind,
+        summary: summarizeStatusText(command, "Codex"),
+      });
+      statusEngineRef.current = commandResult.state;
+      syncDetectorFromEngine();
+      lastCodexInputKindRef.current = isUiFlow ? "ui" : codexCommandKind;
+      if (isPrompt) {
         recentCodexReplyAtRef.current = Date.now();
         rememberRecentCodexInput(command);
       } else {
@@ -933,17 +1114,20 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       logCodexDebug("user-reply", {
         command,
         commandKind: codexCommandKind,
-        isNonPrompt,
+        isUiFlow,
         recentText: codexDebugRef.current.recentText,
       });
       const store = useForgeStore.getState();
       const snapshot = getTabSnapshot(store, tabId);
-      if (!isNonPrompt && snapshot?.tab.status === "waiting") {
-        applyDetectedStatus("working", summarizeStatusText(command, "Codex"), {
+      if (commandResult.transition && snapshot?.tab.status === "waiting") {
+        applyDetectedStatus(commandResult.transition.status, commandResult.transition.title, {
           notifyWaiting: false,
+          source: "codex_user_reply",
+          metadata: { commandKind: codexCommandKind, isUiFlow },
+          waitingReason: commandResult.transition.waitingReason,
         });
       }
-      if (!isNonPrompt) {
+      if (isPrompt) {
         scheduleCodexIdleCheck();
       }
     };
@@ -1192,6 +1376,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
     const writeBracketedPaste = (text, failureLabel = "paste into PTY") => {
       if (!text || !ptyReady.current) return;
       noteHumanInput();
+      recordBufferedInput(text);
       const bracketed = `\x1b[200~${text}\x1b[201~`;
       invoke("write_pty", { tabId, sessionId, data: bracketed }).catch((error) => {
         if (isTearingDown) return;
@@ -1323,11 +1508,24 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       }
 
       const parsedTitle = parseAgentStatusTitle(title);
-
-      // Ignore "working" titles when the user hasn't submitted a real prompt yet.
-      // awaitingUser stays true for slash commands and short UI inputs (picker selections).
-      // This prevents title mode activation during UI flows that would block the idle check.
-      if (detectorRef.current.awaitingUser && parsedTitle?.status === "working") {
+      const titleResult = reduceTitleChange(statusEngineRef.current, {
+        provider,
+        titleInfo: parsedTitle,
+        rawTitle: title,
+      });
+      statusEngineRef.current = titleResult.state;
+      syncDetectorFromEngine();
+      if (titleResult.ignored) {
+        store.recordDiagnosticsEvent({
+          kind: "event",
+          source: `${provider}_title_change_ignored`,
+          tabId,
+          provider,
+          metadata: {
+            titleStatus: parsedTitle?.status || "",
+            rawTitle: title,
+          },
+        });
         return;
       }
 
@@ -1345,8 +1543,8 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
 
       if (!nextStatus) return;
 
-      detectorRef.current.provider = provider;
-      detectorRef.current.awaitingUser = nextStatus === "waiting";
+      detectorRef.current.provider = titleResult.state.provider;
+      detectorRef.current.awaitingUser = titleResult.state.status === "waiting";
 
       if (provider === "codex") {
         if (nextStatus === "waiting") {
@@ -1363,6 +1561,9 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       }
 
       applyDetectedStatus(nextStatus, nextLabel || title, {
+        countResponse: false,
+        source: `${provider}_title_change`,
+        metadata: { rawTitle: title },
         waitingReason: nextStatus === "waiting" ? "userInput" : null,
       });
     });
@@ -1456,6 +1657,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
         delete window.forgeDebug.terminals[tabId];
       }
       detectorRef.current = { provider: "unknown", awaitingUser: false };
+      statusEngineRef.current = createStatusEngineState();
       lastResponseAtRef.current = 0;
       recentCodexInputRef.current = { summary: "", at: 0 };
       recentCodexReplyAtRef.current = 0;

@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { create } from "zustand";
 import { clampHeatStreak } from "../utils/heat";
 import { getAgentLaunchPreset } from "../utils/statusDetection";
+import { shouldTabAutoIdle } from "../utils/statusEngine";
 import { getDefaultShowcaseSceneId, getShowcaseScene } from "../demo/showcaseScenes";
 import { DEFAULT_THEME, normalizeTheme } from "../utils/themes";
 import {
@@ -19,6 +20,84 @@ const AI_TAB_TYPE = "ai";
 const SERVER_TAB_TYPE = "server";
 const DEFAULT_PROJECT_MENU_DETAIL = "simple";
 const PROJECT_MENU_DETAIL_STORAGE_KEY = "forge.projectMenuDetail";
+const MAX_DIAGNOSTIC_ENTRIES = 400;
+
+function createDiagnosticsId() {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function clipDiagnosticText(value, limit = 160) {
+  if (typeof value !== "string") return "";
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (!normalized) return "";
+  return normalized.length > limit ? `${normalized.slice(0, limit - 1)}…` : normalized;
+}
+
+function sanitizeDiagnosticMetadata(metadata) {
+  if (!metadata || typeof metadata !== "object") return {};
+  const sanitized = {};
+  for (const [key, value] of Object.entries(metadata)) {
+    if (value === null || value === undefined) continue;
+    if (typeof value === "string") {
+      sanitized[key] = clipDiagnosticText(value, 120);
+      continue;
+    }
+    if (typeof value === "number" || typeof value === "boolean") {
+      sanitized[key] = value;
+      continue;
+    }
+  }
+  return sanitized;
+}
+
+function appendDiagnosticEntry(entries, entry) {
+  const nextEntries = [...entries, entry];
+  return nextEntries.length > MAX_DIAGNOSTIC_ENTRIES
+    ? nextEntries.slice(nextEntries.length - MAX_DIAGNOSTIC_ENTRIES)
+    : nextEntries;
+}
+
+function findTabContext(groups, tabId) {
+  for (let groupIndex = 0; groupIndex < groups.length; groupIndex += 1) {
+    const group = groups[groupIndex];
+    const tabIndex = group.tabs.findIndex((tab) => tab.id === tabId);
+    if (tabIndex !== -1) {
+      return {
+        group,
+        tab: group.tabs[tabIndex],
+        groupIndex,
+        tabIndex,
+      };
+    }
+  }
+  return null;
+}
+
+function snapshotDiagnosticsGroups(groups, activeGroupId) {
+  return groups.map((group, groupIndex) => ({
+    id: group.id,
+    index: groupIndex + 1,
+    name: group.name,
+    active: group.id === activeGroupId,
+    activeTabId: group.activeTabId,
+    tabs: group.tabs.map((tab, tabIndex) => ({
+      id: tab.id,
+      index: tabIndex + 1,
+      name: tab.name,
+      active: group.activeTabId === tab.id,
+      type: tab.type,
+      provider: tab.provider,
+      status: tab.status,
+      statusTitle: clipDiagnosticText(tab.statusTitle, 160),
+      waitingReason: tab.waitingReason,
+      waitingSince: tab.waitingSince,
+      heatWaitingSince: tab.heatWaitingSince,
+      lastEngagedAt: tab.lastEngagedAt,
+      lastInteractionAt: tab.lastInteractionAt,
+      nonWorkingSince: tab.nonWorkingSince,
+    })),
+  }));
+}
 
 function normalizeTabType(value) {
   return value === SERVER_TAB_TYPE ? SERVER_TAB_TYPE : AI_TAB_TYPE;
@@ -100,7 +179,8 @@ function makeTab(name = "Terminal 1", cwd = null, options = {}) {
   const initialStatus = launchPreset?.status ?? "idle";
   const initialStatusTitle = launchPreset?.title ?? "";
   const initialWaitingReason = initialStatus === "waiting" ? "ready" : null;
-  const initialWaitingSince = initialStatus === "waiting" ? Date.now() : null;
+  const createdAt = Date.now();
+  const initialWaitingSince = initialStatus === "waiting" ? createdAt : null;
   return {
     id: crypto.randomUUID(),
     name,
@@ -115,6 +195,8 @@ function makeTab(name = "Terminal 1", cwd = null, options = {}) {
     waitingSince: initialWaitingSince,
     heatWaitingSince: null,
     lastEngagedAt: null,
+    lastInteractionAt: createdAt,
+    nonWorkingSince: initialStatus === "working" ? null : createdAt,
     launchCommand: options.launchCommand || null,
   };
 }
@@ -198,6 +280,8 @@ const useForgeStore = create((set, get) => ({
   tabRecencyMinutes: 5,
   heatPauseStartedAt: null,
   heatPauseSources: {},
+  diagnosticsEntries: [],
+  diagnosticsLastExportPath: null,
 
   // Demo mode (ephemeral, not persisted)
   demoHeatStage: null,
@@ -237,6 +321,8 @@ const useForgeStore = create((set, get) => ({
       lastStreakTime: null,
       heatPauseStartedAt: null,
       heatPauseSources: {},
+      diagnosticsEntries: [],
+      diagnosticsLastExportPath: null,
       demoHeatStage: null,
       themeVariant: null,
       particleVersion: null,
@@ -303,6 +389,8 @@ const useForgeStore = create((set, get) => ({
       lastStreakTime: null,
       heatPauseStartedAt: null,
       heatPauseSources: {},
+      diagnosticsEntries: [],
+      diagnosticsLastExportPath: null,
       demoHeatStage: null,
       themeVariant: null,
       particleVersion: null,
@@ -454,15 +542,20 @@ const useForgeStore = create((set, get) => ({
         const triggerWaitingAttention = options.triggerWaitingAttention ?? true;
         const shouldFlashWaiting = newWaiting && triggerWaitingAttention;
         const waitingSince = status === "waiting" ? (oldTab.waitingSince ?? Date.now()) : null;
-        const heatEligibleWaiting = options.heatEligibleWaiting ?? newWaiting;
-        const heatWaitingSince =
-          status !== "waiting"
+        const now = Date.now();
+        const nonWorkingSince =
+          status === "working"
             ? null
-            : oldTab.heatWaitingSince ?? (heatEligibleWaiting ? Date.now() : null);
-        const lastEngagedAt =
-          status === "working" && oldTab.status === "waiting" ? Date.now() : oldTab.lastEngagedAt;
+            : oldTab.status === "working"
+              ? now
+              : oldTab.nonWorkingSince ?? oldTab.lastInteractionAt ?? now;
         const updatedTab = {
-          ...oldTab, status, statusTitle: title, waitingReason, waitingSince, heatWaitingSince, lastEngagedAt,
+          ...oldTab,
+          status,
+          statusTitle: title,
+          waitingReason,
+          waitingSince,
+          nonWorkingSince,
           waitingFlashKey: shouldFlashWaiting ? (oldTab.waitingFlashKey ?? 0) + 1 : (oldTab.waitingFlashKey ?? 0),
         };
         const tabs = group.tabs.slice();
@@ -499,6 +592,136 @@ const useForgeStore = create((set, get) => ({
         }),
       };
     }),
+
+  openHeatWaiting: (tabId, openedAt = Date.now()) =>
+    set((state) => ({
+      groups: state.groups.map((group) =>
+        group.tabs.some((tab) => tab.id === tabId)
+          ? {
+              ...group,
+              tabs: group.tabs.map((tab) =>
+                tab.id === tabId && tab.type !== "server" && !tab.heatWaitingSince
+                  ? { ...tab, heatWaitingSince: openedAt }
+                  : tab
+              ),
+            }
+          : group
+      ),
+    })),
+
+  clearHeatWaiting: (tabId) =>
+    set((state) => ({
+      groups: state.groups.map((group) =>
+        group.tabs.some((tab) => tab.id === tabId)
+          ? {
+              ...group,
+              tabs: group.tabs.map((tab) =>
+                tab.id === tabId && tab.heatWaitingSince ? { ...tab, heatWaitingSince: null } : tab
+              ),
+            }
+          : group
+      ),
+    })),
+
+  markTabInteraction: (tabId, at = Date.now()) =>
+    set((state) => ({
+      groups: state.groups.map((group) =>
+        group.tabs.some((tab) => tab.id === tabId)
+          ? {
+              ...group,
+              tabs: group.tabs.map((tab) =>
+                tab.id === tabId
+                  ? {
+                      ...tab,
+                      lastInteractionAt: at,
+                    }
+                  : tab
+              ),
+            }
+          : group
+      ),
+    })),
+
+  recordDiagnosticsEvent: (input = {}) =>
+    set((state) => {
+      const context = input.tabId ? findTabContext(state.groups, input.tabId) : null;
+      const entry = {
+        id: createDiagnosticsId(),
+        at: input.at ?? Date.now(),
+        kind: input.kind || "event",
+        source: input.source || "unknown",
+        message: clipDiagnosticText(input.message, 180),
+        metadata: sanitizeDiagnosticMetadata(input.metadata),
+        groupId: context?.group.id ?? input.groupId ?? null,
+        groupName: context?.group.name ?? "",
+        groupIndex: context ? context.groupIndex + 1 : null,
+        tabId: context?.tab.id ?? input.tabId ?? null,
+        tabName: context?.tab.name ?? "",
+        tabIndex: context ? context.tabIndex + 1 : null,
+        tabType: context?.tab.type ?? null,
+        provider: context?.tab.provider ?? input.provider ?? "unknown",
+      };
+
+      return {
+        diagnosticsEntries: appendDiagnosticEntry(state.diagnosticsEntries, entry),
+      };
+    }),
+
+  recordStatusTransition: (input = {}) =>
+    set((state) => {
+      const context = input.tabId ? findTabContext(state.groups, input.tabId) : null;
+      if (!context) return state;
+
+      const entry = {
+        id: createDiagnosticsId(),
+        at: input.at ?? Date.now(),
+        kind: "status_transition",
+        source: input.source || "unknown",
+        prevStatus: input.prevStatus ?? null,
+        nextStatus: input.nextStatus ?? context.tab.status,
+        waitingReason: input.waitingReason ?? context.tab.waitingReason ?? null,
+        title: clipDiagnosticText(input.title ?? context.tab.statusTitle, 160),
+        metadata: sanitizeDiagnosticMetadata(input.metadata),
+        groupId: context.group.id,
+        groupName: context.group.name,
+        groupIndex: context.groupIndex + 1,
+        tabId: context.tab.id,
+        tabName: context.tab.name,
+        tabIndex: context.tabIndex + 1,
+        tabType: context.tab.type,
+        provider: context.tab.provider,
+      };
+
+      return {
+        diagnosticsEntries: appendDiagnosticEntry(state.diagnosticsEntries, entry),
+      };
+    }),
+
+  markDiagnosticsExported: (path) =>
+    set({
+      diagnosticsLastExportPath: typeof path === "string" && path.trim() ? path : null,
+    }),
+
+  buildDiagnosticsReport: (context = {}) => {
+    const state = get();
+    return {
+      generatedAt: Date.now(),
+      appContext: {
+        activeGroupId: state.activeGroupId,
+        diagnosticsEntryCount: state.diagnosticsEntries.length,
+        streak: state.streak,
+        lastStreakTime: state.lastStreakTime,
+        heatPauseStartedAt: state.heatPauseStartedAt,
+        tabRecencyMinutes: state.tabRecencyMinutes,
+        theme: state.theme,
+        fxEnabled: state.fxEnabled,
+        soundVolume: state.soundVolume,
+        ...sanitizeDiagnosticMetadata(context),
+      },
+      groups: snapshotDiagnosticsGroups(state.groups, state.activeGroupId),
+      transitions: state.diagnosticsEntries,
+    };
+  },
 
   setTabAutoName: (tabId, name) =>
     set((state) => ({
@@ -974,7 +1197,13 @@ const useForgeStore = create((set, get) => ({
         groups: mapGroups(state.groups, foundGroupId, (group) => ({
           ...group,
           tabs: group.tabs.map((tab) =>
-            tab.id === tabId ? { ...tab, heatWaitingSince: null } : tab
+            tab.id === tabId
+              ? {
+                  ...tab,
+                  heatWaitingSince: null,
+                  lastEngagedAt: now,
+                }
+              : tab
           ),
         })),
         streak: fast ? clampHeatStreak(state.streak + 1) : clampHeatStreak(state.streak),
@@ -1053,6 +1282,69 @@ const useForgeStore = create((set, get) => ({
       const lastStreakTime =
         streak > 0 ? state.lastStreakTime + levelsLost * state.cooldownTimer : null;
       return { streak, lastStreakTime };
+    }),
+
+  idleInactiveTabs: (now = Date.now(), idleTimeoutMs = 10 * 60 * 1000) =>
+    set((state) => {
+      if (idleTimeoutMs <= 0) return state;
+
+      let changed = false;
+      let diagnosticsEntries = state.diagnosticsEntries;
+      const groups = state.groups.map((group, groupIndex) => {
+        let groupChanged = false;
+        const tabs = group.tabs.map((tab, tabIndex) => {
+          if (
+            !shouldTabAutoIdle({
+              status: tab.status,
+              tabType: tab.type,
+              now,
+              idleTimeoutMs,
+              lastInteractionAt: tab.lastInteractionAt,
+              nonWorkingSince: tab.nonWorkingSince,
+            })
+          ) {
+            return tab;
+          }
+
+          changed = true;
+          groupChanged = true;
+          diagnosticsEntries = appendDiagnosticEntry(diagnosticsEntries, {
+            id: createDiagnosticsId(),
+            at: now,
+            kind: "status_transition",
+            source: "auto_idle",
+            prevStatus: tab.status,
+            nextStatus: "idle",
+            waitingReason: null,
+            title: "",
+            metadata: sanitizeDiagnosticMetadata({
+              idleTimeoutMs,
+              lastInteractionAt: tab.lastInteractionAt,
+              nonWorkingSince: tab.nonWorkingSince,
+            }),
+            groupId: group.id,
+            groupName: group.name,
+            groupIndex: groupIndex + 1,
+            tabId: tab.id,
+            tabName: tab.name,
+            tabIndex: tabIndex + 1,
+            tabType: tab.type,
+            provider: tab.provider,
+          });
+          return {
+            ...tab,
+            status: "idle",
+            statusTitle: "",
+            waitingReason: null,
+            waitingSince: null,
+            heatWaitingSince: null,
+          };
+        });
+
+        return groupChanged ? { ...group, tabs } : group;
+      });
+
+      return changed ? { groups, diagnosticsEntries } : state;
     }),
 
   decrementStreak: () =>

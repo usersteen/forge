@@ -3923,6 +3923,51 @@ body.reader-resizing {
   outline-offset: 2px;
 }
 
+.settings-support-panel {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: grid;
+  gap: 10px;
+}
+
+.settings-support-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settings-support-meta {
+  color: var(--text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.settings-support-panel label {
+  display: block;
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.settings-support-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.settings-support-path {
+  word-break: break-word;
+}
+
+.settings-support-error {
+  color: #fca5a5;
+}
+
 /* Info panel — taller body for more content */
 .info-panel .settings-body {
   height: 420px;

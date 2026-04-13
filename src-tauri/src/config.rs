@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct TabConfig {
@@ -174,7 +175,7 @@ fn default_schema_version() -> u32 {
     6
 }
 
-fn config_path() -> PathBuf {
+fn forge_data_dir() -> PathBuf {
     let home = if cfg!(target_os = "windows") {
         std::env::var("USERPROFILE")
     } else {
@@ -182,7 +183,11 @@ fn config_path() -> PathBuf {
     }
     .unwrap_or_else(|_| ".".to_string());
     let config_dir = std::env::var("FORGE_CONFIG_DIR_NAME").unwrap_or_else(|_| ".forge".to_string());
-    PathBuf::from(home).join(config_dir).join("config.json")
+    PathBuf::from(home).join(config_dir)
+}
+
+fn config_path() -> PathBuf {
+    forge_data_dir().join("config.json")
 }
 
 #[tauri::command]
@@ -226,4 +231,31 @@ pub fn save_config(config: ForgeConfig) -> Result<(), String> {
     let data = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
     fs::write(&path, data).map_err(|e| e.to_string())?;
     Ok(())
+}
+
+#[derive(Serialize)]
+pub struct DiagnosticsExportResult {
+    pub path: String,
+    pub directory: String,
+}
+
+#[tauri::command]
+pub fn export_diagnostics_report(report_json: String) -> Result<DiagnosticsExportResult, String> {
+    let diagnostics_dir = forge_data_dir().join("diagnostics");
+    fs::create_dir_all(&diagnostics_dir).map_err(|e| e.to_string())?;
+
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_millis())
+        .unwrap_or(0);
+    let file_path = diagnostics_dir.join(format!("forge-diagnostics-{timestamp}.json"));
+
+    let parsed: serde_json::Value = serde_json::from_str(&report_json).map_err(|e| e.to_string())?;
+    let pretty = serde_json::to_string_pretty(&parsed).map_err(|e| e.to_string())?;
+    fs::write(&file_path, pretty).map_err(|e| e.to_string())?;
+
+    Ok(DiagnosticsExportResult {
+        path: file_path.to_string_lossy().to_string(),
+        directory: diagnostics_dir.to_string_lossy().to_string(),
+    })
 }

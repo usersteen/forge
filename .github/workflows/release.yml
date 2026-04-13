@@ -49,7 +49,7 @@ jobs:
           releaseName: "Forge ${{ github.ref_name }}"
           releaseBody: "Building..."
           releaseDraft: false
-          prerelease: ${{ contains(github.ref_name, '-') || github.ref_name == 'v0.5.33' }}
+          prerelease: ${{ contains(github.ref_name, '-') || startsWith(github.ref_name, 'v0.') }}
 
   update-release:
     needs: build

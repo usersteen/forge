@@ -181,7 +181,7 @@ function SortableGroup({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: group.id });
   const { elementRef: groupRef, handleAnimationEnd } = useFlashAnimation(group.waitingFlashKey);
   const dragTransform = transform
-    ? CSS.Transform.toString(transform)
+    ? CSS.Transform.toString({ ...transform, x: 0, scaleX: 1, scaleY: 1 })
     : "translate3d(0px, 0px, 0px)";
   const style = {
     transform: `${dragTransform} var(--sidebar-group-transform, translate3d(0px, 0px, 0px))`,

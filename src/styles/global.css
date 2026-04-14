@@ -1122,6 +1122,10 @@ html, body, #root {
   border-bottom-color: var(--accent-working) !important;
 }
 
+.tab-active.tab-server {
+  border-bottom-color: var(--accent-server) !important;
+}
+
 .tab[data-presence="entering"] {
   opacity: 0;
   flex: 0 0 0px;

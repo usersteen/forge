@@ -31,6 +31,15 @@ const ThemeLab = loadThemeLab ? lazy(loadThemeLab) : null;
 const appWindow = getCurrentWindow();
 const SIDEBAR_TAB_EXIT_DURATION_MS = 190;
 
+function CloseIcon() {
+  return (
+    <svg viewBox="0 0 12 12" aria-hidden="true">
+      <path d="M2.5 2.5L9.5 9.5" />
+      <path d="M9.5 2.5L2.5 9.5" />
+    </svg>
+  );
+}
+
 function WorktreeCloseBlockedModal({ groupName, childNames, onClose }) {
   useEffect(() => {
     const handleKey = (event) => {
@@ -259,7 +268,7 @@ function SortableGroup({
         onContextMenu={(e) => e.stopPropagation()}
         aria-label={`Close project ${group.name}`}
       >
-        x
+        <CloseIcon />
       </button>
     </div>
   );

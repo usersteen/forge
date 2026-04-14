@@ -542,6 +542,53 @@ const THEMES = {
   },
 };
 
+const THEME_SHELL_SURFACES = {
+  forge: {
+    activePlate: "color-mix(in srgb, var(--bg-active) 80%, var(--bg-sidebar) 20%)",
+    activePlateStrong: "color-mix(in srgb, var(--bg-active) 88%, var(--bg-sidebar) 12%)",
+    hoverPlate: "color-mix(in srgb, var(--bg-sidebar) 84%, var(--bg-active) 16%)",
+    elevatedBg:
+      "linear-gradient(180deg, rgba(255, 255, 255, 0.022), rgba(255, 255, 255, 0)), color-mix(in srgb, var(--bg-sidebar) 90%, var(--bg-deep) 10%)",
+    panelBg:
+      "linear-gradient(180deg, rgba(255, 255, 255, 0.015), rgba(255, 255, 255, 0)), color-mix(in srgb, var(--bg-deep) 94%, black 6%)",
+    headerBg:
+      "linear-gradient(180deg, rgba(255, 255, 255, 0.022), rgba(255, 255, 255, 0)), color-mix(in srgb, var(--bg-sidebar) 76%, var(--bg-deep) 24%)",
+  },
+  ice: {
+    activePlate: "color-mix(in srgb, var(--bg-active) 78%, var(--bg-sidebar) 22%)",
+    activePlateStrong: "color-mix(in srgb, var(--bg-active) 88%, var(--bg-sidebar) 12%)",
+    hoverPlate: "color-mix(in srgb, var(--bg-sidebar) 80%, var(--bg-active) 20%)",
+    elevatedBg:
+      "linear-gradient(180deg, rgba(255, 255, 255, 0.028), rgba(255, 255, 255, 0)), color-mix(in srgb, var(--bg-sidebar) 90%, var(--bg-deep) 10%)",
+    panelBg:
+      "linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0)), color-mix(in srgb, var(--bg-deep) 93%, black 7%)",
+    headerBg:
+      "linear-gradient(180deg, rgba(255, 255, 255, 0.026), rgba(255, 255, 255, 0)), color-mix(in srgb, var(--bg-sidebar) 78%, var(--bg-deep) 22%)",
+  },
+  void: {
+    activePlate: "color-mix(in srgb, var(--bg-active) 76%, var(--bg-sidebar) 24%)",
+    activePlateStrong: "color-mix(in srgb, var(--bg-active) 86%, var(--bg-sidebar) 14%)",
+    hoverPlate: "color-mix(in srgb, var(--bg-sidebar) 82%, var(--bg-active) 18%)",
+    elevatedBg:
+      "linear-gradient(180deg, rgba(255, 255, 255, 0.024), rgba(255, 255, 255, 0)), color-mix(in srgb, var(--bg-sidebar) 91%, var(--bg-deep) 9%)",
+    panelBg:
+      "linear-gradient(180deg, rgba(255, 255, 255, 0.015), rgba(255, 255, 255, 0)), color-mix(in srgb, var(--bg-deep) 94%, black 6%)",
+    headerBg:
+      "linear-gradient(180deg, rgba(255, 255, 255, 0.022), rgba(255, 255, 255, 0)), color-mix(in srgb, var(--bg-sidebar) 78%, var(--bg-deep) 22%)",
+  },
+  grass: {
+    activePlate: "color-mix(in srgb, var(--bg-sidebar) 64%, var(--bg-active) 36%)",
+    activePlateStrong: "color-mix(in srgb, var(--bg-sidebar) 52%, var(--bg-active) 48%)",
+    hoverPlate: "color-mix(in srgb, var(--bg-sidebar) 82%, var(--bg-active) 18%)",
+    elevatedBg:
+      "linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0)), color-mix(in srgb, var(--bg-sidebar) 92%, var(--bg-deep) 8%)",
+    panelBg:
+      "linear-gradient(180deg, rgba(255, 255, 255, 0.012), rgba(255, 255, 255, 0)), color-mix(in srgb, var(--bg-deep) 95%, black 5%)",
+    headerBg:
+      "linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0)), color-mix(in srgb, var(--bg-sidebar) 78%, var(--bg-deep) 22%)",
+  },
+};
+
 const THEME_VARIANTS = {
   forge: {
     v1: {
@@ -658,6 +705,7 @@ export function getThemeTokens(theme, heatStage) {
   const resolvedThemeName = normalizeTheme(theme);
   const resolvedTheme = THEMES[resolvedThemeName];
   const glow = THEME_GLOWS[resolvedThemeName];
+  const shellSurface = THEME_SHELL_SURFACES[resolvedThemeName];
   const resolvedHeatStage = Math.max(0, Math.min(resolvedTheme.backgrounds.length - 1, heatStage));
   const heatColors = resolvedTheme.heatColors;
   const statusStops = resolvedTheme.statusStops;
@@ -710,6 +758,12 @@ export function getThemeTokens(theme, heatStage) {
     "--shell-glow-tabbar": glow.shell.tabBar,
     "--shell-glow-sidebar": glow.shell.sidebar,
     "--shell-glow-main": glow.shell.main,
+    "--shell-active-plate": shellSurface.activePlate,
+    "--shell-active-plate-strong": shellSurface.activePlateStrong,
+    "--shell-hover-plate": shellSurface.hoverPlate,
+    "--shell-elevated-bg": shellSurface.elevatedBg,
+    "--shell-panel-bg": shellSurface.panelBg,
+    "--shell-header-bg": shellSurface.headerBg,
   };
 }
 

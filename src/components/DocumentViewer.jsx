@@ -4,6 +4,14 @@ import useForgeStore from "../store/useForgeStore";
 import ParticleLayer from "./ParticleLayer";
 import { renderMarkdown } from "../utils/markdown";
 
+function CloseIcon() {
+  return (
+    <svg viewBox="0 0 12 12" aria-hidden="true">
+      <path d="M2.5 2.5L9.5 9.5" />
+      <path d="M9.5 2.5L2.5 9.5" />
+    </svg>
+  );
+}
 
 function formatBytes(value) {
   if (value == null) return null;
@@ -360,7 +368,7 @@ export default function DocumentViewer() {
                   }}
                   onMouseDown={(event) => event.stopPropagation()}
                 >
-                  x
+                  <CloseIcon />
                 </span>
               </div>
             ))}
@@ -405,6 +413,9 @@ export default function DocumentViewer() {
         <div className="document-viewer-body">
           <div className="document-viewer-content-header">
             <div className="document-viewer-meta">
+              <div className="document-viewer-title-row">
+                <div className="document-viewer-title">{activeDocument.title}</div>
+              </div>
               <div className="document-viewer-path" title={activeDocument.path}>
                 {activeDocument.path}
               </div>
@@ -416,34 +427,36 @@ export default function DocumentViewer() {
               {!saveError && isDirty ? <div className="document-viewer-dirty-label">Unsaved changes</div> : null}
               {saveError ? <div className="document-viewer-status">{saveError}</div> : null}
             </div>
-            {isMarkdown ? (
-              <button type="button" className="document-viewer-action" onClick={handleToggleEdit}>
-                {isEditing ? "Preview" : "Edit"}
-              </button>
-            ) : null}
-            <button
-              type="button"
-              className="document-viewer-action"
-              onClick={() => handleReloadDocument(activeDocument.path)}
-              disabled={isReloading || isSaving}
-            >
-              {isReloading ? "Reloading..." : "Reload"}
-            </button>
-            {isEditing && isDirty ? (
-              <button type="button" className="document-viewer-action" onClick={handleRevert}>
-                Revert
-              </button>
-            ) : null}
-            {isEditing ? (
+            <div className="document-viewer-actions">
+              {isMarkdown ? (
+                <button type="button" className="document-viewer-action" onClick={handleToggleEdit}>
+                  {isEditing ? "Preview" : "Edit"}
+                </button>
+              ) : null}
               <button
                 type="button"
-                className={`document-viewer-action ${isDirty ? "document-viewer-action-primary" : ""}`}
-                onClick={handleSave}
-                disabled={!isDirty || isSaving}
+                className="document-viewer-action"
+                onClick={() => handleReloadDocument(activeDocument.path)}
+                disabled={isReloading || isSaving}
               >
-                {isSaving ? "Saving..." : "Save"}
+                {isReloading ? "Reloading..." : "Reload"}
               </button>
-            ) : null}
+              {isEditing && isDirty ? (
+                <button type="button" className="document-viewer-action" onClick={handleRevert}>
+                  Revert
+                </button>
+              ) : null}
+              {isEditing ? (
+                <button
+                  type="button"
+                  className={`document-viewer-action ${isDirty ? "document-viewer-action-primary" : ""}`}
+                  onClick={handleSave}
+                  disabled={!isDirty || isSaving}
+                >
+                  {isSaving ? "Saving..." : "Save"}
+                </button>
+              ) : null}
+            </div>
           </div>
 
           {documentState.payload?.type === "markdown" && isEditing ? (

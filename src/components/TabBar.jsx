@@ -20,6 +20,24 @@ const appWindow = getCurrentWindow();
 const IS_MACOS = navigator.platform.startsWith("Mac");
 const TAB_EXIT_DURATION_MS = 135;
 
+function CloseIcon() {
+  return (
+    <svg viewBox="0 0 12 12" aria-hidden="true">
+      <path d="M2.5 2.5L9.5 9.5" />
+      <path d="M9.5 2.5L2.5 9.5" />
+    </svg>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg viewBox="0 0 12 12" aria-hidden="true">
+      <path d="M6 2.5v7" />
+      <path d="M2.5 6h7" />
+    </svg>
+  );
+}
+
 function getStatusDotClass(tab, isRecent) {
   if (tab.type === "server") {
     return "status-dot server-running";
@@ -123,13 +141,15 @@ function SortableTab({
       )}
       <button
         className="tab-close"
+        type="button"
+        aria-label={`Close tab ${tab.name}`}
         onClick={(e) => {
           e.stopPropagation();
           onClose();
         }}
         onPointerDown={(e) => e.stopPropagation()}
       >
-        x
+        <CloseIcon />
       </button>
     </div>
   );
@@ -377,7 +397,7 @@ export default function TabBar({ onRefreshWorkspace }) {
                 });
               }}
             >
-              +
+              <PlusIcon />
             </button>
           </div>
         </SortableContext>

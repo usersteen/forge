@@ -196,9 +196,11 @@ export function getHeatTransition(input = {}) {
   const tabType = normalizeTabType(input.tabType);
   const hasHeatWaiting = Boolean(input.hasHeatWaiting);
   const heatEligibleWaiting = input.heatEligibleWaiting ?? nextStatus === "waiting";
+  const warmColdStart = Boolean(input.warmColdStart);
   const countResponse = input.countResponse ?? true;
 
-  const opensHeatWaiting = nextStatus === "waiting" && heatEligibleWaiting && !hasHeatWaiting;
+  const opensHeatWaiting =
+    nextStatus === "waiting" && (heatEligibleWaiting || warmColdStart) && !hasHeatWaiting;
   const recordsResponse =
     countResponse &&
     prevStatus === "waiting" &&

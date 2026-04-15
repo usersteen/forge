@@ -131,6 +131,26 @@ test("heat opens on actionable waiting states and not on ready states", () => {
   assert.equal(ready.opensHeatWaiting, false);
 });
 
+test("cold starts can arm heat from ready without reopening hot ready states", () => {
+  const coldReady = getHeatTransition({
+    prevStatus: "idle",
+    nextStatus: "waiting",
+    heatEligibleWaiting: false,
+    warmColdStart: true,
+    hasHeatWaiting: false,
+  });
+  const hotReady = getHeatTransition({
+    prevStatus: "idle",
+    nextStatus: "waiting",
+    heatEligibleWaiting: false,
+    warmColdStart: false,
+    hasHeatWaiting: false,
+  });
+
+  assert.equal(coldReady.opensHeatWaiting, true);
+  assert.equal(hotReady.opensHeatWaiting, false);
+});
+
 test("heat records only explicit waiting-to-working replies", () => {
   const explicitReply = getHeatTransition({
     prevStatus: "waiting",

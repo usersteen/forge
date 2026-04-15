@@ -536,6 +536,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
         nextStatus: status,
         countResponse,
         heatEligibleWaiting,
+        warmColdStart: status === "waiting" && nextWaitingReason === "ready" && store.streak === 0,
         hasHeatWaiting: Boolean(tab.heatWaitingSince),
         tabType: tab.type,
       });

@@ -1192,7 +1192,7 @@ const useForgeStore = create((set, get) => ({
       if (!heatWaitingSince || !foundGroupId) return state;
 
       const now = Date.now();
-      const fast = now - heatWaitingSince <= state.streakTimer;
+      const fast = state.streak <= 0 || now - heatWaitingSince <= state.streakTimer;
       return {
         groups: mapGroups(state.groups, foundGroupId, (group) => ({
           ...group,

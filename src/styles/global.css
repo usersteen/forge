@@ -477,14 +477,12 @@ html, body, #root {
   transition:
     background 140ms linear,
     border-right-color 180ms var(--motion-settle),
-    box-shadow 180ms var(--motion-settle),
-    transform 180ms var(--motion-lock);
+    box-shadow 180ms var(--motion-settle);
   touch-action: none;
 }
 
 .sidebar-group:hover {
   background: var(--shell-hover-plate);
-  --sidebar-group-transform: translate3d(0, -1px, 0);
 }
 
 .sidebar-group-active {
@@ -1094,7 +1092,6 @@ html, body, #root {
 .tab:hover {
   background: var(--shell-hover-plate);
   color: var(--text-primary);
-  --tab-interaction-transform: translate3d(0, -1px, 0);
 }
 
 .tab-active {
@@ -5414,15 +5411,6 @@ button:not(.window-control):not(.window-minimize):not(.window-maximize):not(.win
 /* Tier 1: Primary surface press */
 .tab:active,
 .sidebar-group:active {
-  transition-duration: 0.04s;
-}
-
-.tab:active {
-  --tab-interaction-transform: translate3d(0, 1px, 0) scale(0.985);
-}
-
-.sidebar-group:active {
-  --sidebar-group-transform: translate3d(0, 0, 0) scale(0.988);
   transition-duration: 0.04s;
 }
 

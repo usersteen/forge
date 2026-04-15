@@ -15,3 +15,5 @@ src/components/ThemeLab.jsx
 src/styles/theme-lab.css
 src/video/ForgeThemeLab.jsx
 src/video/theme-lab-video.css
+docs/design-system-agent-prompt.md
+.forge/

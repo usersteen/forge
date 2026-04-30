@@ -43,6 +43,10 @@ const HUMAN_INPUT_PAUSE_MS = 5000;
 const RESPONSE_DEBOUNCE_MS = 5000;
 const TERMINAL_NOTICE_MS = 6000;
 const TERMINAL_RECOVERY_MESSAGE = "Open a new terminal tab and rerun the command you were using.";
+const INITIAL_PROMPT_READY_TIMEOUT_MS = 8000;
+const INITIAL_PROMPT_RETRY_MS = 300;
+const INITIAL_PROMPT_MIN_DELAY_MS = 1000;
+const INITIAL_PROMPT_SUBMIT_DELAY_MS = 180;
 const SERVER_URL_PATTERN = /\bhttps?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]|::1|(?:\d{1,3}\.){3}\d{1,3})(?::(\d{2,5}))?(?:\/[^\s]*)?/gi;
 const SERVER_HOST_PORT_PATTERN = /\b(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]|::1|(?:\d{1,3}\.){3}\d{1,3}):(\d{2,5})\b/gi;
 const SERVER_PORT_HINT_PATTERN =
@@ -117,6 +121,21 @@ function inspectCodexScreen(term) {
   }
 
   return { screenText, status: null, title: "" };
+}
+
+function looksReadyForInitialPrompt(command, screenText) {
+  const text = screenText || "";
+  if (!text.trim()) return false;
+
+  if (isCodexLaunchCommand(command)) {
+    return looksLikeCodexSession(text) || /\b(?:Ask Codex|What (?:do|would) you want|Use \/help)\b/i.test(text);
+  }
+
+  if (isClaudeLaunchCommand(command)) {
+    return /\b(?:Claude Code|Welcome to Claude|cwd:|Bypassing Permissions|Try ".*?)\b/i.test(text);
+  }
+
+  return true;
 }
 
 function normalizeServerHost(host) {
@@ -274,12 +293,39 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand, initialP
 
       const prompt = initialPromptRef.current;
       if (prompt) {
-        clearInitialPromptTimer();
-        initialPromptTimerRef.current = setTimeout(() => {
+        const startedAt = Date.now();
+        const trySendInitialPrompt = () => {
           initialPromptTimerRef.current = null;
           if (isTearingDown || !ptyReady.current) return;
+
+          const elapsed = Date.now() - startedAt;
+          const screenText = readTerminalTail(termRef.current, 18);
+          if (
+            elapsed < INITIAL_PROMPT_MIN_DELAY_MS ||
+            (elapsed < INITIAL_PROMPT_READY_TIMEOUT_MS &&
+              !looksReadyForInitialPrompt(initialLaunchCommand, screenText))
+          ) {
+            initialPromptTimerRef.current = setTimeout(trySendInitialPrompt, INITIAL_PROMPT_RETRY_MS);
+            return;
+          }
+
           handleSubmittedCommand(prompt);
-          invoke("write_pty", { tabId, sessionId, data: `\x1b[200~${prompt}\x1b[201~\r` }).catch((error) => {
+          invoke("write_pty", { tabId, sessionId, data: `\x1b[200~${prompt}\x1b[201~` }).then(() => {
+            if (isTearingDown || !ptyReady.current) return;
+            initialPromptTimerRef.current = setTimeout(() => {
+              initialPromptTimerRef.current = null;
+              if (isTearingDown || !ptyReady.current) return;
+              invoke("write_pty", { tabId, sessionId, data: "\r" }).catch((error) => {
+                if (isTearingDown) return;
+                console.error("Failed to submit initial prompt to PTY:", error);
+                handlePtyDisconnect(
+                  "Terminal session lost",
+                  `Forge could not submit the preview comment prompt to this shell. ${TERMINAL_RECOVERY_MESSAGE}`,
+                  String(error)
+                );
+              });
+            }, INITIAL_PROMPT_SUBMIT_DELAY_MS);
+          }).catch((error) => {
             if (isTearingDown) return;
             console.error("Failed to send initial prompt to PTY:", error);
             handlePtyDisconnect(
@@ -288,7 +334,10 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand, initialP
               String(error)
             );
           });
-        }, 1200);
+        };
+
+        clearInitialPromptTimer();
+        initialPromptTimerRef.current = setTimeout(trySendInitialPrompt, INITIAL_PROMPT_RETRY_MS);
       }
     };
 

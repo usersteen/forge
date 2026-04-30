@@ -51,6 +51,14 @@ See FORGE_PLAN.md for full architecture and spec.
 - [x] Debounced auto-save + save on close
 - [x] Build to .exe
 
+### Session 5: Element-Comment Preview Tabs
+- [x] New `preview` tab type with Tauri child webview (requires `tauri` `unstable` feature)
+- [x] Toolbar with URL field, back/forward/reload, Comment-mode toggle (Ctrl+Shift+C)
+- [x] Picker overlay injected into the child webview (`src-tauri/resources/picker.js`)
+- [x] Local axum server at `127.0.0.1:47823` (`comment_server.rs`) receives picker submissions
+- [x] Submit auto-spawns a new Claude or Codex tab in the same group, prompt prefilled from `~/.forge/comments/<id>.txt`
+- [x] Provider chosen per-comment in the composer (radio segmented control)
+
 ## Key Decisions
 - Cross-platform (Windows + macOS), built for personal use
 - Platform-aware shell: PowerShell on Windows, user's $SHELL (or /bin/zsh) on macOS

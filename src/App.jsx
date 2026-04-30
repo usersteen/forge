@@ -14,6 +14,7 @@ import useGitInfoRefresh from "./hooks/useGitInfoRefresh";
 import useHeatTick from "./hooks/useHeatTick";
 import useTabIdleTick from "./hooks/useTabIdleTick";
 import useForgeStore, { storeToConfig } from "./store/useForgeStore";
+import { initCommentDispatcher } from "./comments";
 import { getThemeTokens } from "./utils/themes";
 import { MAX_READER_WIDTH, MIN_READER_WIDTH } from "./utils/workspace";
 
@@ -187,6 +188,10 @@ function App() {
   useHeatTick();
   useTabIdleTick();
   useGitInfoRefresh();
+
+  useEffect(() => {
+    initCommentDispatcher();
+  }, []);
 
   useEffect(() => {
     (async () => {

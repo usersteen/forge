@@ -1,0 +1,17 @@
+/* Forge preview picker — Forge design tokens.
+   Mirrors src/styles/global.css so the composer rendered inside the dev
+   server's webview matches the rest of Forge. Brutalist: sharp corners,
+   restrained palette. */
+:root {
+  --forge-bg-deep: #090909;
+  --forge-bg-sidebar: #0d0d0d;
+  --forge-bg-active: #141312;
+  --forge-bg-elevated: #1a1816;
+  --forge-border: #262220;
+  --forge-border-strong: #383330;
+  --forge-text-primary: #e2e8f0;
+  --forge-text-secondary: #94a3b8;
+  --forge-text-muted: #64748b;
+  --forge-accent: #6a6462;
+  --forge-accent-rgb: 106, 100, 98;
+}

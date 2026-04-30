@@ -1,6 +1,7 @@
 import useForgeStore from "../store/useForgeStore";
 import ShowcaseTerminal from "./ShowcaseTerminal";
 import Terminal from "./Terminal";
+import PreviewTab from "./PreviewTab";
 import EmptyGroupPicker from "./EmptyGroupPicker";
 
 function MockDocViewer() {
@@ -68,8 +69,16 @@ export default function TerminalArea() {
           >
             {showcaseActive ? (
               <ShowcaseTerminal tabId={tab.id} isActive={isActive} />
+            ) : tab.type === "preview" ? (
+              <PreviewTab tabId={tab.id} isActive={isActive} initialUrl={tab.url} />
             ) : (
-              <Terminal tabId={tab.id} isActive={isActive} cwd={tab.cwd} launchCommand={tab.launchCommand} />
+              <Terminal
+                tabId={tab.id}
+                isActive={isActive}
+                cwd={tab.cwd}
+                launchCommand={tab.launchCommand}
+                initialPrompt={tab.initialPrompt}
+              />
             )}
           </div>
         );

@@ -1,8 +1,11 @@
+mod comment_server;
 mod config;
 mod git;
+mod preview;
 mod pty;
 mod workspace;
 
+use preview::PreviewState;
 use pty::PtyState;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -14,6 +17,7 @@ pub fn run() {
         .manage(PtyState {
             sessions: Arc::new(Mutex::new(HashMap::new())),
         })
+        .manage(PreviewState::new())
         .invoke_handler(tauri::generate_handler![
             pty::spawn_pty,
             pty::write_pty,
@@ -37,6 +41,14 @@ pub fn run() {
             git::git_add_worktree,
             git::git_remove_worktree,
             git::git_list_branches,
+            preview::open_preview_webview,
+            preview::set_preview_bounds,
+            preview::set_preview_visible,
+            preview::close_preview_webview,
+            preview::preview_navigate,
+            preview::preview_reload,
+            preview::preview_history,
+            preview::preview_set_comment_mode,
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {
@@ -52,6 +64,7 @@ pub fn run() {
                     .expect("failed to load icon");
                 let _ = window.set_icon(icon);
             }
+            comment_server::start(app.handle().clone());
             Ok(())
         })
         .run(tauri::generate_context!())

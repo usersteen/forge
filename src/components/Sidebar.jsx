@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -86,7 +86,7 @@ function WorktreeCloseBlockedModal({ groupName, childNames, onClose }) {
 }
 
 function getSidebarDotClass(tab, isRecent) {
-  if (tab.type === "server") {
+  if (tab.type === "server" || tab.type === "preview") {
     return "server-running";
   }
   if (tab.status === "waiting") {
@@ -131,12 +131,6 @@ function getGroupPriorityClass(group, now, recencyThreshold) {
   return "";
 }
 
-function getVisibleSidebarTabs(tabs, limit = 4) {
-  return {
-    visibleTabs: tabs.slice(0, limit),
-    overflowCount: Math.max(0, tabs.length - limit),
-  };
-}
 
 function SidebarTabButton({ tab, isActiveTab, isRecent, onSelectTab }) {
   const { elementRef: dotRef, handleAnimationEnd } = useFlashAnimation(tab.waitingFlashKey);
@@ -188,9 +182,8 @@ function SortableGroup({
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
-  const { visibleTabs, overflowCount } = useMemo(() => getVisibleSidebarTabs(group.tabs), [group.tabs]);
   const isDetailed = projectMenuDetail === "detailed";
-  const renderedVisibleTabs = usePresenceList(visibleTabs, {
+  const renderedVisibleTabs = usePresenceList(group.tabs, {
     exitDuration: SIDEBAR_TAB_EXIT_DURATION_MS,
     resetKey: `${group.id}:${isDetailed ? "detailed" : "compact"}`,
   });
@@ -237,7 +230,6 @@ function SortableGroup({
                     </div>
                   );
                 })}
-                {overflowCount > 0 && <div className="sidebar-tab-overflow">+{overflowCount} more</div>}
               </div>
             ) : (
               <div className="sidebar-group-dots">

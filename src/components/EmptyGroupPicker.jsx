@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import useForgeStore from "../store/useForgeStore";
+import { commitNewTab } from "../previewLauncher";
 import QuickTabOptionList from "./QuickTabOptionList";
 
 const HERO_ENTRY_ARM_DELAY_MS = 32;
 const HERO_EXIT_FALLBACK_MS = 460;
 
 export default function EmptyGroupPicker({ groupId, rootPath, serverCommandOverride }) {
-  const addTab = useForgeStore((s) => s.addTab);
   const [selectedActionId, setSelectedActionId] = useState(null);
   const [heroPhase, setHeroPhase] = useState("pre-enter");
   const entryTimerRef = useRef(null);
@@ -36,12 +35,12 @@ export default function EmptyGroupPicker({ groupId, rootPath, serverCommandOverr
       exitTimerRef.current = null;
     }
     pendingSelectionRef.current = null;
-    addTab(groupId, pending.tabOptions);
+    commitNewTab(groupId, pending.tabOptions);
   };
 
   const handleSelectIntent = (actionId, tabOptions, { heroEligible = true } = {}) => {
     if (!heroEligible) {
-      addTab(groupId, tabOptions);
+      commitNewTab(groupId, tabOptions);
       return;
     }
 

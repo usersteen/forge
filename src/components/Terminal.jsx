@@ -164,14 +164,16 @@ function detectServerName(text) {
   return "";
 }
 
-export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
+export default function Terminal({ tabId, isActive, cwd, launchCommand, initialPrompt }) {
   const containerRef = useRef(null);
   const fitAddonRef = useRef(null);
   const termRef = useRef(null);
   const initialLaunchCommandRef = useRef(launchCommand);
+  const initialPromptRef = useRef(initialPrompt);
   const initialLaunchSentRef = useRef(false);
   const noticeTimerRef = useRef(null);
   const launchTimerRef = useRef(null);
+  const initialPromptTimerRef = useRef(null);
   const ptyReady = useRef(false);
   const prevStatusRef = useRef("idle");
   const statusTitleRef = useRef("");
@@ -246,6 +248,11 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       launchTimerRef.current = null;
     };
 
+    const clearInitialPromptTimer = () => {
+      clearTimeout(initialPromptTimerRef.current);
+      initialPromptTimerRef.current = null;
+    };
+
     const triggerInitialLaunch = () => {
       if (initialLaunchSentRef.current || !ptyReady.current || isTearingDown) return;
       const initialLaunchCommand = initialLaunchCommandRef.current;
@@ -264,6 +271,25 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
           String(error)
         );
       });
+
+      const prompt = initialPromptRef.current;
+      if (prompt) {
+        clearInitialPromptTimer();
+        initialPromptTimerRef.current = setTimeout(() => {
+          initialPromptTimerRef.current = null;
+          if (isTearingDown || !ptyReady.current) return;
+          handleSubmittedCommand(prompt);
+          invoke("write_pty", { tabId, sessionId, data: `\x1b[200~${prompt}\x1b[201~\r` }).catch((error) => {
+            if (isTearingDown) return;
+            console.error("Failed to send initial prompt to PTY:", error);
+            handlePtyDisconnect(
+              "Terminal session lost",
+              `Forge could not send the preview comment prompt to this shell. ${TERMINAL_RECOVERY_MESSAGE}`,
+              String(error)
+            );
+          });
+        }, 1200);
+      }
     };
 
     const clearNoticeTimer = () => {
@@ -1635,6 +1661,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand }) {
       clearPendingCodexWaitingAttention();
       clearDebugScenarioTimers();
       clearLaunchTimer();
+      clearInitialPromptTimer();
       stopHumanInputPause();
       clearNoticeTimer();
       clearTimeout(resizeTimeout);

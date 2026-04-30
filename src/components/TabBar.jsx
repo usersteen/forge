@@ -4,6 +4,7 @@ import { SortableContext, horizontalListSortingStrategy, useSortable } from "@dn
 import { CSS } from "@dnd-kit/utilities";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import useForgeStore from "../store/useForgeStore";
+import { commitNewTab } from "../previewLauncher";
 import useInlineRename from "../hooks/useInlineRename";
 import useFlashAnimation from "../hooks/useFlashAnimation";
 import { usePresenceList } from "../hooks/useMotionList";
@@ -39,7 +40,7 @@ function PlusIcon() {
 }
 
 function getStatusDotClass(tab, isRecent) {
-  if (tab.type === "server") {
+  if (tab.type === "server" || tab.type === "preview") {
     return "status-dot server-running";
   }
   if (tab.status === "waiting") {
@@ -51,6 +52,7 @@ function getStatusDotClass(tab, isRecent) {
 
 function getTabStateClass(tab, isRecent) {
   if (tab.type === "server") return "tab-server";
+  if (tab.type === "preview") return "tab-preview";
   if (tab.status === "waiting") {
     return isRecent ? "tab-waiting tab-waiting-hot" : "tab-waiting tab-waiting-cold";
   }
@@ -59,7 +61,7 @@ function getTabStateClass(tab, isRecent) {
 }
 
 function getProviderBadge(tab) {
-  if (tab.type === "server") return null;
+  if (tab.type === "server" || tab.type === "preview") return null;
   if (tab.provider === "claude") {
     return { label: "CL", title: "Claude Code terminal" };
   }
@@ -70,6 +72,8 @@ function getProviderBadge(tab) {
 }
 
 function getTabTooltip(tab, providerBadge) {
+  if (tab.type === "preview") return `${tab.name} - Design preview`;
+  if (tab.type === "server") return `${tab.name} - Local server`;
   if (!providerBadge) return tab.name;
   return `${tab.name} - ${providerBadge.title}`;
 }
@@ -435,7 +439,7 @@ export default function TabBar({ onRefreshWorkspace }) {
           anchorRef={addButtonRef}
           tourElevated={tourActive}
           motionState={newTabMenu.motionState}
-          onSelect={tourActive ? NOOP : (tabOptions) => addTab(activeGroupId, tabOptions)}
+          onSelect={tourActive ? NOOP : (tabOptions) => commitNewTab(activeGroupId, tabOptions)}
           onClose={tourActive ? NOOP : closeNewTabMenu}
         />
       )}

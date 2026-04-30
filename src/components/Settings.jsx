@@ -102,14 +102,20 @@ function ProjectMenuModePreview({ mode, active }) {
   );
 }
 
-function AppearanceSection() {
+function AppearanceSection({ onClose }) {
   const theme = useForgeStore((s) => s.theme);
   const fxEnabled = useForgeStore((s) => s.fxEnabled);
   const projectMenuDetail = useForgeStore((s) => s.projectMenuDetail);
   const setTheme = useForgeStore((s) => s.setTheme);
   const setFxEnabled = useForgeStore((s) => s.setFxEnabled);
   const setProjectMenuDetail = useForgeStore((s) => s.setProjectMenuDetail);
+  const setDemoHeatStage = useForgeStore((s) => s.setDemoHeatStage);
   const themeOptions = getThemeOptions();
+
+  const launchDemo = () => {
+    setDemoHeatStage(0);
+    onClose?.();
+  };
 
   return (
     <>
@@ -178,6 +184,19 @@ function AppearanceSection() {
         <span className="settings-hint">
           Compact keeps the sidebar dense. Detailed expands each project into named tab rows.
         </span>
+      </div>
+      <div className="settings-row-inline">
+        <div>
+          <label>Demo Mode</label>
+          <span className="settings-hint">Preview heat stages, themes, and particle versions live. Press Esc to exit.</span>
+        </div>
+        <button
+          type="button"
+          className="settings-path-save"
+          onClick={launchDemo}
+        >
+          Enter
+        </button>
       </div>
     </>
   );
@@ -543,7 +562,7 @@ export default function Settings({ onClose, exiting, onExited }) {
             ))}
           </nav>
           <div className="settings-content">
-            <ActiveSection />
+            <ActiveSection onClose={onClose} />
             <DiagnosticsPanel />
           </div>
         </div>

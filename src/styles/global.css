@@ -659,15 +659,6 @@ html, body, #root {
   white-space: nowrap;
 }
 
-.sidebar-tab-overflow {
-  color: var(--text-muted);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  padding-top: 2px;
-  padding-left: 6px;
-}
-
 .sidebar-dot {
   width: 6px;
   height: 6px;
@@ -1119,7 +1110,8 @@ html, body, #root {
   border-bottom-color: var(--accent-working) !important;
 }
 
-.tab-active.tab-server {
+.tab-active.tab-server,
+.tab-active.tab-preview {
   border-bottom-color: var(--accent-server) !important;
 }
 

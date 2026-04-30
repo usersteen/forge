@@ -18,6 +18,7 @@ import {
 
 const AI_TAB_TYPE = "ai";
 const SERVER_TAB_TYPE = "server";
+const PREVIEW_TAB_TYPE = "preview";
 const DEFAULT_PROJECT_MENU_DETAIL = "simple";
 const PROJECT_MENU_DETAIL_STORAGE_KEY = "forge.projectMenuDetail";
 const MAX_DIAGNOSTIC_ENTRIES = 400;
@@ -100,7 +101,9 @@ function snapshotDiagnosticsGroups(groups, activeGroupId) {
 }
 
 function normalizeTabType(value) {
-  return value === SERVER_TAB_TYPE ? SERVER_TAB_TYPE : AI_TAB_TYPE;
+  if (value === SERVER_TAB_TYPE) return SERVER_TAB_TYPE;
+  if (value === PREVIEW_TAB_TYPE) return PREVIEW_TAB_TYPE;
+  return AI_TAB_TYPE;
 }
 
 function normalizeServerCommandOverride(value) {
@@ -134,8 +137,8 @@ function persistProjectMenuDetail(value) {
 function inferProviderFromLaunchCommand(command) {
   if (typeof command !== "string") return "unknown";
   const normalized = command.trim().toLowerCase();
-  if (/^codex(?:\s|$)/.test(normalized)) return "codex";
-  if (/^claude(?:\s|$)/.test(normalized)) return "claude";
+  if (/^codex(?:\.cmd)?(?:\s|$)/.test(normalized)) return "codex";
+  if (/^claude(?:\.cmd)?(?:\s|$)/.test(normalized)) return "claude";
   return "unknown";
 }
 
@@ -198,6 +201,8 @@ function makeTab(name = "Terminal 1", cwd = null, options = {}) {
     lastInteractionAt: createdAt,
     nonWorkingSince: initialStatus === "working" ? null : createdAt,
     launchCommand: options.launchCommand || null,
+    initialPrompt: options.initialPrompt || null,
+    url: options.url || null,
   };
 }
 
@@ -475,12 +480,14 @@ const useForgeStore = create((set, get) => ({
         type: options.type,
         provider: options.provider,
         launchCommand: options.launchCommand,
+        initialPrompt: options.initialPrompt,
+        url: options.url,
       });
       return {
         groups: mapGroups(state.groups, groupId, (entry) => ({
           ...entry,
           tabs: [...entry.tabs, tab],
-          activeTabId: tab.id,
+          activeTabId: options.activate === false ? entry.activeTabId : tab.id,
         })),
       };
     }),
@@ -824,7 +831,9 @@ const useForgeStore = create((set, get) => ({
         group.tabs.some((tab) => tab.id === tabId)
           ? {
               ...group,
-              tabs: group.tabs.map((tab) => (tab.id === tabId ? { ...tab, launchCommand: null } : tab)),
+              tabs: group.tabs.map((tab) =>
+                tab.id === tabId ? { ...tab, launchCommand: null, initialPrompt: null } : tab
+              ),
             }
           : group
       ),

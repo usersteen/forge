@@ -1,6 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  getAgentLaunchPreset,
+  getClaudeLaunchMode,
+  getCodexLaunchMode,
+  isClaudeLaunchCommand,
+  isCodexLaunchCommand,
+} from "./statusDetection.js";
+import {
   createStatusEngineState,
   getHeatTransition,
   getTabRecencyAnchor,
@@ -9,6 +16,18 @@ import {
   reduceTitleChange,
   shouldTabAutoIdle,
 } from "./statusEngine.js";
+
+test("Windows cmd launch shims are detected as interactive agent launches", () => {
+  assert.equal(isCodexLaunchCommand("codex.cmd"), true);
+  assert.equal(isClaudeLaunchCommand("claude.cmd"), true);
+  assert.equal(getCodexLaunchMode("codex.cmd"), "interactive");
+  assert.equal(getClaudeLaunchMode("claude.cmd"), "interactive");
+  assert.deepEqual(getAgentLaunchPreset("codex.cmd"), {
+    provider: "codex",
+    status: "waiting",
+    title: "Codex ready",
+  });
+});
 
 test("interactive Claude launches in waiting and prompt replies move it to working", () => {
   let state = createStatusEngineState();

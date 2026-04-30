@@ -26,6 +26,15 @@ export const NEW_TAB_OPTIONS = [
     label: "Server",
   },
   {
+    id: "preview",
+    label: "Preview",
+    hint: "Open a localhost dev server with element comments",
+    tabOptions: {
+      name: "Preview",
+      type: "preview",
+    },
+  },
+  {
     id: "blank",
     label: "Blank",
     hint: "Open a shell in the attached repo when available",

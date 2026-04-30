@@ -11,8 +11,8 @@ const CODEX_SESSION_PATTERNS = [
   /\bUse \/help for commands\b/i,
 ];
 
-const CLAUDE_LAUNCH_COMMAND = /^claude(?:\s|$)/i;
-const CODEX_LAUNCH_COMMAND = /^codex(?:\s|$)/i;
+const CLAUDE_LAUNCH_COMMAND = /^claude(?:\.cmd)?(?:\s|$)/i;
+const CODEX_LAUNCH_COMMAND = /^codex(?:\.cmd)?(?:\s|$)/i;
 const CODEX_EXIT_COMMAND = /^(?:exit|quit|\/exit|\/quit)$/i;
 const CODEX_NONINTERACTIVE_SUBCOMMANDS = new Set([
   "exec",

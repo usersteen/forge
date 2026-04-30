@@ -2,6 +2,12 @@ import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./PreviewTab.css";
 
+const TOP_LAYER_SELECTOR = [
+  ".surface-menu",
+  ".settings-overlay",
+  ".tab-context-menu",
+].join(",");
+
 function normalizeUrl(input) {
   const trimmed = (input || "").trim();
   if (!trimmed) return "";
@@ -48,11 +54,38 @@ function getPickerThemeCss() {
   return `:root {\n${declarations.join("\n")}\n}`;
 }
 
+function hasTopLayerSurface() {
+  if (typeof document === "undefined") return false;
+  return Boolean(document.querySelector(TOP_LAYER_SELECTOR));
+}
+
+function useTopLayerSurfaceOpen() {
+  const [open, setOpen] = useState(hasTopLayerSurface);
+
+  useEffect(() => {
+    const update = () => setOpen(hasTopLayerSurface());
+    update();
+
+    const observer = new MutationObserver(update);
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["class", "style"],
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  return open;
+}
+
 export default function PreviewTab({ tabId, isActive, initialUrl }) {
   const [urlDraft, setUrlDraft] = useState(initialUrl || "");
   const [loadedUrl, setLoadedUrl] = useState(null);
   const [commentMode, setCommentMode] = useState(false);
   const [error, setError] = useState(null);
+  const topLayerSurfaceOpen = useTopLayerSurfaceOpen();
 
   const containerRef = useRef(null);
   const bodyRef = useRef(null);
@@ -158,7 +191,7 @@ export default function PreviewTab({ tabId, isActive, initialUrl }) {
     const el = bodyRef.current;
     if (!el || typeof ResizeObserver === "undefined") return undefined;
     const observer = new ResizeObserver(() => {
-      if (!isActive) return;
+      if (!isActive || topLayerSurfaceOpen) return;
       const bounds = measureBounds();
       if (!bounds) return;
       const last = lastBoundsRef.current;
@@ -174,15 +207,19 @@ export default function PreviewTab({ tabId, isActive, initialUrl }) {
       invoke("set_preview_bounds", { tabId, ...bounds }).catch(() => {});
     });
     observer.observe(el);
-    window.addEventListener("resize", () => {
-      if (!isActive) return;
+    const handleResize = () => {
+      if (!isActive || topLayerSurfaceOpen) return;
       const bounds = measureBounds();
       if (!bounds) return;
       lastBoundsRef.current = bounds;
       invoke("set_preview_bounds", { tabId, ...bounds }).catch(() => {});
-    });
-    return () => observer.disconnect();
-  }, [isActive, tabId, measureBounds]);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [isActive, tabId, measureBounds, topLayerSurfaceOpen]);
 
   // Visibility on tab activation.
   useEffect(() => {
@@ -190,12 +227,12 @@ export default function PreviewTab({ tabId, isActive, initialUrl }) {
     const bounds = measureBounds() || lastBoundsRef.current || { x: 0, y: 0, width: 1, height: 1 };
     invoke("set_preview_visible", {
       tabId,
-      visible: !!isActive,
+      visible: !!isActive && !topLayerSurfaceOpen,
       ...bounds,
     }).catch(() => {});
-    if (isActive && bounds) lastBoundsRef.current = bounds;
+    if (isActive && !topLayerSurfaceOpen && bounds) lastBoundsRef.current = bounds;
     if (!isActive && commentMode) setCommentMode(false);
-  }, [isActive, tabId, measureBounds, commentMode]);
+  }, [isActive, tabId, measureBounds, commentMode, topLayerSurfaceOpen]);
 
   // Cleanup on unmount.
   useEffect(() => {

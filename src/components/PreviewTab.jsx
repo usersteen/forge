@@ -80,10 +80,33 @@ function useTopLayerSurfaceOpen() {
   return open;
 }
 
+function FullscreenIcon() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M3 6V3h3" />
+      <path d="M10 3h3v3" />
+      <path d="M13 10v3h-3" />
+      <path d="M6 13H3v-3" />
+    </svg>
+  );
+}
+
+function ExitFullscreenIcon() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M6 3v3H3" />
+      <path d="M10 6V3h3" />
+      <path d="M13 10h-3v3" />
+      <path d="M3 10h3v3" />
+    </svg>
+  );
+}
+
 export default function PreviewTab({ tabId, isActive, initialUrl }) {
   const [urlDraft, setUrlDraft] = useState(initialUrl || "");
   const [loadedUrl, setLoadedUrl] = useState(null);
   const [commentMode, setCommentMode] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [error, setError] = useState(null);
   const topLayerSurfaceOpen = useTopLayerSurfaceOpen();
 
@@ -131,6 +154,14 @@ export default function PreviewTab({ tabId, isActive, initialUrl }) {
     [tabId, measureBounds]
   );
 
+  const syncPreviewBounds = useCallback(() => {
+    if (!hasOpenedRef.current || !isActive || topLayerSurfaceOpen) return;
+    const bounds = measureBounds();
+    if (!bounds) return;
+    lastBoundsRef.current = bounds;
+    invoke("set_preview_bounds", { tabId, ...bounds }).catch(() => {});
+  }, [isActive, tabId, measureBounds, topLayerSurfaceOpen]);
+
   const navigateTo = useCallback(
     async (rawUrl) => {
       const url = normalizeUrl(rawUrl);
@@ -161,6 +192,11 @@ export default function PreviewTab({ tabId, isActive, initialUrl }) {
     return () => cancelAnimationFrame(id);
   }, [initialUrl]);
 
+  useEffect(() => {
+    if (!isActive && isFullscreen) {
+      setIsFullscreen(false);
+    }
+  }, [isActive, isFullscreen]);
 
   // Initial open only if an explicit initialUrl was provided.
   useEffect(() => {
@@ -203,23 +239,24 @@ export default function PreviewTab({ tabId, isActive, initialUrl }) {
         last.height === bounds.height
       )
         return;
-      lastBoundsRef.current = bounds;
-      invoke("set_preview_bounds", { tabId, ...bounds }).catch(() => {});
+      syncPreviewBounds();
     });
     observer.observe(el);
     const handleResize = () => {
-      if (!isActive || topLayerSurfaceOpen) return;
-      const bounds = measureBounds();
-      if (!bounds) return;
-      lastBoundsRef.current = bounds;
-      invoke("set_preview_bounds", { tabId, ...bounds }).catch(() => {});
+      syncPreviewBounds();
     };
     window.addEventListener("resize", handleResize);
     return () => {
       observer.disconnect();
       window.removeEventListener("resize", handleResize);
     };
-  }, [isActive, tabId, measureBounds, topLayerSurfaceOpen]);
+  }, [isActive, tabId, measureBounds, syncPreviewBounds, topLayerSurfaceOpen]);
+
+  useEffect(() => {
+    if (!hasOpenedRef.current) return undefined;
+    const frame = requestAnimationFrame(syncPreviewBounds);
+    return () => cancelAnimationFrame(frame);
+  }, [isFullscreen, syncPreviewBounds]);
 
   // Visibility on tab activation.
   useEffect(() => {
@@ -232,7 +269,7 @@ export default function PreviewTab({ tabId, isActive, initialUrl }) {
     }).catch(() => {});
     if (isActive && !topLayerSurfaceOpen && bounds) lastBoundsRef.current = bounds;
     if (!isActive && commentMode) setCommentMode(false);
-  }, [isActive, tabId, measureBounds, commentMode, topLayerSurfaceOpen]);
+  }, [isActive, tabId, measureBounds, commentMode, topLayerSurfaceOpen, isFullscreen]);
 
   // Cleanup on unmount.
   useEffect(() => {
@@ -251,21 +288,26 @@ export default function PreviewTab({ tabId, isActive, initialUrl }) {
     }).catch(() => {});
   }, [commentMode, tabId]);
 
-  // Hotkey: Ctrl/Cmd+Shift+C toggles comment mode while this tab is active.
+  // Hotkeys while this tab is active.
   useEffect(() => {
     if (!isActive) return undefined;
     const handler = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.code === "KeyC") {
         e.preventDefault();
         setCommentMode((prev) => !prev);
+        return;
+      }
+      if (e.key === "Escape" && isFullscreen) {
+        e.preventDefault();
+        setIsFullscreen(false);
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [isActive]);
+  }, [isActive, isFullscreen]);
 
   return (
-    <div className="preview-tab" ref={containerRef}>
+    <div className={`preview-tab${isFullscreen ? " preview-tab-fullscreen" : ""}`} ref={containerRef}>
       <div className="preview-toolbar">
         <button
           type="button"
@@ -315,6 +357,16 @@ export default function PreviewTab({ tabId, isActive, initialUrl }) {
           title="Toggle comment mode (Ctrl+Shift+C)"
         >
           💬 Comment
+        </button>
+        <button
+          type="button"
+          className={`preview-tb-btn preview-tb-fullscreen${isFullscreen ? " on" : ""}`}
+          aria-label={isFullscreen ? "Exit full screen preview" : "Full screen preview"}
+          aria-pressed={isFullscreen}
+          onClick={() => setIsFullscreen((prev) => !prev)}
+          title={isFullscreen ? "Exit full screen (Esc)" : "Full screen preview"}
+        >
+          {isFullscreen ? <ExitFullscreenIcon /> : <FullscreenIcon />}
         </button>
       </div>
       {error ? <div className="preview-error">{error}</div> : null}

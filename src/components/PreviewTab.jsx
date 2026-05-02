@@ -29,6 +29,12 @@ function isLocalUrl(url) {
   }
 }
 
+const VIEW_PRESETS = {
+  desktop: null,
+  tablet: { width: 768, height: 1024 },
+  mobile: { width: 375, height: 667 },
+};
+
 const PICKER_TOKEN_MAP = [
   ["--forge-bg-deep", "--bg-deep"],
   ["--forge-bg-sidebar", "--bg-sidebar"],
@@ -80,6 +86,34 @@ function useTopLayerSurfaceOpen() {
   return open;
 }
 
+function DesktopIcon() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <rect x="2" y="3" width="12" height="8" rx="1" />
+      <path d="M6 13h4" />
+      <path d="M8 11v2" />
+    </svg>
+  );
+}
+
+function TabletIcon() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <rect x="3.5" y="2" width="9" height="12" rx="1.2" />
+      <path d="M7.5 12.5h1" />
+    </svg>
+  );
+}
+
+function MobileIcon() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <rect x="5" y="2" width="6" height="12" rx="1.2" />
+      <path d="M7.5 12.5h1" />
+    </svg>
+  );
+}
+
 function FullscreenIcon() {
   return (
     <svg viewBox="0 0 16 16" aria-hidden="true">
@@ -107,6 +141,7 @@ export default function PreviewTab({ tabId, isActive, initialUrl }) {
   const [loadedUrl, setLoadedUrl] = useState(null);
   const [commentMode, setCommentMode] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [viewMode, setViewMode] = useState("desktop");
   const [error, setError] = useState(null);
   const topLayerSurfaceOpen = useTopLayerSurfaceOpen();
 
@@ -121,13 +156,28 @@ export default function PreviewTab({ tabId, isActive, initialUrl }) {
     if (!el) return null;
     const rect = el.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return null;
+
+    const preset = VIEW_PRESETS[viewMode];
+    if (!preset) {
+      return {
+        x: Math.round(rect.left),
+        y: Math.round(rect.top),
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+      };
+    }
+
+    const w = Math.min(preset.width, rect.width);
+    const h = Math.min(preset.height, rect.height);
+    const x = rect.left + (rect.width - w) / 2;
+    const y = rect.top + (rect.height - h) / 2;
     return {
-      x: Math.round(rect.left),
-      y: Math.round(rect.top),
-      width: Math.round(rect.width),
-      height: Math.round(rect.height),
+      x: Math.round(x),
+      y: Math.round(y),
+      width: Math.round(w),
+      height: Math.round(h),
     };
-  }, []);
+  }, [viewMode]);
 
   const openWebview = useCallback(
     async (url) => {
@@ -252,11 +302,24 @@ export default function PreviewTab({ tabId, isActive, initialUrl }) {
     };
   }, [isActive, tabId, measureBounds, syncPreviewBounds, topLayerSurfaceOpen]);
 
+  // Fullscreen toggles change the .preview-body bounds; defer the webview
+  // re-sync to the next frame so getBoundingClientRect sees the new layout,
+  // then re-assert visibility + bounds in one call.
   useEffect(() => {
     if (!hasOpenedRef.current) return undefined;
-    const frame = requestAnimationFrame(syncPreviewBounds);
+    const frame = requestAnimationFrame(() => {
+      if (!hasOpenedRef.current) return;
+      const bounds = measureBounds() || lastBoundsRef.current;
+      if (!bounds) return;
+      lastBoundsRef.current = bounds;
+      invoke("set_preview_visible", {
+        tabId,
+        visible: !!isActive && !topLayerSurfaceOpen,
+        ...bounds,
+      }).catch(() => {});
+    });
     return () => cancelAnimationFrame(frame);
-  }, [isFullscreen, syncPreviewBounds]);
+  }, [isFullscreen, isActive, tabId, measureBounds, topLayerSurfaceOpen]);
 
   // Visibility on tab activation.
   useEffect(() => {
@@ -269,7 +332,7 @@ export default function PreviewTab({ tabId, isActive, initialUrl }) {
     }).catch(() => {});
     if (isActive && !topLayerSurfaceOpen && bounds) lastBoundsRef.current = bounds;
     if (!isActive && commentMode) setCommentMode(false);
-  }, [isActive, tabId, measureBounds, commentMode, topLayerSurfaceOpen, isFullscreen]);
+  }, [isActive, tabId, measureBounds, commentMode, topLayerSurfaceOpen]);
 
   // Cleanup on unmount.
   useEffect(() => {
@@ -357,6 +420,36 @@ export default function PreviewTab({ tabId, isActive, initialUrl }) {
           title="Toggle comment mode (Ctrl+Shift+C)"
         >
           💬 Comment
+        </button>
+        <button
+          type="button"
+          className={`preview-tb-btn${viewMode === "desktop" ? " on" : ""}`}
+          aria-label="Desktop view"
+          aria-pressed={viewMode === "desktop"}
+          onClick={() => setViewMode("desktop")}
+          title="Desktop (fluid)"
+        >
+          <DesktopIcon />
+        </button>
+        <button
+          type="button"
+          className={`preview-tb-btn${viewMode === "tablet" ? " on" : ""}`}
+          aria-label="Tablet view"
+          aria-pressed={viewMode === "tablet"}
+          onClick={() => setViewMode("tablet")}
+          title="Tablet (768 × 1024)"
+        >
+          <TabletIcon />
+        </button>
+        <button
+          type="button"
+          className={`preview-tb-btn${viewMode === "mobile" ? " on" : ""}`}
+          aria-label="Mobile view"
+          aria-pressed={viewMode === "mobile"}
+          onClick={() => setViewMode("mobile")}
+          title="Mobile (375 × 667)"
+        >
+          <MobileIcon />
         </button>
         <button
           type="button"

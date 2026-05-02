@@ -255,7 +255,6 @@
         .then((res) => {
           if (!res.ok) throw new Error("status " + res.status);
           closeComposer();
-          api.setMode(false);
         })
         .catch((err) => {
           textarea.disabled = false;

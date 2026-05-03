@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import "./PreviewTab.css";
 
 const TOP_LAYER_SELECTOR = [
@@ -369,7 +370,7 @@ export default function PreviewTab({ tabId, isActive, initialUrl }) {
     return () => window.removeEventListener("keydown", handler);
   }, [isActive, isFullscreen]);
 
-  return (
+  const previewContent = (
     <div className={`preview-tab${isFullscreen ? " preview-tab-fullscreen" : ""}`} ref={containerRef}>
       <div className="preview-toolbar">
         <button
@@ -475,4 +476,10 @@ export default function PreviewTab({ tabId, isActive, initialUrl }) {
       </div>
     </div>
   );
+
+  if (isFullscreen) {
+    return createPortal(previewContent, document.body);
+  }
+
+  return previewContent;
 }

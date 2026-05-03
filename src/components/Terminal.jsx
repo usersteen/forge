@@ -46,6 +46,7 @@ const TERMINAL_RECOVERY_MESSAGE = "Open a new terminal tab and rerun the command
 const INITIAL_PROMPT_READY_TIMEOUT_MS = 8000;
 const INITIAL_PROMPT_RETRY_MS = 300;
 const INITIAL_PROMPT_MIN_DELAY_MS = 1000;
+const INITIAL_PROMPT_SUBMIT_DELAY_MS = 180;
 const SERVER_URL_PATTERN = /\bhttps?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]|::1|(?:\d{1,3}\.){3}\d{1,3})(?::(\d{2,5}))?(?:\/[^\s]*)?/gi;
 const SERVER_HOST_PORT_PATTERN = /\b(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]|::1|(?:\d{1,3}\.){3}\d{1,3}):(\d{2,5})\b/gi;
 const SERVER_PORT_HINT_PATTERN =
@@ -312,16 +313,33 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand, initialP
           invoke("write_pty", {
             tabId,
             sessionId,
-            data: `\x1b[200~${prompt}\x1b[201~\r`,
-          }).catch((error) => {
-            if (isTearingDown) return;
-            console.error("Failed to send initial prompt to PTY:", error);
-            handlePtyDisconnect(
-              "Terminal session lost",
-              `Forge could not send the preview comment prompt to this shell. ${TERMINAL_RECOVERY_MESSAGE}`,
-              String(error)
-            );
-          });
+            data: `\x1b[200~${prompt}\x1b[201~`,
+          })
+            .then(() => {
+              if (isTearingDown || !ptyReady.current) return;
+              initialPromptTimerRef.current = setTimeout(() => {
+                initialPromptTimerRef.current = null;
+                if (isTearingDown || !ptyReady.current) return;
+                invoke("write_pty", { tabId, sessionId, data: "\r" }).catch((error) => {
+                  if (isTearingDown) return;
+                  console.error("Failed to submit initial prompt to PTY:", error);
+                  handlePtyDisconnect(
+                    "Terminal session lost",
+                    `Forge could not submit the preview comment prompt to this shell. ${TERMINAL_RECOVERY_MESSAGE}`,
+                    String(error)
+                  );
+                });
+              }, INITIAL_PROMPT_SUBMIT_DELAY_MS);
+            })
+            .catch((error) => {
+              if (isTearingDown) return;
+              console.error("Failed to send initial prompt to PTY:", error);
+              handlePtyDisconnect(
+                "Terminal session lost",
+                `Forge could not send the preview comment prompt to this shell. ${TERMINAL_RECOVERY_MESSAGE}`,
+                String(error)
+              );
+            });
         };
 
         clearInitialPromptTimer();

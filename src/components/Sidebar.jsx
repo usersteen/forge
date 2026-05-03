@@ -86,9 +86,10 @@ function WorktreeCloseBlockedModal({ groupName, childNames, onClose }) {
 }
 
 function getSidebarDotClass(tab, isRecent) {
-  if (tab.type === "server" || tab.type === "preview") {
+  if (tab.type === "server") {
     return "server-running";
   }
+  if (tab.type === "preview") return "preview-running";
   if (tab.status === "waiting") {
     return isRecent ? "waiting waiting-hot" : "waiting waiting-cold";
   }

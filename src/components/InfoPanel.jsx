@@ -80,6 +80,7 @@ function ProjectsSection() {
         <li><strong>Claude</strong> — launches a Claude Code session</li>
         <li><strong>Codex</strong> — launches a Codex CLI session</li>
         <li><strong>Server</strong> — for dev servers and long-running processes (suggests a start command from package.json)</li>
+        <li><strong>Preview</strong> — opens a localhost design preview with element comments</li>
         <li><strong>Blank</strong> — plain shell terminal</li>
         <li><strong>Rename</strong> by double-clicking the tab, or right-click &gt; Rename</li>
         <li><strong>Reorder</strong> by dragging tabs left or right</li>
@@ -120,10 +121,10 @@ function StatusSection() {
         Works with both Claude Code and Codex sessions.
       </p>
 
-      <h2>Server Tabs</h2>
+      <h2>Utility Tabs</h2>
       <ul>
         <li><strong>Right-click</strong> any tab and choose "Set as Server Terminal" to mark it as a long-running process</li>
-        <li>Server tabs show a <span className="info-dot server-running"></span> <strong>blue dot</strong> instead of AI status colors</li>
+        <li>Server and preview tabs use compact utility markers instead of AI status colors: <span className="info-dot server-running"></span> server, <span className="info-dot preview-running"></span> preview</li>
         <li>Useful for dev servers, watchers, or any process that stays running</li>
         <li>Right-click and choose "Set as AI Terminal" to switch back</li>
       </ul>

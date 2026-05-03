@@ -39,9 +39,43 @@ function PlusIcon() {
   );
 }
 
+function ServerIcon() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <rect x="2.5" y="3" width="11" height="10" rx="1" />
+      <path d="M5 6h3" />
+      <path d="M5 9.5h1.5" />
+      <path d="M11 9.5h.5" />
+    </svg>
+  );
+}
+
+function PreviewIcon() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <rect className="tab-type-fill" x="2.5" y="3.5" width="11" height="8" rx="1" />
+      <path className="tab-type-cutout" d="M6.25 13h3.5" />
+      <path className="tab-type-cutout" d="M8 11.5V13" />
+    </svg>
+  );
+}
+
+function getUtilityTabMeta(tab) {
+  if (tab.type === "server") {
+    return { label: "Server tab", className: "tab-type-server", icon: <ServerIcon /> };
+  }
+  if (tab.type === "preview") {
+    return { label: "Design preview tab", className: "tab-type-preview", icon: <PreviewIcon /> };
+  }
+  return null;
+}
+
 function getStatusDotClass(tab, isRecent) {
-  if (tab.type === "server" || tab.type === "preview") {
+  if (tab.type === "server") {
     return "status-dot server-running";
+  }
+  if (tab.type === "preview") {
+    return "status-dot preview-running";
   }
   if (tab.status === "waiting") {
     return isRecent ? "status-dot waiting waiting-hot" : "status-dot waiting waiting-cold";
@@ -110,6 +144,7 @@ function SortableTab({
   const statusClass = getTabStateClass(tab, isRecent);
   const providerBadge = getProviderBadge(tab);
   const showProviderBadge = isActive && providerBadge;
+  const utilityMeta = getUtilityTabMeta(tab);
 
   return (
     <div
@@ -120,15 +155,22 @@ function SortableTab({
       style={style}
       {...attributes}
       {...listeners}
-      className={`tab ${isActive ? "tab-active" : ""} ${statusClass}`}
+      className={`tab ${utilityMeta ? "tab-utility" : ""} ${isActive ? "tab-active" : ""} ${statusClass}`}
       data-presence={presencePhase}
       onClick={onSelect}
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
       onAnimationEnd={handleAnimationEnd}
       title={getTabTooltip(tab, providerBadge)}
+      aria-label={utilityMeta ? `${tab.name} - ${utilityMeta.label}` : tab.name}
     >
-      <span className={getStatusDotClass(tab, isRecent)} />
+      {utilityMeta ? (
+        <span className={`tab-type-icon ${utilityMeta.className}`} title={utilityMeta.label}>
+          {utilityMeta.icon}
+        </span>
+      ) : (
+        <span className={getStatusDotClass(tab, isRecent)} />
+      )}
       {showProviderBadge ? (
         <span className={`tab-provider-badge tab-provider-${tab.provider}`} title={providerBadge.title}>
           {providerBadge.label}

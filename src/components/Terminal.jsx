@@ -28,6 +28,10 @@ import {
   reduceSessionCommand,
   reduceTitleChange,
 } from "../utils/statusEngine";
+import {
+  INITIAL_PROMPT_PASTE_POLL_MS,
+  initialPromptPasteSettled,
+} from "../utils/initialPromptChoreography";
 
 let _audioCtx;
 const CODEX_DEBUG_TEXT_LIMIT = 400;
@@ -46,7 +50,6 @@ const TERMINAL_RECOVERY_MESSAGE = "Open a new terminal tab and rerun the command
 const INITIAL_PROMPT_READY_TIMEOUT_MS = 8000;
 const INITIAL_PROMPT_RETRY_MS = 300;
 const INITIAL_PROMPT_MIN_DELAY_MS = 1000;
-const INITIAL_PROMPT_SUBMIT_DELAY_MS = 180;
 const SERVER_URL_PATTERN = /\bhttps?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]|::1|(?:\d{1,3}\.){3}\d{1,3})(?::(\d{2,5}))?(?:\/[^\s]*)?/gi;
 const SERVER_HOST_PORT_PATTERN = /\b(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]|::1|(?:\d{1,3}\.){3}\d{1,3}):(\d{2,5})\b/gi;
 const SERVER_PORT_HINT_PATTERN =
@@ -309,7 +312,6 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand, initialP
             return;
           }
 
-          handleSubmittedCommand(prompt);
           invoke("write_pty", {
             tabId,
             sessionId,
@@ -317,9 +319,29 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand, initialP
           })
             .then(() => {
               if (isTearingDown || !ptyReady.current) return;
-              initialPromptTimerRef.current = setTimeout(() => {
+              const pasteStartedAt = Date.now();
+              const trySubmitInitialPrompt = () => {
                 initialPromptTimerRef.current = null;
                 if (isTearingDown || !ptyReady.current) return;
+
+                const pasteElapsed = Date.now() - pasteStartedAt;
+                const pasteScreenText = readTerminalTail(termRef.current, 18);
+                const pasteState = initialPromptPasteSettled({
+                  command: initialLaunchCommand,
+                  prompt,
+                  screenText: pasteScreenText,
+                  elapsedMs: pasteElapsed,
+                });
+
+                if (!pasteState.settled) {
+                  initialPromptTimerRef.current = setTimeout(
+                    trySubmitInitialPrompt,
+                    INITIAL_PROMPT_PASTE_POLL_MS
+                  );
+                  return;
+                }
+
+                handleSubmittedCommand(prompt);
                 invoke("write_pty", { tabId, sessionId, data: "\r" }).catch((error) => {
                   if (isTearingDown) return;
                   console.error("Failed to submit initial prompt to PTY:", error);
@@ -329,7 +351,12 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand, initialP
                     String(error)
                   );
                 });
-              }, INITIAL_PROMPT_SUBMIT_DELAY_MS);
+              };
+
+              initialPromptTimerRef.current = setTimeout(
+                trySubmitInitialPrompt,
+                INITIAL_PROMPT_PASTE_POLL_MS
+              );
             })
             .catch((error) => {
               if (isTearingDown) return;

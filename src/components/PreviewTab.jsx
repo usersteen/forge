@@ -244,17 +244,32 @@ export default function PreviewTab({ tabId, isActive, initialUrl }) {
   }, [initialUrl]);
 
   useEffect(() => {
+    if (!initialUrl) return;
+    setUrlDraft(initialUrl);
+  }, [initialUrl]);
+
+  useEffect(() => {
     if (!isActive && isFullscreen) {
       setIsFullscreen(false);
     }
   }, [isActive, isFullscreen]);
 
-  // Initial open only if an explicit initialUrl was provided.
+  // Open when a preview URL is supplied by the launcher or repo browser.
+  // Only acts on changes to `initialUrl` — manual toolbar nav must not be
+  // snapped back when unrelated callback identities (navigateTo, openWebview)
+  // re-render the effect.
+  const lastAppliedInitialUrlRef = useRef(null);
   useEffect(() => {
-    if (hasOpenedRef.current) return;
     if (!initialUrl) return;
     const url = normalizeUrl(initialUrl);
     if (!url || !isLocalUrl(url)) return;
+    if (lastAppliedInitialUrlRef.current === url) return;
+    lastAppliedInitialUrlRef.current = url;
+
+    if (hasOpenedRef.current) {
+      navigateTo(url);
+      return;
+    }
     let cancelled = false;
     const tryOpen = () => {
       if (cancelled || hasOpenedRef.current) return;
@@ -269,8 +284,7 @@ export default function PreviewTab({ tabId, isActive, initialUrl }) {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initialUrl, measureBounds, navigateTo, openWebview]);
 
   // Track size changes and resync bounds (only when active).
   useEffect(() => {

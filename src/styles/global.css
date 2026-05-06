@@ -147,15 +147,26 @@ html, body, #root {
 .info-dot.server-running {
   background: transparent;
   border: 1px solid var(--accent-server);
-  border-radius: 2px;
+  border-radius: 1px;
 }
 
 .status-dot.preview-running,
 .sidebar-dot.preview-running,
 .info-dot.preview-running {
   background: var(--accent-server);
-  border: 1px solid var(--accent-server);
-  border-radius: 2px;
+  border: none;
+  border-radius: 0;
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+}
+
+.sidebar-dot.preview-running {
+  width: 8px;
+  height: 8px;
+}
+
+.status-dot.preview-running.tab-glyph {
+  width: 13px;
+  height: 13px;
 }
 
 [data-theme="ice"] .status-dot.server-running,
@@ -179,8 +190,15 @@ html, body, #root {
 [data-theme="ice"] .sidebar-dot.preview-running,
 [data-theme="ice"] .info-dot.preview-running {
   background: rgba(255, 255, 255, 0.86);
-  border-color: rgba(255, 255, 255, 0.86);
-  box-shadow: 0 0 0 1px rgba(var(--accent-server-rgb), 0.2);
+  filter: drop-shadow(0 0 1px rgba(var(--accent-server-rgb), 0.2));
+}
+
+[data-theme="ice"][data-fx="on"] .status-dot.preview-running,
+[data-theme="ice"][data-fx="on"] .sidebar-dot.preview-running,
+[data-theme="ice"][data-fx="on"] .info-dot.preview-running {
+  filter:
+    drop-shadow(0 0 1px rgba(var(--accent-server-rgb), 0.22))
+    drop-shadow(0 0 4px rgba(var(--accent-server-rgb), 0.34));
 }
 
 [data-fx="on"] .status-dot.working {
@@ -1065,43 +1083,9 @@ html, body, #root {
   pointer-events: none;
 }
 
-.tab-type-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  color: var(--accent-server);
-  flex: 0 0 auto;
-  transition:
-    color 130ms linear,
-    opacity 130ms linear,
-    transform 170ms var(--motion-settle);
-}
-
-.tab-type-icon svg {
-  width: 15px;
-  height: 15px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.55;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.tab-type-preview .tab-type-fill {
-  fill: currentColor;
-  stroke: currentColor;
-}
-
-.tab-type-preview .tab-type-cutout {
-  stroke: var(--bg-deep);
-  stroke-width: 1.85;
-}
-
-.tab:hover .tab-type-icon,
-.tab-active .tab-type-icon {
-  color: var(--accent-server);
+.status-dot.tab-glyph {
+  width: 10px;
+  height: 10px;
 }
 
 .tab-provider-badge {
@@ -4403,10 +4387,6 @@ body.reader-resizing {
 
 .info-dot.waiting {
   background: var(--accent-waiting);
-}
-
-.info-dot.server-running {
-  background: var(--accent-server);
 }
 
 /* Keyboard shortcuts grid */

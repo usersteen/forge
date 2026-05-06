@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import useServerSuggestion from "../hooks/useServerSuggestion";
+import { launchPreviewForFile } from "../previewLauncher";
 import useForgeStore from "../store/useForgeStore";
 import ParticleLayer from "./ParticleLayer";
 import { normalizeRootPath } from "../utils/workspace";
@@ -141,6 +142,10 @@ function fileIcon(fileType) {
   }
 }
 
+function isHtmlPath(path) {
+  return /\.html?$/i.test(String(path || ""));
+}
+
 function TreeNode({
   node,
   depth,
@@ -208,7 +213,7 @@ function TreeNode({
   };
 
   const isViewable =
-    !isDirectory && ["markdown", "text", "image"].includes(node.file_type);
+    !isDirectory && (isHtmlPath(node.path) || ["markdown", "text", "image"].includes(node.file_type));
 
   return (
     <div className="repo-browser-node-block">
@@ -382,6 +387,11 @@ export default function ProjectExplorer({
 
   const handleOpenFile = (node) => {
     setSelectedPath(activeGroup.id, node.path);
+    if (isHtmlPath(node.path)) {
+      launchPreviewForFile(activeGroup.id, node.path);
+      onClose?.();
+      return;
+    }
     if (!["markdown", "text", "image"].includes(node.file_type)) {
       return;
     }
@@ -488,7 +498,7 @@ export default function ProjectExplorer({
         </div>
       ) : (
         <div className="repo-browser-note surface-stagger" style={{ "--surface-index": 1 }}>
-          Paste a repository path to browse files and open markdown, text, or image documents.
+          Paste a repository path to browse files, open documents, and launch HTML previews.
         </div>
       )}
 

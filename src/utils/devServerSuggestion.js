@@ -55,6 +55,27 @@ async function detectPackageManager(rootPath, packageJson) {
   return detected?.packageManager || "npm";
 }
 
+function pickDevOrStartScript(scripts) {
+  if (typeof scripts?.dev === "string" && scripts.dev.trim()) return "dev";
+  if (typeof scripts?.start === "string" && scripts.start.trim()) return "start";
+  return null;
+}
+
+async function loadPackageJsonScripts(rootPath) {
+  if (!rootPath) return null;
+  const packageJsonFile = await readWorkspaceFileIfPresent(rootPath, "package.json");
+  if (!packageJsonFile?.content) return null;
+  let packageJson;
+  try {
+    packageJson = JSON.parse(packageJsonFile.content);
+  } catch {
+    return null;
+  }
+  const scripts = packageJson?.scripts;
+  if (!scripts || typeof scripts !== "object") return null;
+  return { packageJson, scripts };
+}
+
 async function inferTauriLaunch(rootPath, scripts, packageManager) {
   if (typeof scripts?.tauri !== "string" || !scripts.tauri.trim()) {
     return null;
@@ -79,34 +100,15 @@ async function inferTauriLaunch(rootPath, scripts, packageManager) {
 }
 
 export async function inferDefaultServerLaunch(rootPath) {
-  if (!rootPath) return null;
-
-  const packageJsonFile = await readWorkspaceFileIfPresent(rootPath, "package.json");
-  if (!packageJsonFile?.content) return null;
-
-  let packageJson;
-  try {
-    packageJson = JSON.parse(packageJsonFile.content);
-  } catch {
-    return null;
-  }
-
-  const scripts = packageJson?.scripts;
-  if (!scripts || typeof scripts !== "object") return null;
+  const loaded = await loadPackageJsonScripts(rootPath);
+  if (!loaded) return null;
+  const { packageJson, scripts } = loaded;
 
   const packageManager = await detectPackageManager(rootPath, packageJson);
   const tauriSuggestion = await inferTauriLaunch(rootPath, scripts, packageManager);
-  if (tauriSuggestion) {
-    return tauriSuggestion;
-  }
+  if (tauriSuggestion) return tauriSuggestion;
 
-  const scriptName =
-    typeof scripts.dev === "string" && scripts.dev.trim()
-      ? "dev"
-      : typeof scripts.start === "string" && scripts.start.trim()
-        ? "start"
-        : null;
-
+  const scriptName = pickDevOrStartScript(scripts);
   if (!scriptName) return null;
 
   return makeSuggestion(
@@ -127,4 +129,29 @@ export async function inferServerLaunch(rootPath, preferredCommand = null) {
   }
 
   return inferDefaultServerLaunch(rootPath);
+}
+
+export async function inferWebPreviewLaunch(rootPath, preferredCommand = null) {
+  const normalizedPreferredCommand =
+    typeof preferredCommand === "string" && preferredCommand.trim()
+      ? preferredCommand.trim()
+      : null;
+
+  if (normalizedPreferredCommand) {
+    return makeSuggestion(normalizedPreferredCommand, "Saved for this project", "saved");
+  }
+
+  const loaded = await loadPackageJsonScripts(rootPath);
+  if (!loaded) return null;
+  const { packageJson, scripts } = loaded;
+
+  const scriptName = pickDevOrStartScript(scripts);
+  if (!scriptName) return null;
+
+  const packageManager = await detectPackageManager(rootPath, packageJson);
+  return makeSuggestion(
+    commandForPackageScript(packageManager, scriptName),
+    `Suggested from package.json scripts.${scriptName}`,
+    "script"
+  );
 }

@@ -16,6 +16,10 @@ import {
   reduceTitleChange,
   shouldTabAutoIdle,
 } from "./statusEngine.js";
+import {
+  getInitialPromptPasteTiming,
+  initialPromptPasteSettled,
+} from "./initialPromptChoreography.js";
 
 test("Windows cmd launch shims are detected as interactive agent launches", () => {
   assert.equal(isCodexLaunchCommand("codex.cmd"), true);
@@ -27,6 +31,59 @@ test("Windows cmd launch shims are detected as interactive agent launches", () =
     status: "waiting",
     title: "Codex ready",
   });
+});
+
+test("initial prompt paste waits for provider minimum delay", () => {
+  const result = initialPromptPasteSettled({
+    command: "codex.cmd",
+    prompt: "Design review comment\n\nOpen the source file, propose a fix, and apply it.",
+    screenText: "[pasted content 1235 chars]",
+    elapsedMs: 800,
+  });
+
+  assert.equal(result.settled, false);
+  assert.equal(result.reason, "minimum-delay");
+});
+
+test("initial prompt paste detects bracketed long-paste acknowledgments", () => {
+  const result = initialPromptPasteSettled({
+    command: "codex.cmd",
+    prompt: "x".repeat(1600),
+    screenText: "Ask Codex\n[pasted content 1,635 chars]",
+    elapsedMs: 1600,
+  });
+
+  assert.equal(result.settled, true);
+  assert.equal(result.reason, "paste-ack");
+});
+
+test("initial prompt paste can settle on visible short prompt text", () => {
+  const prompt = "Design review comment\n\nOpen the source file, propose a fix, and apply it.";
+  const result = initialPromptPasteSettled({
+    command: "claude.cmd",
+    prompt,
+    screenText: `Claude Code\n${prompt}`,
+    elapsedMs: 1200,
+  });
+
+  assert.equal(result.settled, true);
+  assert.equal(result.reason, "visible-prompt");
+});
+
+test("initial prompt paste falls back after provider timeout", () => {
+  const result = initialPromptPasteSettled({
+    command: "claude.cmd",
+    prompt: "x".repeat(1600),
+    screenText: "Claude Code",
+    elapsedMs: 5000,
+  });
+
+  assert.equal(result.settled, true);
+  assert.equal(result.reason, "timeout");
+  assert.ok(
+    getInitialPromptPasteTiming("codex.cmd").fallbackMs >
+      getInitialPromptPasteTiming("claude.cmd").fallbackMs
+  );
 });
 
 test("interactive Claude launches in waiting and prompt replies move it to working", () => {

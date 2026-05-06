@@ -39,33 +39,12 @@ function PlusIcon() {
   );
 }
 
-function ServerIcon() {
-  return (
-    <svg viewBox="0 0 16 16" aria-hidden="true">
-      <rect x="2.5" y="3" width="11" height="10" rx="1" />
-      <path d="M5 6h3" />
-      <path d="M5 9.5h1.5" />
-      <path d="M11 9.5h.5" />
-    </svg>
-  );
-}
-
-function PreviewIcon() {
-  return (
-    <svg viewBox="0 0 16 16" aria-hidden="true">
-      <rect className="tab-type-fill" x="2.5" y="3.5" width="11" height="8" rx="1" />
-      <path className="tab-type-cutout" d="M6.25 13h3.5" />
-      <path className="tab-type-cutout" d="M8 11.5V13" />
-    </svg>
-  );
-}
-
 function getUtilityTabMeta(tab) {
   if (tab.type === "server") {
-    return { label: "Server tab", className: "tab-type-server", icon: <ServerIcon /> };
+    return { label: "Server tab" };
   }
   if (tab.type === "preview") {
-    return { label: "Design preview tab", className: "tab-type-preview", icon: <PreviewIcon /> };
+    return { label: "Design preview tab" };
   }
   return null;
 }
@@ -164,13 +143,10 @@ function SortableTab({
       title={getTabTooltip(tab, providerBadge)}
       aria-label={utilityMeta ? `${tab.name} - ${utilityMeta.label}` : tab.name}
     >
-      {utilityMeta ? (
-        <span className={`tab-type-icon ${utilityMeta.className}`} title={utilityMeta.label}>
-          {utilityMeta.icon}
-        </span>
-      ) : (
-        <span className={getStatusDotClass(tab, isRecent)} />
-      )}
+      <span
+        className={`${getStatusDotClass(tab, isRecent)}${utilityMeta ? " tab-glyph" : ""}`}
+        title={utilityMeta?.label}
+      />
       {showProviderBadge ? (
         <span className={`tab-provider-badge tab-provider-${tab.provider}`} title={providerBadge.title}>
           {providerBadge.label}

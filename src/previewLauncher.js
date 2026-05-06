@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import useForgeStore from "./store/useForgeStore";
-import { inferDefaultServerLaunch } from "./utils/devServerSuggestion";
+import { inferDefaultServerLaunch, inferWebPreviewLaunch } from "./utils/devServerSuggestion";
 
 const POST_OPEN_RELOAD_MS = 1200;
 
@@ -19,12 +19,45 @@ function parseServerPort(value) {
   return port > 0 && port < 65536 ? port : null;
 }
 
+function encodePreviewPath(relativePath) {
+  const normalized = String(relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  return normalized
+    .split("/")
+    .filter(Boolean)
+    .map((part) => encodeURIComponent(part))
+    .join("/");
+}
+
+function buildPreviewUrl(port, relativePath = "") {
+  const path = encodePreviewPath(relativePath);
+  return `http://localhost:${port}${path ? `/${path}` : ""}`;
+}
+
 function findGroup(state, groupId) {
   return state.groups.find((g) => g.id === groupId) || null;
 }
 
 function findTab(state, groupId, tabId) {
   return findGroup(state, groupId)?.tabs.find((t) => t.id === tabId) || null;
+}
+
+function findReusablePreviewTab(group) {
+  if (!group) return null;
+  for (let index = group.tabs.length - 1; index >= 0; index -= 1) {
+    if (group.tabs[index].type === "preview") return group.tabs[index];
+  }
+  return null;
+}
+
+function findDetectedServerPort(group) {
+  if (!group) return null;
+  for (let index = group.tabs.length - 1; index >= 0; index -= 1) {
+    const tab = group.tabs[index];
+    if (tab.type !== "server") continue;
+    const port = parseServerPort(tab.suggestedServerName);
+    if (port) return port;
+  }
+  return null;
 }
 
 function spawnServerTab(groupId, command) {
@@ -71,12 +104,77 @@ function spawnPreviewTab(groupId, url) {
   return next.id;
 }
 
+function openOrReusePreviewTab(groupId, url) {
+  const state = useForgeStore.getState();
+  const group = findGroup(state, groupId);
+  const previewTab = findReusablePreviewTab(group);
+  if (!previewTab) return spawnPreviewTab(groupId, url);
+
+  useForgeStore.getState().setTabUrl(previewTab.id, url);
+  useForgeStore.getState().setActiveTab(groupId, previewTab.id);
+  invoke("preview_navigate", { tabId: previewTab.id, url }).catch(() => {});
+  setTimeout(() => {
+    invoke("preview_reload", { tabId: previewTab.id }).catch(() => {});
+  }, POST_OPEN_RELOAD_MS);
+  return previewTab.id;
+}
+
+// Watch a server tab's reported URL and resolve once a port has stayed stable
+// for STABILITY_MS — Vite-style servers print "Port X is in use, trying..."
+// lines before the final bound port, and the debounce filters those out.
+function waitForServerPort(groupId, serverTabId, { onResolved, onTimeout }) {
+  const startedAt = Date.now();
+  let lastPort = null;
+  let lastChangeAt = 0;
+  let timeoutHandle = null;
+  let stopped = false;
+  let unsubscribe = null;
+
+  const cleanup = () => {
+    stopped = true;
+    if (timeoutHandle) clearTimeout(timeoutHandle);
+    if (unsubscribe) unsubscribe();
+  };
+
+  const evaluate = () => {
+    if (stopped) return;
+    if (Date.now() - startedAt > TIMEOUT_MS) {
+      cleanup();
+      onTimeout?.();
+      return;
+    }
+    if (lastPort && Date.now() - lastChangeAt >= STABILITY_MS) {
+      const port = lastPort;
+      cleanup();
+      onResolved(port);
+      return;
+    }
+    timeoutHandle = setTimeout(evaluate, 250);
+  };
+
+  unsubscribe = useForgeStore.subscribe((nextState) => {
+    if (stopped) return;
+    const tab = findTab(nextState, groupId, serverTabId);
+    if (!tab) {
+      cleanup();
+      return;
+    }
+    const port = parseServerPort(tab.suggestedServerName);
+    if (!port) return;
+    if (port !== lastPort) {
+      lastPort = port;
+      lastChangeAt = Date.now();
+    }
+  });
+
+  evaluate();
+}
+
 export async function launchPreview(groupId, options = {}) {
   const state = useForgeStore.getState();
   const group = findGroup(state, groupId);
   if (!group) return;
 
-  // No project context → open empty preview tab and let user type URL.
   if (!group.rootPath) {
     useForgeStore.getState().addTab(groupId, {
       name: options.name || "Preview",
@@ -93,7 +191,6 @@ export async function launchPreview(groupId, options = {}) {
   }
 
   if (!suggestion?.command) {
-    // No suggestion — open empty preview tab as a fallback.
     useForgeStore.getState().addTab(groupId, {
       name: options.name || "Preview",
       type: "preview",
@@ -101,57 +198,51 @@ export async function launchPreview(groupId, options = {}) {
     return;
   }
 
-  // 1. Spawn the server tab and let it become the active tab so the user
-  //    sees boot output. addTab already sets activeTabId to the new tab.
   const serverTabId = spawnServerTab(groupId, suggestion.command);
   if (!serverTabId) return;
 
-  // 2. Watch the server tab's reported URL and only commit once it has been
-  //    stable for STABILITY_MS — that filters out the noisy "trying another
-  //    one" lines and lands on the final bound port.
-  const startedAt = Date.now();
-  let lastPort = null;
-  let lastChangeAt = 0;
-  let timeoutHandle = null;
-  let stopped = false;
-
-  const cleanup = () => {
-    stopped = true;
-    if (timeoutHandle) clearTimeout(timeoutHandle);
-    if (unsubscribe) unsubscribe();
-  };
-
-  const evaluate = () => {
-    if (stopped) return;
-    if (Date.now() - startedAt > TIMEOUT_MS) {
-      console.warn("[forge] preview: timed out waiting for dev server port");
-      cleanup();
-      return;
-    }
-    if (lastPort && Date.now() - lastChangeAt >= STABILITY_MS) {
-      cleanup();
-      spawnPreviewTab(groupId, `http://localhost:${lastPort}`);
-      return;
-    }
-    timeoutHandle = setTimeout(evaluate, 250);
-  };
-
-  let unsubscribe = useForgeStore.subscribe((nextState) => {
-    if (stopped) return;
-    const tab = findTab(nextState, groupId, serverTabId);
-    if (!tab) {
-      cleanup();
-      return;
-    }
-    const port = parseServerPort(tab.suggestedServerName);
-    if (!port) return;
-    if (port !== lastPort) {
-      lastPort = port;
-      lastChangeAt = Date.now();
-    }
+  waitForServerPort(groupId, serverTabId, {
+    onResolved: (port) => spawnPreviewTab(groupId, buildPreviewUrl(port)),
+    onTimeout: () =>
+      console.warn("[forge] preview: timed out waiting for dev server port"),
   });
+}
 
-  evaluate();
+export async function launchPreviewForFile(groupId, relativePath) {
+  const state = useForgeStore.getState();
+  const group = findGroup(state, groupId);
+  if (!group?.rootPath || !relativePath) return;
+
+  const detectedPort = findDetectedServerPort(group);
+  if (detectedPort) {
+    openOrReusePreviewTab(groupId, buildPreviewUrl(detectedPort, relativePath));
+    return;
+  }
+
+  let suggestion = null;
+  try {
+    suggestion = await inferWebPreviewLaunch(group.rootPath, group.serverCommandOverride);
+  } catch (err) {
+    console.warn("[forge] preview file: dev-command suggestion failed", err);
+  }
+
+  if (!suggestion?.command) {
+    useForgeStore.getState().addTab(groupId, {
+      name: "Preview",
+      type: "preview",
+    });
+    return;
+  }
+
+  const serverTabId = spawnServerTab(groupId, suggestion.command);
+  if (!serverTabId) return;
+
+  waitForServerPort(groupId, serverTabId, {
+    onResolved: (port) =>
+      openOrReusePreviewTab(groupId, buildPreviewUrl(port, relativePath)),
+    onTimeout: () =>
+      console.warn("[forge] preview file: timed out waiting for dev server port"),
+  });
 }
 
 export function commitNewTab(groupId, tabOptions) {

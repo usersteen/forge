@@ -758,6 +758,23 @@ const useForgeStore = create((set, get) => ({
       ),
     })),
 
+  setTabUrl: (tabId, url) =>
+    set((state) => {
+      const nextUrl = url || null;
+      let changed = false;
+      const groups = state.groups.map((group) => {
+        if (!group.tabs.some((tab) => tab.id === tabId)) return group;
+        const tabs = group.tabs.map((tab) => {
+          if (tab.id !== tabId) return tab;
+          if ((tab.url ?? null) === nextUrl) return tab;
+          changed = true;
+          return { ...tab, url: nextUrl };
+        });
+        return changed ? { ...group, tabs } : group;
+      });
+      return changed ? { groups } : state;
+    }),
+
   setTabType: (tabId, type) =>
     set((state) => ({
       groups: state.groups.map((group) =>

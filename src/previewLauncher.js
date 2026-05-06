@@ -49,11 +49,14 @@ function findReusablePreviewTab(group) {
   return null;
 }
 
+// Server tabs flip to status==="idle" on PTY exit (and start there before
+// output flows), so we treat anything non-idle with a parsed port as live.
 function findDetectedServerPort(group) {
   if (!group) return null;
   for (let index = group.tabs.length - 1; index >= 0; index -= 1) {
     const tab = group.tabs[index];
     if (tab.type !== "server") continue;
+    if (tab.status === "idle") continue;
     const port = parseServerPort(tab.suggestedServerName);
     if (port) return port;
   }
@@ -180,6 +183,12 @@ export async function launchPreview(groupId, options = {}) {
       name: options.name || "Preview",
       type: "preview",
     });
+    return;
+  }
+
+  const detectedPort = findDetectedServerPort(group);
+  if (detectedPort) {
+    spawnPreviewTab(groupId, buildPreviewUrl(detectedPort));
     return;
   }
 

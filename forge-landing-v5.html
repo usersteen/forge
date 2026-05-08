@@ -16,9 +16,11 @@
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
 html {
+  height: 100%;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  overflow: hidden;
 }
 
 :root {
@@ -86,12 +88,13 @@ html {
 }
 
 body {
+  height: 100%;
   font-family: var(--h-font-sans);
   font-size: var(--h-text-base);
   line-height: var(--h-leading-normal);
   color: var(--h-text);
   background: var(--h-bg-base);
-  overflow-x: hidden;
+  overflow: hidden;
   transition: background var(--h-duration-slower) var(--h-ease-settle);
 }
 
@@ -187,7 +190,16 @@ body {
 .h-dot-danger  { background: var(--h-status-danger); }
 .h-dot-info    { background: var(--h-status-info); }
 /* forge-specific: server tabs render as squares in the app */
-.h-dot-server  { background: var(--h-status-info); border-radius: 1px; }
+.h-dot-server  {
+  background: transparent;
+  border: 1px solid var(--h-status-info);
+  border-radius: 1px;
+}
+.h-dot-preview {
+  background: var(--h-status-info);
+  border-radius: 0;
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+}
 
 .h-dot-pulse.h-dot-danger  { animation: h-dot-glow-danger 2.8s cubic-bezier(0.45,0,0.55,1) infinite; }
 .h-dot-pulse.h-dot-warning {
@@ -324,6 +336,47 @@ body {
   position: fixed; inset: 0; pointer-events: none; z-index: 99;
   overflow: hidden; opacity: 0;
   transition: opacity 0.6s ease;
+}
+
+#page-scroll {
+  position: fixed; inset: 2px;
+  z-index: 1;
+  overflow-y: auto; overflow-x: hidden;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--heat-current, var(--h-accent)) transparent;
+  scroll-behavior: smooth;
+}
+#page-scroll::-webkit-scrollbar {
+  width: 10px;
+}
+#page-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+#page-scroll::-webkit-scrollbar-thumb {
+  min-height: 44px;
+  border: 2px solid transparent;
+  border-radius: 2px;
+  background: linear-gradient(
+    180deg,
+    rgba(var(--heat-current-rgb, var(--h-accent-rgb)), 0.92),
+    rgba(var(--heat-current-rgb, var(--h-accent-rgb)), 0.56)
+  );
+  background-clip: padding-box;
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--heat-current-rgb, var(--h-accent-rgb)), 0.38),
+    0 0 10px rgba(var(--heat-current-rgb, var(--h-accent-rgb)), 0.24);
+}
+#page-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--heat-current-rgb, var(--h-accent-rgb)), 0.9);
+  background-clip: padding-box;
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--heat-current-rgb, var(--h-accent-rgb)), 0.7),
+    0 0 14px rgba(var(--heat-current-rgb, var(--h-accent-rgb)), 0.36);
+}
+#page-scroll::-webkit-scrollbar-thumb:active {
+  background: var(--heat-current, var(--h-accent));
+  background-clip: padding-box;
 }
 .ember {
   position: absolute; bottom: -6px;
@@ -586,7 +639,11 @@ p.sub {
 .sg-rows { display: flex; flex-direction: column; gap: 6px; margin: 8px 0 12px; }
 .sg-row { display: flex; align-items: center; gap: 8px; font-size: var(--h-text-sm); color: var(--h-text-secondary); }
 .sg-row-active { color: var(--h-text); }
-.sg-foot { display: flex; gap: 6px; margin-top: 8px; }
+.sg-branch {
+  font-family: var(--h-font-mono);
+  font-size: var(--h-text-2xs);
+  color: var(--h-text-muted);
+}
 
 /* tab bar fragment */
 .tabbar-fragment { width: 100%; max-width: 100%; }
@@ -905,6 +962,8 @@ p.sub {
 <div id="embers"></div>
 
 <!-- ════════ HERO ════════ -->
+<main id="page-scroll">
+
 <section id="hero">
   <div class="reveal">
     <svg class="forge-logo logo-hero rc" viewBox="0 0 320 60.7" xmlns="http://www.w3.org/2000/svg" aria-label="Forge">
@@ -937,24 +996,33 @@ p.sub {
 
       <div class="vignette">
         <div class="vignette-stage">
+          <div class="status-row">
+            <div class="status-item"><span class="h-dot h-dot-pulse h-dot-danger"></span><span class="status-item-label">working</span><span class="status-item-desc">agent is running</span></div>
+            <div class="status-item"><span class="h-dot h-dot-pulse h-dot-warning"></span><span class="status-item-label">waiting</span><span class="status-item-desc">needs your input</span></div>
+            <div class="status-item"><span class="h-dot h-dot-server"></span><span class="status-item-label">server</span><span class="status-item-desc">long-running process</span></div>
+            <div class="status-item"><span class="h-dot h-dot-preview"></span><span class="status-item-label">preview</span><span class="status-item-desc">localhost webview</span></div>
+          </div>
+        </div>
+        <div class="vignette-text"><div class="vignette-title">States first</div>
+        <div class="vignette-caption">Working and waiting carry urgency. Server and preview stay legible as utility tabs.</div>
+      </div></div>
+
+      <div class="vignette">
+        <div class="vignette-stage">
           <div class="sg-fragment">
             <div class="sg-head">
               <span class="sg-name">forge-v2</span>
-              <span class="h-chip h-chip-sm h-chip-accent">main</span>
+              <span class="sg-branch">main</span>
             </div>
             <div class="sg-rows">
               <div class="sg-row sg-row-active"><span class="h-dot h-dot-pulse h-dot-danger"></span><span>refactor auth</span></div>
-              <div class="sg-row"><span class="h-dot h-dot-pulse h-dot-warning"></span><span>add tests</span></div>
-              <div class="sg-row"><span class="h-dot h-dot-server"></span><span>dev server</span></div>
-            </div>
-            <div class="sg-foot">
-              <span class="h-badge h-badge-sm h-badge-danger">1 working</span>
-              <span class="h-badge h-badge-sm h-badge-warning">1 waiting</span>
+              <div class="sg-row"><span class="h-dot h-dot-server"></span><span>server</span></div>
+              <div class="sg-row"><span class="h-dot h-dot-preview"></span><span>preview</span></div>
             </div>
           </div>
         </div>
         <div class="vignette-text"><div class="vignette-title">Repo-connected projects</div>
-        <div class="vignette-caption">Each project knows its repo and gathers its terminals. Status rolls up to the group.</div>
+        <div class="vignette-caption">Each project knows its repo and gathers the tabs that belong to the same work.</div>
       </div></div>
 
       <div class="vignette">
@@ -962,28 +1030,15 @@ p.sub {
           <div class="tabbar-fragment">
             <div class="h-tab-bar">
               <div class="h-tab-list">
-                <button class="h-tab h-tab-active" id="v5-tab-1"><span class="h-dot h-dot-pulse h-dot-danger"></span><span class="h-tab-name">refactor auth</span></button>
-                <button class="h-tab h-tab-waiting-hot" id="v5-tab-2"><span class="h-dot h-dot-pulse h-dot-warning"></span><span class="h-tab-name">add tests</span></button>
-                <button class="h-tab" id="v5-tab-3"><span class="h-dot h-dot-server"></span><span class="h-tab-name">dev server</span></button>
+                <button class="h-tab" id="v5-tab-server"><span class="h-dot h-dot-server"></span><span class="h-tab-name">server</span></button>
+                <button class="h-tab" id="v5-tab-preview"><span class="h-dot h-dot-preview"></span><span class="h-tab-name">preview</span></button>
+                <button class="h-tab h-tab-active h-tab-waiting-hot" id="v5-tab-state"><span class="h-dot h-dot-pulse h-dot-warning"></span><span class="h-tab-name">refactor auth</span></button>
               </div>
             </div>
           </div>
         </div>
         <div class="vignette-text"><div class="vignette-title">Tabs that know what they're doing</div>
-        <div class="vignette-caption">Real terminals. Each tab carries its own status, recolored on the underline.</div>
-      </div></div>
-
-      <div class="vignette">
-        <div class="vignette-stage">
-          <div class="status-row">
-            <div class="status-item"><span class="h-dot h-dot-pulse h-dot-danger"></span><span class="status-item-label">working</span><span class="status-item-desc">agent is running</span></div>
-            <div class="status-item"><span class="h-dot h-dot-pulse h-dot-warning"></span><span class="status-item-label">waiting</span><span class="status-item-desc">needs your input</span></div>
-            <div class="status-item"><span class="h-dot"></span><span class="status-item-label">idle</span><span class="status-item-desc">nothing happening</span></div>
-            <div class="status-item"><span class="h-dot h-dot-server"></span><span class="status-item-label">server</span><span class="status-item-desc">long-running process</span></div>
-          </div>
-        </div>
-        <div class="vignette-text"><div class="vignette-title">Two states do the work</div>
-        <div class="vignette-caption">Working and waiting. Server runs steady. Idle stays out of the way.</div>
+        <div class="vignette-caption">Server and preview stay stable. The agent tab is the one whose state changes.</div>
       </div></div>
 
     </div>
@@ -1179,6 +1234,8 @@ p.sub {
   </div>
 </section>
 
+</main>
+
 <script>
 "use strict";
 
@@ -1198,6 +1255,7 @@ function hexToRgb(hex) {
 }
 
 const root = document.documentElement;
+const pageScroll = document.getElementById("page-scroll");
 let currentTheme = "forge";
 let currentHeat  = 5;
 
@@ -1209,6 +1267,7 @@ function applyState() {
   // expose --heat-N to ember CSS
   for (let i = 0; i < 6; i++) root.style.setProperty("--heat-" + i, heat[i]);
   root.style.setProperty("--heat-current", heat[currentHeat]);
+  root.style.setProperty("--heat-current-rgb", hexToRgb(heat[currentHeat]));
   root.style.setProperty("--heat-3-rgb", hexToRgb(heat[3]));
   root.style.setProperty("--heat-4-rgb", hexToRgb(heat[4]));
   root.style.setProperty("--heat-5-rgb", hexToRgb(heat[5]));
@@ -1283,11 +1342,11 @@ function spawnEmbers() {
    ──────────────────────────────────────────────────────────── */
 const sp = document.getElementById("scroll-progress");
 function updateScrollProgress() {
-  const h = document.documentElement.scrollHeight - window.innerHeight;
-  const p = h > 0 ? Math.min(1, window.scrollY / h) : 0;
+  const h = pageScroll.scrollHeight - pageScroll.clientHeight;
+  const p = h > 0 ? Math.min(1, pageScroll.scrollTop / h) : 0;
   sp.style.width = (p * 100) + "%";
 }
-window.addEventListener("scroll", updateScrollProgress, { passive: true });
+pageScroll.addEventListener("scroll", updateScrollProgress, { passive: true });
 
 /* ────────────────────────────────────────────────────────────
    REVEAL ON INTERSECT
@@ -1296,7 +1355,7 @@ const io = new IntersectionObserver(function(entries){
   entries.forEach(function(e){
     if (e.isIntersecting) e.target.classList.add("visible");
   });
-}, { threshold: 0.18 });
+}, { root: pageScroll, threshold: 0.18 });
 document.querySelectorAll(".reveal").forEach(function(r){ io.observe(r); });
 
 /* ────────────────────────────────────────────────────────────
@@ -1349,9 +1408,9 @@ document.querySelectorAll(".theme-tile").forEach(function(tile){
    STRUCTURE → tab vignette: cycle the second tab's status slowly
    ──────────────────────────────────────────────────────────── */
 (function tabVignette(){
-  const t2 = document.getElementById("v5-tab-2");
-  if (!t2) return;
-  const dot = t2.querySelector(".h-dot");
+  const stateTab = document.getElementById("v5-tab-state");
+  if (!stateTab) return;
+  const dot = stateTab.querySelector(".h-dot");
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   if (reduced) return;
   const states = [
@@ -1363,8 +1422,8 @@ document.querySelectorAll(".theme-tile").forEach(function(tile){
   let i = 0;
   setInterval(function(){
     i = (i + 1) % states.length;
-    t2.classList.remove("h-tab-working","h-tab-waiting-hot","h-tab-waiting-cold");
-    t2.classList.add(states[i].tabClass);
+    stateTab.classList.remove("h-tab-working","h-tab-waiting-hot","h-tab-waiting-cold");
+    stateTab.classList.add(states[i].tabClass);
     if (dot) dot.className = states[i].dotClasses;
   }, 4200);
 })();

@@ -55,6 +55,8 @@ struct CommentRequest {
     text: Option<String>,
     origin: Option<String>,
     provider: Option<String>,
+    #[serde(rename = "tabLabel")]
+    tab_label: Option<String>,
 }
 
 #[derive(Serialize, Clone, Debug)]
@@ -65,6 +67,7 @@ struct CommentReceivedEvent {
     origin: String,
     comment: String,
     short_label: String,
+    tab_label: Option<String>,
     launch_command: String,
     prompt_path: String,
     initial_prompt: String,
@@ -182,11 +185,19 @@ async fn handle_comment(
         }
     };
 
+    let tab_label = body
+        .tab_label
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| s.chars().take(80).collect::<String>());
+
     let event = CommentReceivedEvent {
         tab_id: body.tab_id,
         provider,
         origin,
         short_label: short_label(comment),
+        tab_label,
         comment: comment.to_string(),
         launch_command,
         prompt_path,

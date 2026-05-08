@@ -41,10 +41,10 @@
       color: var(--forge-text-primary, #e2e8f0);
       border: 1px solid var(--forge-border, #262220);
       border-radius: 0;
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(var(--forge-accent-rgb, 106, 100, 98), 0.05);
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 6px 18px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(var(--forge-accent-rgb, 106, 100, 98), 0.05);
       font: 12px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
       animation: __forge-pop 160ms cubic-bezier(0.2, 0.8, 0.2, 1); }
-    @keyframes __forge-pop { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+    @keyframes __forge-pop { from { opacity: 0; } to { opacity: 1; } }
     .__forge-composer .__forge-target { color: var(--forge-text-muted, #64748b);
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: 10.5px; margin-bottom: 8px; white-space: nowrap; overflow: hidden;
@@ -55,9 +55,30 @@
       color: var(--forge-text-primary, #e2e8f0);
       border: 1px solid var(--forge-border, #262220);
       border-radius: 0;
-      font: inherit; box-sizing: border-box; outline: none; }
+      font: inherit; box-sizing: border-box; outline: none;
+      scrollbar-width: thin;
+      scrollbar-color: var(--forge-scrollbar-thumb, rgba(100, 116, 139, 0.42)) transparent; }
+    .__forge-composer textarea::-webkit-scrollbar { width: 10px; height: 10px; }
+    .__forge-composer textarea::-webkit-scrollbar-track { background: transparent; }
+    .__forge-composer textarea::-webkit-scrollbar-thumb {
+      background: var(--forge-scrollbar-thumb, rgba(100, 116, 139, 0.42));
+      border: 2px solid transparent;
+      border-radius: 999px;
+      background-clip: padding-box; }
+    .__forge-composer textarea::-webkit-scrollbar-thumb:hover {
+      background: var(--forge-scrollbar-thumb-hover, rgba(148, 163, 184, 0.54));
+      background-clip: padding-box; }
     .__forge-composer textarea::placeholder { color: var(--forge-text-muted, #64748b); }
     .__forge-composer textarea:focus { border-color: rgba(var(--forge-accent-rgb, 106, 100, 98), 0.7); box-shadow: inset 0 0 0 1px rgba(var(--forge-accent-rgb, 106, 100, 98), 0.18); }
+    .__forge-composer .__forge-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+    .__forge-composer .__forge-input { display: block; width: 100%; padding: 6px 8px;
+      background: var(--forge-bg-deep, #090909);
+      color: var(--forge-text-primary, #e2e8f0);
+      border: 1px solid var(--forge-border, #262220);
+      border-radius: 0;
+      font: inherit; box-sizing: border-box; outline: none; }
+    .__forge-composer .__forge-input::placeholder { color: var(--forge-text-muted, #64748b); }
+    .__forge-composer .__forge-input:focus { border-color: rgba(var(--forge-accent-rgb, 106, 100, 98), 0.7); box-shadow: inset 0 0 0 1px rgba(var(--forge-accent-rgb, 106, 100, 98), 0.18); }
     .__forge-composer .__forge-row { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
     .__forge-composer .__forge-segment { display: inline-flex; gap: 0; border: 1px solid var(--forge-border, #262220); border-radius: 0; overflow: hidden; }
     .__forge-composer .__forge-segment button { background: transparent; color: var(--forge-text-secondary, #94a3b8); border: 0; padding: 5px 10px; font: inherit; font-size: 11px; }
@@ -176,6 +197,10 @@
 
     composer.innerHTML = `
       <div class="__forge-target">${targetLine}</div>
+      <div class="__forge-field">
+        <span class="__forge-label">Tab label</span>
+        <input type="text" class="__forge-input" data-field="tabLabel" maxlength="60" placeholder="Optional · used as the tab name" />
+      </div>
       <textarea placeholder="What would you change about this element?" rows="3"></textarea>
       <div class="__forge-row">
         <span class="__forge-label">Send to</span>
@@ -234,9 +259,12 @@
       }
     });
 
+    const tabLabelInput = composer.querySelector('[data-field="tabLabel"]');
+
     function submit() {
       const comment = textarea.value.trim();
       if (!comment) return;
+      const tabLabel = (tabLabelInput?.value || "").trim();
       const payload = {
         tabId: TAB_ID,
         comment,
@@ -247,6 +275,7 @@
         text: (el.innerText || el.textContent || "").trim().slice(0, 400),
         origin: location.origin,
       };
+      if (tabLabel) payload.tabLabel = tabLabel;
       fetch(`http://127.0.0.1:${COMMENT_SERVER_PORT}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -258,9 +287,11 @@
         })
         .catch((err) => {
           textarea.disabled = false;
+          if (tabLabelInput) tabLabelInput.disabled = false;
           console.error("[forge] failed to send comment", err);
         });
       textarea.disabled = true;
+      if (tabLabelInput) tabLabelInput.disabled = true;
     }
   }
 

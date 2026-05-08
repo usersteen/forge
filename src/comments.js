@@ -53,7 +53,7 @@ function ensureToastStyles() {
 }
 
 function handleCommentReceived(payload) {
-  const { tabId, provider, shortLabel, launchCommand, initialPrompt } = payload || {};
+  const { tabId, provider, shortLabel, tabLabel, launchCommand, initialPrompt } = payload || {};
   if (!tabId || !launchCommand || !initialPrompt) return;
 
   const store = useForgeStore.getState();
@@ -61,11 +61,13 @@ function handleCommentReceived(payload) {
   const groupId = sourceGroup?.id || store.activeGroupId;
   if (!groupId) return;
 
-  const tabName = shortLabel
-    ? `${provider === "codex" ? "Codex" : "Claude"}: ${shortLabel}`
-    : provider === "codex"
-      ? "Codex"
-      : "Claude";
+  const tabName = tabLabel
+    ? tabLabel
+    : shortLabel
+      ? `${provider === "codex" ? "Codex" : "Claude"}: ${shortLabel}`
+      : provider === "codex"
+        ? "Codex"
+        : "Claude";
 
   store.addTab(groupId, {
     type: "ai",

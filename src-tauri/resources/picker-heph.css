@@ -14,4 +14,6 @@
   --forge-text-muted: #64748b;
   --forge-accent: #6a6462;
   --forge-accent-rgb: 106, 100, 98;
+  --forge-scrollbar-thumb: rgba(100, 116, 139, 0.42);
+  --forge-scrollbar-thumb-hover: rgba(148, 163, 184, 0.54);
 }

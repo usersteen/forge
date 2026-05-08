@@ -3,10 +3,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import "./PreviewTab.css";
 
+// Tauri child webviews always render above DOM, so any host-side surface that
+// must be visible over the preview forces us to hide the webview. Limit this
+// to truly fullscreen overlays — small popovers (quick tab menu, context
+// menus) would otherwise flash the preview-body background as a single-color
+// overlay every time they open.
 const TOP_LAYER_SELECTOR = [
-  ".surface-menu",
   ".settings-overlay",
-  ".tab-context-menu",
 ].join(",");
 
 function normalizeUrl(input) {
@@ -491,7 +494,7 @@ export default function PreviewTab({ tabId, isActive, initialUrl }) {
     </div>
   );
 
-  if (isFullscreen) {
+  if (isFullscreen && isActive) {
     return createPortal(previewContent, document.body);
   }
 

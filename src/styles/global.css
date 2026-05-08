@@ -3099,7 +3099,8 @@ body.reader-resizing {
   animation-delay: 0.2s;
 }
 
-[data-heat="5"] .tab-bar {
+[data-heat="5"] .tab-bar,
+[data-heat="5"] .preview-toolbar {
   border-bottom-color: var(--heat-5);
 }
 

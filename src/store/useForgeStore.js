@@ -193,7 +193,7 @@ function makeTab(name = "Terminal 1", cwd = null, options = {}) {
     waitingReason: initialWaitingReason,
     type,
     provider: resolveInitialTabProvider(options.provider, options.launchCommand, name),
-    manuallyRenamed: false,
+    manuallyRenamed: Boolean(options.manuallyRenamed),
     suggestedServerName: "",
     ptyAlive: false,
     waitingSince: initialWaitingSince,
@@ -485,6 +485,7 @@ const useForgeStore = create((set, get) => ({
         launchCommand: options.launchCommand,
         initialPrompt: options.initialPrompt,
         url: options.url,
+        manuallyRenamed: options.manuallyRenamed,
       });
       return {
         groups: mapGroups(state.groups, groupId, (entry) => ({

@@ -75,6 +75,7 @@ function handleCommentReceived(payload) {
     name: tabName,
     launchCommand,
     initialPrompt,
+    manuallyRenamed: Boolean(tabLabel),
     activate: false,
   });
   if (sourceGroup) {

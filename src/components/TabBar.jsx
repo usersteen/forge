@@ -109,6 +109,7 @@ function SortableTab({
   editingId,
   inputProps,
   onClose,
+  providerBadgeEnabled,
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: tab.id });
   const { elementRef: tabRef, handleAnimationEnd } = useFlashAnimation(tab.waitingFlashKey);
@@ -122,7 +123,7 @@ function SortableTab({
   };
   const statusClass = getTabStateClass(tab, isRecent);
   const providerBadge = getProviderBadge(tab);
-  const showProviderBadge = isActive && providerBadge;
+  const shouldShowProviderBadge = isActive && providerBadge && providerBadgeEnabled;
   const utilityMeta = getUtilityTabMeta(tab);
 
   return (
@@ -147,7 +148,7 @@ function SortableTab({
         className={`${getStatusDotClass(tab, isRecent)}${utilityMeta ? " tab-glyph" : ""}`}
         title={utilityMeta?.label}
       />
-      {showProviderBadge ? (
+      {shouldShowProviderBadge ? (
         <span className={`tab-provider-badge tab-provider-${tab.provider}`} title={providerBadge.title}>
           {providerBadge.label}
         </span>
@@ -185,6 +186,7 @@ export default function TabBar({ onRefreshWorkspace }) {
   const tourActive = useForgeStore((s) => s.tourActive);
   const tourExpandedPanel = useForgeStore((s) => s.tourExpandedPanel);
   const tabRecencyMinutes = useForgeStore((s) => s.tabRecencyMinutes);
+  const providerBadgeEnabled = useForgeStore((s) => s.showProviderBadge);
   const showcaseActive = useForgeStore((s) => s.showcaseActive);
   const showcaseRepoOpen = useForgeStore((s) => s.showcaseRepoOpen);
 
@@ -382,6 +384,7 @@ export default function TabBar({ onRefreshWorkspace }) {
                 editingId={editingId}
                 inputProps={inputProps}
                 onClose={() => removeTab(activeGroupId, entry.item.id)}
+                providerBadgeEnabled={providerBadgeEnabled}
               />
             ))}
             <button

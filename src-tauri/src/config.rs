@@ -113,6 +113,8 @@ pub struct SettingsConfig {
     pub show_welcome_on_launch: bool,
     #[serde(default = "default_project_menu_detail")]
     pub project_menu_detail: String,
+    #[serde(default = "default_true")]
+    pub show_provider_badge: bool,
     #[serde(default)]
     pub repos_root_path: Option<String>,
 }
@@ -152,6 +154,7 @@ impl Default for SettingsConfig {
             sound_volume: 80,
             show_welcome_on_launch: true,
             project_menu_detail: default_project_menu_detail(),
+            show_provider_badge: true,
             repos_root_path: None,
         }
     }

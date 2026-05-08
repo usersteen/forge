@@ -105,9 +105,11 @@ function ProjectMenuModePreview({ mode, active }) {
 function AppearanceSection({ onClose }) {
   const theme = useForgeStore((s) => s.theme);
   const fxEnabled = useForgeStore((s) => s.fxEnabled);
+  const showProviderBadge = useForgeStore((s) => s.showProviderBadge);
   const projectMenuDetail = useForgeStore((s) => s.projectMenuDetail);
   const setTheme = useForgeStore((s) => s.setTheme);
   const setFxEnabled = useForgeStore((s) => s.setFxEnabled);
+  const setShowProviderBadge = useForgeStore((s) => s.setShowProviderBadge);
   const setProjectMenuDetail = useForgeStore((s) => s.setProjectMenuDetail);
   const setDemoHeatStage = useForgeStore((s) => s.setDemoHeatStage);
   const themeOptions = getThemeOptions();
@@ -160,6 +162,18 @@ function AppearanceSection({ onClose }) {
           className={`settings-toggle${fxEnabled ? " settings-toggle-on" : ""}`}
           onClick={() => setFxEnabled(!fxEnabled)}
           aria-label={fxEnabled ? "Disable effects" : "Enable effects"}
+        />
+      </div>
+      <div className="settings-row-inline">
+        <div>
+          <label>Provider Badge</label>
+          <span className="settings-hint">Show a CL / CX chip on the active tab.</span>
+        </div>
+        <button
+          type="button"
+          className={`settings-toggle${showProviderBadge ? " settings-toggle-on" : ""}`}
+          onClick={() => setShowProviderBadge(!showProviderBadge)}
+          aria-label={showProviderBadge ? "Hide provider badge" : "Show provider badge"}
         />
       </div>
       <div className="settings-row">

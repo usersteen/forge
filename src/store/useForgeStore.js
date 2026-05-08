@@ -274,6 +274,7 @@ const useForgeStore = create((set, get) => ({
   showWelcomeOnLaunch: true,
   welcomeModalVisible: false,
   projectMenuDetail: loadStoredProjectMenuDetail(),
+  showProviderBadge: true,
 
   workspaceByGroup: {},
   documentStateByGroup: {},
@@ -388,6 +389,7 @@ const useForgeStore = create((set, get) => ({
       projectMenuDetail: normalizeProjectMenuDetail(
         config.settings?.project_menu_detail ?? loadStoredProjectMenuDetail()
       ),
+      showProviderBadge: config.settings?.show_provider_badge ?? true,
       streakTimer: config.settings?.streak_timer ?? 10000,
       cooldownTimer: config.settings?.cooldown_timer ?? 30000,
       tabRecencyMinutes: config.settings?.tab_recency_minutes ?? 5,
@@ -1399,6 +1401,7 @@ const useForgeStore = create((set, get) => ({
   setCooldownTimer: (ms) => set({ cooldownTimer: ms }),
   setTheme: (theme) => set({ theme: normalizeTheme(theme) }),
   setFxEnabled: (fxEnabled) => set({ fxEnabled: Boolean(fxEnabled) }),
+  setShowProviderBadge: (v) => set({ showProviderBadge: Boolean(v) }),
   setSoundVolume: (v) => set({ soundVolume: Math.max(0, Math.min(100, Number(v) || 0)) }),
   setShowWelcomeOnLaunch: (showWelcomeOnLaunch) =>
     set({ showWelcomeOnLaunch: Boolean(showWelcomeOnLaunch) }),
@@ -1818,6 +1821,7 @@ export function storeToConfig(state, windowGeometry) {
       sound_volume: state.soundVolume,
       show_welcome_on_launch: state.showWelcomeOnLaunch,
       project_menu_detail: normalizeProjectMenuDetail(state.projectMenuDetail),
+      show_provider_badge: state.showProviderBadge,
     },
   };
 }

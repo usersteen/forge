@@ -732,6 +732,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand, initialP
 
     const handlePtyDisconnect = (title, message, detail = "") => {
       ptyReady.current = false;
+      useForgeStore.getState().setTabPtyAlive(tabId, false);
       clearCodexIdleTimeout();
       stopHumanInputPause();
       detectorRef.current = { provider: "unknown", awaitingUser: false };
@@ -1452,6 +1453,7 @@ export default function Terminal({ tabId, isActive, cwd, launchCommand, initialP
       .then(() => {
         if (isTearingDown) return;
         ptyReady.current = true;
+        useForgeStore.getState().setTabPtyAlive(tabId, true);
         clearNotice();
         const initialLaunchCommand = initialLaunchCommandRef.current;
         if (!initialLaunchCommand) return;

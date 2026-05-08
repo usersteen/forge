@@ -195,6 +195,7 @@ function makeTab(name = "Terminal 1", cwd = null, options = {}) {
     provider: resolveInitialTabProvider(options.provider, options.launchCommand, name),
     manuallyRenamed: false,
     suggestedServerName: "",
+    ptyAlive: false,
     waitingSince: initialWaitingSince,
     heatWaitingSince: null,
     lastEngagedAt: null,
@@ -753,6 +754,23 @@ const useForgeStore = create((set, get) => ({
               tabs: group.tabs.map((tab) =>
                 tab.id === tabId ? { ...tab, suggestedServerName: name?.trim?.() || "" } : tab
               ),
+            }
+          : group
+      ),
+    })),
+
+  setTabPtyAlive: (tabId, alive) =>
+    set((state) => ({
+      groups: state.groups.map((group) =>
+        group.tabs.some((tab) => tab.id === tabId)
+          ? {
+              ...group,
+              tabs: group.tabs.map((tab) => {
+                if (tab.id !== tabId) return tab;
+                const next = { ...tab, ptyAlive: Boolean(alive) };
+                if (!alive && tab.type === "server") next.suggestedServerName = "";
+                return next;
+              }),
             }
           : group
       ),

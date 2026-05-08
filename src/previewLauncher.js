@@ -49,14 +49,15 @@ function findReusablePreviewTab(group) {
   return null;
 }
 
-// Server tabs flip to status==="idle" on PTY exit (and start there before
-// output flows), so we treat anything non-idle with a parsed port as live.
+// Skip server tabs whose PTY has exited — their suggestedServerName may
+// still hold a stale port. ptyAlive flips true on spawn_pty resolve and
+// false on pty-exit/pty-error (Terminal.jsx).
 function findDetectedServerPort(group) {
   if (!group) return null;
   for (let index = group.tabs.length - 1; index >= 0; index -= 1) {
     const tab = group.tabs[index];
     if (tab.type !== "server") continue;
-    if (tab.status === "idle") continue;
+    if (!tab.ptyAlive) continue;
     const port = parseServerPort(tab.suggestedServerName);
     if (port) return port;
   }

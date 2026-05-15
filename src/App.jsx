@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { LogicalPosition, LogicalSize } from "@tauri-apps/api/dpi";
 import { availableMonitors, getCurrentWindow } from "@tauri-apps/api/window";
+import * as RadixTooltip from "@radix-ui/react-tooltip";
 import DemoStrip from "./components/DemoStrip";
 import DocumentViewer from "./components/DocumentViewer";
 import ShowcaseStudio from "./components/ShowcaseStudio";
@@ -500,46 +501,48 @@ function App() {
   }
 
   return (
-    <div
-      className={`app-layout${showcaseActive ? " app-layout-showcase" : ""}${showcaseCleanMode ? " app-layout-showcase-clean" : ""}`}
-      data-heat={effectiveHeat}
-      data-theme={theme}
-      data-fx={fxEnabled ? "on" : "off"}
-      style={themeTokens}
-    >
-      <Sidebar />
-      <div className="main-panel">
-        <TabBar onRefreshWorkspace={requestWorkspaceRefresh} />
-        <div
-          ref={mainSurfaceRef}
-          className={`main-surface ${hasOpenDocuments ? "main-surface-split" : ""}`}
-          style={hasOpenDocuments ? { "--reader-width": `${(readerWidth * 100).toFixed(2)}%` } : undefined}
-        >
-          <TerminalArea />
-          {hasOpenDocuments ? (
-            <button
-              type="button"
-              className="reader-divider"
-              aria-label="Resize reader pane"
-              onPointerDown={(event) => {
-                if (!activeGroupId) return;
-                resizeStateRef.current = {
-                  active: true,
-                  groupId: activeGroupId,
-                };
-                document.body.classList.add("reader-resizing");
-                event.preventDefault();
-              }}
-            >
-              <span className="reader-divider-grip" />
-            </button>
-          ) : null}
-          <DocumentViewer />
+    <RadixTooltip.Provider delayDuration={700} skipDelayDuration={300} disableHoverableContent>
+      <div
+        className={`app-layout${showcaseActive ? " app-layout-showcase" : ""}${showcaseCleanMode ? " app-layout-showcase-clean" : ""}`}
+        data-heat={effectiveHeat}
+        data-theme={theme}
+        data-fx={fxEnabled ? "on" : "off"}
+        style={themeTokens}
+      >
+        <Sidebar />
+        <div className="main-panel">
+          <TabBar onRefreshWorkspace={requestWorkspaceRefresh} />
+          <div
+            ref={mainSurfaceRef}
+            className={`main-surface ${hasOpenDocuments ? "main-surface-split" : ""}`}
+            style={hasOpenDocuments ? { "--reader-width": `${(readerWidth * 100).toFixed(2)}%` } : undefined}
+          >
+            <TerminalArea />
+            {hasOpenDocuments ? (
+              <button
+                type="button"
+                className="reader-divider"
+                aria-label="Resize reader pane"
+                onPointerDown={(event) => {
+                  if (!activeGroupId) return;
+                  resizeStateRef.current = {
+                    active: true,
+                    groupId: activeGroupId,
+                  };
+                  document.body.classList.add("reader-resizing");
+                  event.preventDefault();
+                }}
+              >
+                <span className="reader-divider-grip" />
+              </button>
+            ) : null}
+            <DocumentViewer />
+          </div>
         </div>
+        {showcaseActive ? null : <DemoStrip />}
+        {showcaseActive ? <ShowcaseStudio /> : null}
       </div>
-      {showcaseActive ? null : <DemoStrip />}
-      {showcaseActive ? <ShowcaseStudio /> : null}
-    </div>
+    </RadixTooltip.Provider>
   );
 }
 

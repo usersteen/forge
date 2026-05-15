@@ -69,6 +69,39 @@ function hasTopLayerSurface() {
   return Boolean(document.querySelector(TOP_LAYER_SELECTOR));
 }
 
+function getPreviewOcclusionBounds(rect) {
+  const bounds = {
+    left: rect.left,
+    top: rect.top,
+    right: rect.right,
+    bottom: rect.bottom,
+    width: rect.width,
+    height: rect.height,
+  };
+
+  if (typeof document === "undefined") return bounds;
+
+  const demoStrip = document.querySelector(".demo-strip");
+  if (!demoStrip) return bounds;
+
+  const stripRect = demoStrip.getBoundingClientRect();
+  const stripVisible =
+    stripRect.width > 0 &&
+    stripRect.height > 0 &&
+    stripRect.bottom > 0 &&
+    stripRect.top < window.innerHeight;
+
+  if (!stripVisible || stripRect.top >= bounds.bottom || stripRect.bottom <= bounds.top) {
+    return bounds;
+  }
+
+  return {
+    ...bounds,
+    bottom: Math.max(bounds.top, Math.min(bounds.bottom, stripRect.top)),
+    height: Math.max(0, Math.min(bounds.bottom, stripRect.top) - bounds.top),
+  };
+}
+
 function useTopLayerSurfaceOpen() {
   const [open, setOpen] = useState(hasTopLayerSurface);
 
@@ -159,22 +192,24 @@ export default function PreviewTab({ tabId, isActive, initialUrl }) {
     const el = bodyRef.current;
     if (!el) return null;
     const rect = el.getBoundingClientRect();
-    if (rect.width <= 0 || rect.height <= 0) return null;
+    const visibleRect = getPreviewOcclusionBounds(rect);
+    const visibleHeight = visibleRect.bottom - visibleRect.top;
+    if (visibleRect.width <= 0 || visibleHeight <= 0) return null;
 
     const preset = VIEW_PRESETS[viewMode];
     if (!preset) {
       return {
-        x: Math.round(rect.left),
-        y: Math.round(rect.top),
-        width: Math.round(rect.width),
-        height: Math.round(rect.height),
+        x: Math.round(visibleRect.left),
+        y: Math.round(visibleRect.top),
+        width: Math.round(visibleRect.width),
+        height: Math.round(visibleHeight),
       };
     }
 
-    const w = Math.min(preset.width, rect.width);
-    const h = Math.min(preset.height, rect.height);
-    const x = rect.left + (rect.width - w) / 2;
-    const y = rect.top + (rect.height - h) / 2;
+    const w = Math.min(preset.width, visibleRect.width);
+    const h = Math.min(preset.height, visibleHeight);
+    const x = visibleRect.left + (visibleRect.width - w) / 2;
+    const y = visibleRect.top + (visibleHeight - h) / 2;
     return {
       x: Math.round(x),
       y: Math.round(y),

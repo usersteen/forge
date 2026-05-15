@@ -14,6 +14,7 @@ import NewTabMenu from "./NewTabMenu";
 import ProjectExplorer from "./ProjectExplorer";
 import TabContextMenu from "./TabContextMenu";
 import ParticleLayer from "./ParticleLayer";
+import { Tooltip } from "./Tooltip";
 import { getTabRecencyAnchor } from "../utils/tabStatusSummary";
 
 
@@ -127,29 +128,28 @@ function SortableTab({
   const utilityMeta = getUtilityTabMeta(tab);
 
   return (
-    <div
-      ref={(node) => {
-        setNodeRef(node);
-        tabRef.current = node;
-      }}
-      style={style}
-      {...attributes}
-      {...listeners}
-      className={`tab ${utilityMeta ? "tab-utility" : ""} ${isActive ? "tab-active" : ""} ${statusClass}`}
-      data-presence={presencePhase}
-      onClick={onSelect}
-      onDoubleClick={onDoubleClick}
-      onContextMenu={onContextMenu}
-      onAnimationEnd={handleAnimationEnd}
-      title={getTabTooltip(tab, providerBadge)}
-      aria-label={utilityMeta ? `${tab.name} - ${utilityMeta.label}` : tab.name}
-    >
+    <Tooltip label={getTabTooltip(tab, providerBadge)} side="bottom">
+      <div
+        ref={(node) => {
+          setNodeRef(node);
+          tabRef.current = node;
+        }}
+        style={style}
+        {...attributes}
+        {...listeners}
+        className={`tab ${utilityMeta ? "tab-utility" : ""} ${isActive ? "tab-active" : ""} ${statusClass}`}
+        data-presence={presencePhase}
+        onClick={onSelect}
+        onDoubleClick={onDoubleClick}
+        onContextMenu={onContextMenu}
+        onAnimationEnd={handleAnimationEnd}
+        aria-label={utilityMeta ? `${tab.name} - ${utilityMeta.label}` : tab.name}
+      >
       <span
         className={`${getStatusDotClass(tab, isRecent)}${utilityMeta ? " tab-glyph" : ""}`}
-        title={utilityMeta?.label}
       />
       {shouldShowProviderBadge ? (
-        <span className={`tab-provider-badge tab-provider-${tab.provider}`} title={providerBadge.title}>
+        <span className={`tab-provider-badge tab-provider-${tab.provider}`}>
           {providerBadge.label}
         </span>
       ) : null}
@@ -170,7 +170,8 @@ function SortableTab({
       >
         <CloseIcon />
       </button>
-    </div>
+      </div>
+    </Tooltip>
   );
 }
 

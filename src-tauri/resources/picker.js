@@ -33,6 +33,8 @@
     html.__forge-cursor, html.__forge-cursor body, html.__forge-cursor * { cursor: crosshair; }
     html.__forge-cursor .__forge-composer,
     html.__forge-cursor .__forge-composer * { cursor: auto; }
+    html.__forge-cursor .__forge-composer .__forge-target { cursor: grab; }
+    html.__forge-cursor .__forge-composer.dragging .__forge-target { cursor: grabbing; }
     html.__forge-cursor .__forge-composer textarea { cursor: text; }
     html.__forge-cursor .__forge-composer button { cursor: pointer; }
     .__forge-composer { position: absolute; z-index: ${ZBASE + 1};
@@ -48,7 +50,11 @@
     .__forge-composer .__forge-target { color: var(--forge-text-muted, #64748b);
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: 10.5px; margin-bottom: 8px; white-space: nowrap; overflow: hidden;
-      text-overflow: ellipsis; letter-spacing: 0.02em; }
+      text-overflow: ellipsis; letter-spacing: 0.02em; cursor: grab; user-select: none;
+      touch-action: none; outline: none; }
+    .__forge-composer .__forge-target:focus-visible { color: var(--forge-text-primary, #e2e8f0);
+      box-shadow: 0 1px 0 rgba(var(--forge-accent-rgb, 106, 100, 98), 0.55); }
+    .__forge-composer.dragging .__forge-target { cursor: grabbing; }
     .__forge-composer textarea { display: block; width: 100%; min-height: 60px;
       max-height: 200px; resize: vertical; padding: 8px;
       background: var(--forge-bg-deep, #090909);
@@ -91,6 +97,19 @@
     .__forge-composer .__forge-btn.primary:hover { background: rgba(var(--forge-accent-rgb, 106, 100, 98), 0.22); }
     .__forge-composer .__forge-hint { color: var(--forge-text-muted, #64748b); font-size: 10.5px; margin-left: auto; letter-spacing: 0.02em; }
     .__forge-composer .__forge-label { color: var(--forge-text-muted, #64748b); font-size: 11px; }
+    .__forge-toast { position: fixed; top: 12px; right: 12px; z-index: ${ZBASE + 2};
+      max-width: min(320px, calc(100vw - 24px)); padding: 8px 14px;
+      background: var(--forge-bg-active, #141312);
+      color: var(--forge-text-primary, #e2e8f0);
+      border: 1px solid rgba(var(--forge-accent-rgb, 106, 100, 98), 0.45);
+      border-radius: 0;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55), 0 6px 22px rgba(0, 0, 0, 0.42), inset 0 0 0 1px rgba(var(--forge-accent-rgb, 106, 100, 98), 0.05);
+      font: 12px/1.35 system-ui, -apple-system, "Segoe UI", sans-serif;
+      opacity: 0;
+      transform: translateY(-6px);
+      transition: opacity 200ms ease, transform 200ms ease;
+      pointer-events: none; }
+    .__forge-toast.show { opacity: 1; transform: none; }
     `;
   styleEl.id = "__forge-picker-style";
 
@@ -171,6 +190,23 @@
 
   // ---- composer ----
   let composerEl = null;
+  let toastTimer = null;
+
+  function showPaneToast(message) {
+    const existing = document.querySelector(".__forge-toast");
+    if (existing) existing.remove();
+    if (toastTimer) clearTimeout(toastTimer);
+
+    const toast = document.createElement("div");
+    toast.className = "__forge-toast";
+    toast.textContent = message;
+    document.documentElement.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add("show"));
+    toastTimer = setTimeout(() => {
+      toast.classList.remove("show");
+      setTimeout(() => toast.remove(), 220);
+    }, 2400);
+  }
 
   function closeComposer() {
     if (composerEl) {
@@ -196,7 +232,7 @@
     const targetLine = `${el.nodeName.toLowerCase()}${el.id ? "#" + el.id : ""}${el.className && typeof el.className === "string" ? "." + el.className.trim().split(/\s+/).slice(0,2).join(".") : ""}`;
 
     composer.innerHTML = `
-      <div class="__forge-target">${targetLine}</div>
+      <div class="__forge-target" data-drag-handle role="button" tabindex="0" aria-label="Move comment composer">${targetLine}</div>
       <div class="__forge-field">
         <span class="__forge-label">Tab label</span>
         <input type="text" class="__forge-input" data-field="tabLabel" maxlength="60" placeholder="Optional · used as the tab name" />
@@ -219,6 +255,26 @@
     document.documentElement.appendChild(composer);
     composerEl = composer;
 
+    function clampPosition(left, top) {
+      const margin = 12;
+      const width = composer.offsetWidth || 340;
+      const height = composer.offsetHeight || 180;
+      const minLeft = window.scrollX + margin;
+      const minTop = window.scrollY + margin;
+      const maxLeft = Math.max(minLeft, window.scrollX + window.innerWidth - width - margin);
+      const maxTop = Math.max(minTop, window.scrollY + window.innerHeight - height - margin);
+      return {
+        left: Math.min(Math.max(left, minLeft), maxLeft),
+        top: Math.min(Math.max(top, minTop), maxTop),
+      };
+    }
+
+    function setComposerPosition(left, top) {
+      const next = clampPosition(left, top);
+      composer.style.left = next.left + "px";
+      composer.style.top = next.top + "px";
+    }
+
     // Position near the element, flipping if it would overflow viewport.
     const r = rectFor(el);
     const composerW = 360;
@@ -230,11 +286,61 @@
     const viewportBottom = window.scrollY + window.innerHeight;
     if (left + composerW + 12 > viewportRight) left = Math.max(window.scrollX + 12, viewportRight - composerW - 12);
     if (top + composerH + 12 > viewportBottom) top = Math.max(window.scrollY + 12, r.top - composerH - margin);
-    composer.style.left = left + "px";
-    composer.style.top = top + "px";
+    setComposerPosition(left, top);
 
     const textarea = composer.querySelector("textarea");
     textarea.focus();
+
+    const dragHandle = composer.querySelector("[data-drag-handle]");
+    let dragState = null;
+
+    dragHandle.addEventListener("pointerdown", (e) => {
+      if (e.button !== undefined && e.button !== 0) return;
+      e.preventDefault();
+      dragState = {
+        pointerId: e.pointerId,
+        startX: e.clientX,
+        startY: e.clientY,
+        left: parseFloat(composer.style.left) || 0,
+        top: parseFloat(composer.style.top) || 0,
+      };
+      composer.classList.add("dragging");
+      dragHandle.setPointerCapture(e.pointerId);
+    });
+
+    dragHandle.addEventListener("pointermove", (e) => {
+      if (!dragState || e.pointerId !== dragState.pointerId) return;
+      setComposerPosition(
+        dragState.left + e.clientX - dragState.startX,
+        dragState.top + e.clientY - dragState.startY
+      );
+    });
+
+    function endDrag(e) {
+      if (!dragState || e.pointerId !== dragState.pointerId) return;
+      dragState = null;
+      composer.classList.remove("dragging");
+    }
+
+    dragHandle.addEventListener("pointerup", endDrag);
+    dragHandle.addEventListener("pointercancel", endDrag);
+
+    dragHandle.addEventListener("keydown", (e) => {
+      const deltas = {
+        ArrowLeft: [-1, 0],
+        ArrowRight: [1, 0],
+        ArrowUp: [0, -1],
+        ArrowDown: [0, 1],
+      };
+      const delta = deltas[e.key];
+      if (!delta) return;
+      e.preventDefault();
+      const step = e.shiftKey ? 40 : 10;
+      setComposerPosition(
+        (parseFloat(composer.style.left) || 0) + delta[0] * step,
+        (parseFloat(composer.style.top) || 0) + delta[1] * step
+      );
+    });
 
     let provider = lastProvider;
     composer.querySelectorAll("[data-provider]").forEach((btn) => {
@@ -283,7 +389,9 @@
       })
         .then((res) => {
           if (!res.ok) throw new Error("status " + res.status);
+          const providerLabel = provider === "codex" ? "Codex" : "Claude";
           closeComposer();
+          showPaneToast(`-> ${providerLabel} tab spawned`);
         })
         .catch((err) => {
           textarea.disabled = false;

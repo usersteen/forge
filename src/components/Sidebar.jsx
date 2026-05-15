@@ -18,6 +18,7 @@ import ProjectContextMenu from "./ProjectContextMenu";
 import Settings from "./Settings";
 import InfoPanel from "./InfoPanel";
 import NewProjectMenu from "./NewProjectMenu";
+import { Tooltip } from "./Tooltip";
 import WelcomeModal from "./WelcomeModal";
 import GuidedTour from "./GuidedTour";
 import { getDefaultShowcaseSceneId } from "../demo/showcaseScenes";
@@ -137,24 +138,25 @@ function SidebarTabButton({ tab, isActiveTab, isRecent, onSelectTab }) {
   const { elementRef: dotRef, handleAnimationEnd } = useFlashAnimation(tab.waitingFlashKey);
 
   return (
-    <button
-      type="button"
-      className={`sidebar-tab-row${isActiveTab ? " sidebar-tab-row-active" : ""}`}
-      onClick={(event) => {
-        event.stopPropagation();
-        onSelectTab(tab.id);
-      }}
-      onPointerDown={(event) => event.stopPropagation()}
-      title={tab.name}
-    >
-      <span
-        ref={dotRef}
-        onAnimationEnd={handleAnimationEnd}
-        className={`sidebar-dot sidebar-tab-dot ${getSidebarDotClass(tab, isRecent)}`}
-        aria-hidden="true"
-      />
-      <span className="sidebar-tab-label">{tab.name}</span>
-    </button>
+    <Tooltip label={tab.name} side="right">
+      <button
+        type="button"
+        className={`sidebar-tab-row${isActiveTab ? " sidebar-tab-row-active" : ""}`}
+        onClick={(event) => {
+          event.stopPropagation();
+          onSelectTab(tab.id);
+        }}
+        onPointerDown={(event) => event.stopPropagation()}
+      >
+        <span
+          ref={dotRef}
+          onAnimationEnd={handleAnimationEnd}
+          className={`sidebar-dot sidebar-tab-dot ${getSidebarDotClass(tab, isRecent)}`}
+          aria-hidden="true"
+        />
+        <span className="sidebar-tab-label">{tab.name}</span>
+      </button>
+    </Tooltip>
   );
 }
 
